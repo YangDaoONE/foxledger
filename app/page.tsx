@@ -1,4 +1,5 @@
 import { Bell, Plus, Search } from "lucide-react";
+import { AuthGate } from "@/components/AuthGate";
 import { BottomNav } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
 import { MonthlySummary } from "@/components/MonthlySummary";
@@ -8,7 +9,15 @@ import { mockCategorySpend, mockMonthlySummary, mockTransactions } from "@/lib/m
 
 export default function Home() {
   return (
-    <main className="app-root" id="home">
+    <AuthGate>
+      <DashboardMock />
+    </AuthGate>
+  );
+}
+
+function DashboardMock() {
+  return (
+    <>
       <div className="app-content">
         <header className="app-header">
           <div>
@@ -78,6 +87,6 @@ export default function Home() {
       </div>
 
       <BottomNav />
-    </main>
+    </>
   );
 }

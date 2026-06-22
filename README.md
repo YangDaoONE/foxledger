@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 8 阶段，删除账单。
+当前阶段：第 9 阶段，AI 解析 API。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。当前已新增 `/api/parse-transaction`，用于把当前输入的一句话解析成结构化账单 JSON。
 
 已完成的数据库 migration：
 
@@ -24,7 +24,8 @@ supabase/migrations/002_grant_transactions_permissions.sql
 当前限制：
 
 - 本月概览和分类支出仍然使用 Mock 数据，真实统计留到后续统计阶段。
-- 暂未接入 AI 解析。
+- AI 解析 API 暂未接入前端确认卡片。
+- AI 解析结果暂不会直接写入数据库。
 
 第 6 阶段新增的关键文件：
 
@@ -61,6 +62,21 @@ note
 - 删除后会重新读取真实账单列表。
 - 不做批量删除、软删除，也不修改数据库结构。
 
+第 9 阶段新增的关键文件：
+
+```text
+app/api/parse-transaction/route.ts
+lib/ai.ts
+lib/validators.ts
+```
+
+AI 解析 API 规则：
+
+- 请求必须携带 `Authorization: Bearer <supabase_access_token>`。
+- 服务端只验证 Supabase token，不读取历史账单。
+- 只把当前输入文本发送给 AI。
+- AI 返回结果必须经过服务端 JSON 解析、校验和清洗。
+
 ## Environment
 
 本地需要创建 `.env.local`，并配置：
@@ -68,6 +84,10 @@ note
 ```bash
 NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
+AI_PROVIDER=openai
+OPENAI_API_KEY=your-openai-compatible-api-key
+OPENAI_BASE_URL=https://your-openai-compatible-base-url/v1
+OPENAI_MODEL=your-model-name
 ```
 
 不要提交 `.env.local`。

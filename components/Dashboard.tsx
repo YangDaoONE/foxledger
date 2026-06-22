@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { Bell, Search } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
+import { ImportTransactions } from "@/components/ImportTransactions";
 import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
 import { StatsPanel } from "@/components/StatsPanel";
@@ -51,6 +52,8 @@ export function Dashboard() {
         <ManualTransactionForm onSaved={handleTransactionSaved} />
 
         <ChatInput onSaved={handleTransactionSaved} />
+
+        <ImportTransactions onImported={handleTransactionSaved} />
 
         <TransactionList refreshKey={transactionRefreshKey} onChanged={handleTransactionSaved} />
 

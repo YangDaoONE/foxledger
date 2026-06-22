@@ -267,14 +267,19 @@ source
 3. 导入必须经过前端预览和用户确认后才能入库。
 4. 第一版导入只做追加新增，不做覆盖、合并、自动去重。
 5. 第一版导入不修改数据库结构，不新增 `categories` 表。
-6. `amount` 入库仍必须大于 0，收入和支出方向由 `type` 表示。
-7. `type` 只能是 `expense` / `income` / `transfer`。
-8. `currency` 为空时默认 `CNY`。
-9. `category` 为空时默认 `其他`。
-10. `source` 只能是 `manual` / `ai`；为空或不合法时默认 `manual`。
-11. `merchant`、`payment_method`、`account`、`tag`、`note`、`raw_text` 允许为空。
-12. 导入不能使用 `service_role key`，不能绕过 Supabase RLS。
-13. 暂时不做微信 / 支付宝 / 银行卡自动导入，只做用户手动上传 CSV。
+6. 第一版只强制要求 `date`、`amount`、`type` 三个表头。
+7. CSV 列顺序不限，多余列直接忽略。
+8. 某一行错误不影响其他合法行导入；只要至少一行合法，就允许用户确认导入合法行。
+9. 全部行都有错误时，不允许导入。
+10. `amount` 入库仍必须大于 0，收入和支出方向由 `type` 表示。
+11. `type` 只能是 `expense` / `income` / `transfer`。
+12. `date` 必须是 `YYYY-MM-DD`。
+13. `currency` 为空时默认 `CNY`。
+14. `category` 为空时默认 `其他`。
+15. `source` 只能是 `manual` / `ai`；为空或不合法时默认 `manual`。
+16. `merchant`、`payment_method`、`account`、`tag`、`note`、`raw_text` 允许为空。
+17. 导入不能使用 `service_role key`，不能绕过 Supabase RLS。
+18. 暂时不做中文表头识别，不做微信 / 支付宝 / 银行卡自动导入，只做用户手动上传 CSV。
 
 ## 9. 开发顺序
 

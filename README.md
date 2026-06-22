@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 12 阶段，统计页。
+当前阶段：第 13 阶段，CSV 导入。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单。
 
 已完成的数据库 migration：
 
@@ -24,12 +24,17 @@ supabase/migrations/002_grant_transactions_permissions.sql
 当前限制：
 
 - AI 暂不支持多轮对话。
-- 暂未支持跨月筛选、年度统计、预算和 CSV 导入。
+- 暂未支持跨月筛选、年度统计、预算、中文表头识别和微信 / 支付宝 / 银行卡自动导入。
 
-下一阶段计划：
+第 13 阶段 CSV 导入规则：
 
-- 第 13 阶段改为 CSV 导入。
-- CSV 导入第一版只做用户手动上传 CSV、预览确认后追加写入当前登录用户自己的 `transactions`，不做微信 / 支付宝 / 银行卡自动导入。
+- 第一版只做用户手动上传 CSV、预览确认后追加写入当前登录用户自己的 `transactions`。
+- CSV 必须包含 `date`、`amount`、`type` 三个表头。
+- 推荐格式是 `date,amount,type,category,note`。
+- 列顺序不限，多余列会忽略。
+- `amount` 必须大于 0，`type` 只能是 `expense` / `income` / `transfer`，`date` 必须是 `YYYY-MM-DD`。
+- `currency` 为空时默认 `CNY`，`category` 为空时默认 `其他`，`source` 为空或非法时默认 `manual`。
+- 错误行不会入库；只要至少一行合法，就可以确认导入合法行。
 
 第 6 阶段新增的关键文件：
 
@@ -123,6 +128,15 @@ lib/stats.ts
 - 本月结余 = 收入 - 支出。
 - `transfer` 暂不计入收入、支出和结余。
 - 统计不调用 AI。
+
+第 13 阶段新增的关键文件：
+
+```text
+components/ImportTransactions.tsx
+lib/csvImport.ts
+```
+
+CSV 导入不新增数据库结构，不使用 `service_role key`，也不接 AI。
 
 ## Environment
 

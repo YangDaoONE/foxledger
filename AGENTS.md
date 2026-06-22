@@ -11,16 +11,14 @@
 1. 记账稳定
 2. 数据准确
 3. 隐私安全
-4. 数据可导出
-5. 代码简单可维护
-6. 手机端好用
+4. 代码简单可维护
+5. 手机端好用
 
 核心原则：
 
 - AI 只负责把自然语言解析成结构化账单。
 - AI 不能直接入账，必须用户确认后才能保存。
 - 统计必须由代码和数据库计算，不能让 AI 计算。
-- 数据必须支持 CSV 导出。
 - 第一版优先做 PWA，后期再考虑 Capacitor 封装为 iOS / Android App。
 
 ## 2. 用户与协作方式
@@ -73,8 +71,7 @@
 10. 分类支出统计
 11. 每日支出趋势
 12. CSV 导入
-13. CSV 导出
-14. 移动端 PWA 适配
+13. 移动端 PWA 适配
 
 第一版暂时不做：
 
@@ -211,13 +208,12 @@ AI 只解析当前用户输入，不读取历史账单。
 
 1. Supabase 必须开启 Row Level Security。
 2. 用户只能读取、创建、修改、删除自己的 `transactions`。
-3. CSV 只能导出当前用户数据。
-4. API Key 只能放在服务端环境变量。
-5. 不要把 OpenAI API Key 或 DeepSeek API Key 写进前端。
-6. 不要提交 `.env.local`。
-7. 不要把 Supabase service role key 放到前端。
-8. 不要把银行卡号、身份证号、完整地址等高度敏感信息传给 AI。
-9. AI 解析时只发送当前输入句子，不发送全部历史账单。
+3. API Key 只能放在服务端环境变量。
+4. 不要把 OpenAI API Key 或 DeepSeek API Key 写进前端。
+5. 不要提交 `.env.local`。
+6. 不要把 Supabase service role key 放到前端。
+7. 不要把银行卡号、身份证号、完整地址等高度敏感信息传给 AI。
+8. AI 解析时只发送当前输入句子，不发送全部历史账单。
 
 环境变量示例：
 
@@ -235,7 +231,7 @@ AI_PROVIDER
 - 旧项目中的 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 属于 legacy anon key，第一版新项目优先使用 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
 - `OPENAI_API_KEY` 和 `DEEPSEEK_API_KEY` 只能服务端使用。
 
-## 8. 统计、导入和导出规则
+## 8. 统计和导入规则
 
 统计必须由代码和数据库计算，不调用 AI。
 
@@ -280,27 +276,6 @@ source
 12. 导入不能使用 `service_role key`，不能绕过 Supabase RLS。
 13. 暂时不做微信 / 支付宝 / 银行卡自动导入，只做用户手动上传 CSV。
 
-CSV 导出至少包含：
-
-```text
-date
-type
-amount
-currency
-category
-tag
-merchant
-payment_method
-account
-note
-raw_text
-source
-created_at
-updated_at
-```
-
-导出必须只包含当前登录用户的数据。
-
 ## 9. 开发顺序
 
 请按以下顺序逐步实现，不要跳阶段：
@@ -318,10 +293,9 @@ updated_at
 11. 确认后入库
 12. 统计页
 13. CSV 导入
-14. CSV 导出
-15. PWA 优化
-16. Vercel 部署
-17. Capacitor 封装 App
+14. PWA 优化
+15. Vercel 部署
+16. Capacitor 封装 App
 
 如果用户没有明确要求，不要自动进入下一阶段。
 
@@ -354,8 +328,7 @@ fox-ledger/
 │  └─ api/
 │     ├─ parse-transaction/route.ts
 │     ├─ import/route.ts
-│     ├─ transactions/route.ts
-│     └─ export/route.ts
+│     └─ transactions/route.ts
 │
 ├─ components/
 │  ├─ ChatInput.tsx

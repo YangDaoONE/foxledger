@@ -10,9 +10,16 @@ FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
 ```text
 supabase/migrations/001_create_transactions.sql
+supabase/migrations/002_grant_transactions_permissions.sql
 ```
 
-该 SQL 用于创建 `public.transactions` 表、字段约束、RLS policies、`updated_at` trigger 和常用索引。
+这些 SQL 用于创建 `public.transactions` 表、字段约束、RLS policies、`updated_at` trigger、常用索引，并授予已登录用户访问 `transactions` 表所需的权限。
+
+如果保存账单时出现 `permission denied for table transactions`，请在 Supabase SQL Editor 执行：
+
+```text
+supabase/migrations/002_grant_transactions_permissions.sql
+```
 
 当前限制：
 

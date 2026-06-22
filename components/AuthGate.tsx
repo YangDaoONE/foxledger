@@ -18,25 +18,51 @@ export function AuthGate({ children }: AuthGateProps) {
 
   useEffect(() => {
     let isMounted = true;
-
-    supabase.auth.getSession().then(({ data }) => {
+    const timeoutId = window.setTimeout(() => {
       if (!isMounted) {
         return;
       }
 
-      setSession(data.session);
+      setSession(null);
+      setSignOutError("登录状态检查超时，请刷新页面或重新登录。");
       setIsLoading(false);
-    });
+    }, 8000);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!isMounted) {
+          return;
+        }
+
+        window.clearTimeout(timeoutId);
+        setSession(data.session);
+        setSignOutError(null);
+        setIsLoading(false);
+      })
+      .catch((error: unknown) => {
+        if (!isMounted) {
+          return;
+        }
+
+        window.clearTimeout(timeoutId);
+        setSession(null);
+        setSignOutError(error instanceof Error ? error.message : "登录状态检查失败，请刷新页面或重新登录。");
+        setIsLoading(false);
+      });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      window.clearTimeout(timeoutId);
       setSession(nextSession);
+      setSignOutError(null);
       setIsLoading(false);
     });
 
     return () => {
       isMounted = false;
+      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -65,6 +91,7 @@ export function AuthGate({ children }: AuthGateProps) {
     return (
       <main className="app-root auth-root">
         <AuthForm />
+        {signOutError ? <p className="form-message error account-error">{signOutError}</p> : null}
       </main>
     );
   }

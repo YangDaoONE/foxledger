@@ -29,6 +29,10 @@ const defaultCategories = [
   "其他",
 ];
 
+type ManualTransactionFormProps = {
+  onSaved?: () => void;
+};
+
 function isTransactionType(value: string): value is TransactionType {
   return value === "expense" || value === "income" || value === "transfer";
 }
@@ -38,7 +42,7 @@ function toNullableText(value: string) {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-export function ManualTransactionForm() {
+export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("其他");
@@ -124,6 +128,7 @@ export function ManualTransactionForm() {
     setMerchant("");
     setPaymentMethod("");
     setNote("");
+    onSaved?.();
   }
 
   return (

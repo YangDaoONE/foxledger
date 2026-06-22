@@ -1,7 +1,8 @@
-import { Bell, Plus, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { AuthGate } from "@/components/AuthGate";
 import { BottomNav } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
+import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
 import { TransactionCard } from "@/components/TransactionCard";
 import { formatCny } from "@/lib/format";
@@ -36,12 +37,7 @@ function DashboardMock() {
 
         <MonthlySummary summary={mockMonthlySummary} />
 
-        <section className="quick-entry" aria-label="快速记账">
-          <button className="quick-entry-button" type="button">
-            <Plus size={20} aria-hidden="true" />
-            新增一笔手动账单
-          </button>
-        </section>
+        <ManualTransactionForm />
 
         <ChatInput />
 

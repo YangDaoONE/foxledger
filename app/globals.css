@@ -333,6 +333,7 @@ button:disabled {
 
 .summary-panel,
 .chat-panel,
+.manual-panel,
 .section-block {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -422,7 +423,6 @@ progress::-moz-progress-bar {
   background: #f2c94c;
 }
 
-.quick-entry-button,
 .primary-button,
 .secondary-button {
   display: inline-flex;
@@ -434,18 +434,58 @@ progress::-moz-progress-bar {
   font-weight: 700;
 }
 
-.quick-entry-button {
-  width: 100%;
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: #ffffff;
-}
-
+.manual-panel,
 .chat-panel,
 .section-block {
   display: grid;
   gap: 16px;
   padding: 16px;
+}
+
+.manual-form {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-grid.two-columns {
+  grid-template-columns: 1fr 1fr;
+}
+
+.manual-field {
+  display: grid;
+  gap: 7px;
+}
+
+.manual-field span {
+  color: var(--foreground);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.manual-field input,
+.manual-field select,
+.manual-field textarea {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--foreground);
+  padding: 10px 12px;
+}
+
+.manual-field input::placeholder,
+.manual-field textarea::placeholder {
+  color: #8a948d;
+}
+
+.manual-submit {
+  width: 100%;
 }
 
 .chat-input-label {

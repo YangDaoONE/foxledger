@@ -2,6 +2,7 @@ import {
   CircleHelp,
   GraduationCap,
   Landmark,
+  Pencil,
   ShoppingBag,
   Train,
   Utensils,
@@ -12,6 +13,8 @@ import type { Transaction } from "@/types/transaction";
 
 type TransactionCardProps = {
   transaction: Transaction;
+  isEditing?: boolean;
+  onEdit?: (transaction: Transaction) => void;
 };
 
 const categoryIcons: Record<string, LucideIcon> = {
@@ -22,7 +25,7 @@ const categoryIcons: Record<string, LucideIcon> = {
   收入: Landmark,
 };
 
-export function TransactionCard({ transaction }: TransactionCardProps) {
+export function TransactionCard({ transaction, isEditing = false, onEdit }: TransactionCardProps) {
   const Icon = categoryIcons[transaction.category] ?? CircleHelp;
   const amountText = formatAmountByType(transaction.type, transaction.amount);
   const amountClassName =
@@ -37,7 +40,21 @@ export function TransactionCard({ transaction }: TransactionCardProps) {
       <div className="transaction-main">
         <div className="transaction-title-row">
           <h3>{transaction.merchant ?? transaction.category}</h3>
-          <strong className={amountClassName}>{amountText}</strong>
+          <div className="transaction-side">
+            <strong className={amountClassName}>{amountText}</strong>
+            {onEdit ? (
+              <button
+                className="small-icon-button"
+                type="button"
+                aria-label={isEditing ? "正在编辑这笔账单" : "编辑这笔账单"}
+                aria-pressed={isEditing}
+                title="编辑账单"
+                onClick={() => onEdit(transaction)}
+              >
+                <Pencil size={15} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
         </div>
         <p>
           {transaction.category}

@@ -1,10 +1,27 @@
 import { supabase } from "@/lib/supabase";
-import type { Transaction } from "@/types/transaction";
+import type { Transaction, TransactionType } from "@/types/transaction";
 
 type TransactionRow = Omit<Transaction, "amount" | "currency"> & {
   amount: number | string;
   currency: string;
 };
+
+export type EditableTransactionValues = {
+  type: TransactionType;
+  amount: number;
+  category: string;
+  date: string;
+  merchant: string | null;
+  payment_method: string | null;
+  note: string | null;
+};
+
+type UpdatedTransactionResult = {
+  id: string;
+  updated_at: string;
+};
+
+const noEditableTransactionMessage = "未找到可编辑的账单，或你没有权限修改这条记录。";
 
 const transactionSelectColumns = [
   "id",
@@ -58,4 +75,53 @@ export async function listRecentTransactions(limit = 20): Promise<Transaction[]>
   }
 
   return ((data ?? []) as unknown as TransactionRow[]).map(normalizeTransaction);
+}
+
+export async function updateTransaction(
+  transaction: Transaction,
+  values: EditableTransactionValues,
+): Promise<UpdatedTransactionResult> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  if (!userData.user) {
+    throw new Error("请先登录后再编辑账单。");
+  }
+
+  const updatePayload: EditableTransactionValues = {
+    type: values.type,
+    amount: values.amount,
+    category: values.category,
+    date: values.date,
+    merchant: values.merchant,
+    payment_method: values.payment_method,
+    note: values.note,
+  };
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .update(updatePayload)
+    .eq("id", transaction.id)
+    .eq("user_id", userData.user.id)
+    .select("id, updated_at")
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      throw new Error(noEditableTransactionMessage);
+    }
+
+    throw new Error(error.message);
+  }
+
+  const updatedTransaction = data as unknown as UpdatedTransactionResult | null;
+
+  if (!updatedTransaction?.id) {
+    throw new Error(noEditableTransactionMessage);
+  }
+
+  return updatedTransaction;
 }

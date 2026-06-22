@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 6 阶段，账单列表。
+当前阶段：第 7 阶段，编辑账单。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑自己已有的账单。
 
 已完成的数据库 migration：
 
@@ -24,7 +24,6 @@ supabase/migrations/002_grant_transactions_permissions.sql
 当前限制：
 
 - 本月概览和分类支出仍然使用 Mock 数据，真实统计留到后续统计阶段。
-- 暂未支持编辑账单。
 - 暂未支持删除账单。
 - 暂未接入 AI 解析。
 
@@ -35,6 +34,26 @@ components/Dashboard.tsx
 components/TransactionList.tsx
 lib/transactions.ts
 ```
+
+第 7 阶段新增的关键文件：
+
+```text
+components/EditTransactionForm.tsx
+```
+
+编辑账单只允许更新以下字段：
+
+```text
+type
+amount
+category
+date
+merchant
+payment_method
+note
+```
+
+不会更新 `id`、`user_id`、`currency`、`source`、`raw_text`、`ai_confidence`、`created_at`、`updated_at`。
 
 ## Environment
 

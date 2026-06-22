@@ -283,7 +283,8 @@ button:disabled {
 }
 
 .app-header h1,
-.section-heading h2 {
+.section-heading h2,
+.section-heading h3 {
   margin: 0;
   color: var(--foreground);
 }
@@ -295,6 +296,11 @@ button:disabled {
 
 .section-heading h2 {
   font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.section-heading h3 {
+  font-size: 0.96rem;
   line-height: 1.25;
 }
 
@@ -342,6 +348,23 @@ button:disabled {
   background: var(--surface);
   color: var(--foreground);
   box-shadow: 0 8px 18px rgba(23, 33, 28, 0.05);
+}
+
+.small-icon-button {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.small-icon-button[aria-pressed="true"] {
+  border-color: #cfe0da;
+  background: #eef5f2;
 }
 
 .summary-panel,
@@ -547,6 +570,15 @@ textarea::placeholder {
   gap: 10px;
 }
 
+.transaction-edit-item {
+  display: grid;
+  gap: 8px;
+}
+
+.transaction-list-message {
+  margin-top: 0;
+}
+
 .list-state {
   margin: 0;
   border: 1px solid var(--border);
@@ -630,6 +662,13 @@ textarea::placeholder {
   color: var(--income);
 }
 
+.transaction-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .transaction-main p,
 .transaction-main span {
   display: block;
@@ -637,6 +676,15 @@ textarea::placeholder {
   color: var(--muted);
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+.edit-form {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #cfe0da;
+  border-radius: 8px;
+  background: #fbfdfb;
+  padding: 12px;
 }
 
 .category-row {

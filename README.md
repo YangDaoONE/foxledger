@@ -24,7 +24,13 @@ supabase/migrations/002_grant_transactions_permissions.sql
 当前限制：
 
 - AI 暂不支持多轮对话。
-- 暂未支持跨月筛选、年度统计、预算和 CSV 导出。
+- 暂未支持跨月筛选、年度统计、预算、CSV 导入和 CSV 导出。
+
+下一阶段计划：
+
+- 第 13 阶段改为 CSV 导入。
+- CSV 导出暂缓到第 14 阶段。
+- CSV 导入第一版只做用户手动上传 CSV、预览确认后追加写入当前登录用户自己的 `transactions`，不做微信 / 支付宝 / 银行卡自动导入。
 
 第 6 阶段新增的关键文件：
 

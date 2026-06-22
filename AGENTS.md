@@ -72,8 +72,9 @@
 9. 月度收入、支出、结余统计
 10. 分类支出统计
 11. 每日支出趋势
-12. CSV 导出
-13. 移动端 PWA 适配
+12. CSV 导入
+13. CSV 导出
+14. 移动端 PWA 适配
 
 第一版暂时不做：
 
@@ -234,7 +235,7 @@ AI_PROVIDER
 - 旧项目中的 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 属于 legacy anon key，第一版新项目优先使用 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
 - `OPENAI_API_KEY` 和 `DEEPSEEK_API_KEY` 只能服务端使用。
 
-## 8. 统计和导出规则
+## 8. 统计、导入和导出规则
 
 统计必须由代码和数据库计算，不调用 AI。
 
@@ -245,6 +246,39 @@ AI_PROVIDER
 3. 本月结余
 4. 分类支出排行
 5. 每日支出趋势
+
+CSV 导入至少支持：
+
+```text
+date
+type
+amount
+currency
+category
+tag
+merchant
+payment_method
+account
+note
+raw_text
+source
+```
+
+导入规则：
+
+1. CSV 导入必须要求用户已登录。
+2. 导入的数据只能写入当前登录用户自己的 `transactions`。
+3. 导入必须经过前端预览和用户确认后才能入库。
+4. 第一版导入只做追加新增，不做覆盖、合并、自动去重。
+5. 第一版导入不修改数据库结构，不新增 `categories` 表。
+6. `amount` 入库仍必须大于 0，收入和支出方向由 `type` 表示。
+7. `type` 只能是 `expense` / `income` / `transfer`。
+8. `currency` 为空时默认 `CNY`。
+9. `category` 为空时默认 `其他`。
+10. `source` 只能是 `manual` / `ai`；为空或不合法时默认 `manual`。
+11. `merchant`、`payment_method`、`account`、`tag`、`note`、`raw_text` 允许为空。
+12. 导入不能使用 `service_role key`，不能绕过 Supabase RLS。
+13. 暂时不做微信 / 支付宝 / 银行卡自动导入，只做用户手动上传 CSV。
 
 CSV 导出至少包含：
 
@@ -283,10 +317,11 @@ updated_at
 10. AI 确认卡片
 11. 确认后入库
 12. 统计页
-13. CSV 导出
-14. PWA 优化
-15. Vercel 部署
-16. Capacitor 封装 App
+13. CSV 导入
+14. CSV 导出
+15. PWA 优化
+16. Vercel 部署
+17. Capacitor 封装 App
 
 如果用户没有明确要求，不要自动进入下一阶段。
 
@@ -318,6 +353,7 @@ fox-ledger/
 │  ├─ settings/page.tsx
 │  └─ api/
 │     ├─ parse-transaction/route.ts
+│     ├─ import/route.ts
 │     ├─ transactions/route.ts
 │     └─ export/route.ts
 │

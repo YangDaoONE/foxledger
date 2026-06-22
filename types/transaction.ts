@@ -22,6 +22,33 @@ export type Transaction = {
   updated_at: string;
 };
 
+export type ParsedTransaction = {
+  type: TransactionType | null;
+  amount: number | null;
+  currency: "CNY";
+  category: string;
+  tag: string | null;
+  merchant: string | null;
+  payment_method: string | null;
+  account: string | null;
+  date: string;
+  note: string | null;
+  raw_text: string;
+  source: "ai";
+  ai_confidence: number | null;
+  needs_clarification: boolean;
+};
+
+export type ConfirmTransactionDraft = {
+  type: TransactionType;
+  amount: string;
+  category: string;
+  date: string;
+  merchant: string;
+  payment_method: string;
+  note: string;
+};
+
 export type MonthlySummaryData = {
   month: string;
   expense: number;

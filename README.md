@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 9 阶段，AI 解析 API。
+当前阶段：第 10 阶段，AI 确认卡片。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。当前已新增 `/api/parse-transaction`，用于把当前输入的一句话解析成结构化账单 JSON。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片。
 
 已完成的数据库 migration：
 
@@ -24,8 +24,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 当前限制：
 
 - 本月概览和分类支出仍然使用 Mock 数据，真实统计留到后续统计阶段。
-- AI 解析 API 暂未接入前端确认卡片。
-- AI 解析结果暂不会直接写入数据库。
+- AI 确认卡片暂不会直接写入数据库，确认后入库留到第 11 阶段。
 
 第 6 阶段新增的关键文件：
 
@@ -76,6 +75,19 @@ AI 解析 API 规则：
 - 服务端只验证 Supabase token，不读取历史账单。
 - 只把当前输入文本发送给 AI。
 - AI 返回结果必须经过服务端 JSON 解析、校验和清洗。
+
+第 10 阶段新增的关键文件：
+
+```text
+components/ConfirmTransaction.tsx
+```
+
+AI 确认卡片规则：
+
+- 前端只发送 `{ text }` 到解析 API。
+- 确认卡片可以编辑 `type`、`amount`、`category`、`date`、`merchant`、`payment_method`、`note`。
+- `currency`、`raw_text`、`source`、`ai_confidence` 只读展示。
+- 本阶段不写入 `transactions` 表。
 
 ## Environment
 

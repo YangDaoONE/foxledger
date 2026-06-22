@@ -494,6 +494,11 @@ progress::-moz-progress-bar {
   gap: 12px;
 }
 
+.chat-form {
+  display: grid;
+  gap: 12px;
+}
+
 .manual-grid {
   display: grid;
   gap: 12px;
@@ -707,6 +712,79 @@ textarea::placeholder {
   border-radius: 8px;
   background: #fbfdfb;
   padding: 12px;
+}
+
+.confirm-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #cfe0da;
+  border-radius: 8px;
+  background: #fbfdfb;
+  padding: 12px;
+}
+
+.confirm-card-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: var(--accent);
+}
+
+.confirm-card-title p,
+.confirm-card-title h3 {
+  margin: 0;
+}
+
+.confirm-card-title p {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.confirm-card-title h3 {
+  color: var(--foreground);
+  font-size: 0.96rem;
+  line-height: 1.25;
+}
+
+.confirm-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.confirm-readonly {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.confirm-readonly div {
+  display: grid;
+  gap: 3px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 9px 10px;
+}
+
+.confirm-readonly dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.confirm-readonly dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.compact-message {
+  margin: 0;
 }
 
 .category-row {

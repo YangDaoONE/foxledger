@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
 import { TransactionCard } from "@/components/TransactionCard";
-import { listRecentTransactions } from "@/lib/transactions";
+import { deleteTransaction, listRecentTransactions } from "@/lib/transactions";
 import type { Transaction } from "@/types/transaction";
 
 type TransactionListProps = {
@@ -15,8 +15,11 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [manualReloadKey, setManualReloadKey] = useState(0);
 
   useEffect(() => {
@@ -51,24 +54,61 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
   }, [refreshKey, manualReloadKey]);
 
   function handleReload() {
+    setActionErrorMessage(null);
     setSuccessMessage(null);
+    setConfirmDeleteId(null);
     setManualReloadKey((value) => value + 1);
   }
 
   function handleEdit(transaction: Transaction) {
+    setActionErrorMessage(null);
     setSuccessMessage(null);
+    setConfirmDeleteId(null);
     setEditingTransactionId(transaction.id);
   }
 
   function handleCancelEdit() {
     setEditingTransactionId(null);
+    setActionErrorMessage(null);
     setSuccessMessage(null);
   }
 
   function handleTransactionUpdated() {
     setEditingTransactionId(null);
+    setConfirmDeleteId(null);
+    setActionErrorMessage(null);
     setSuccessMessage("保存成功");
     setManualReloadKey((value) => value + 1);
+  }
+
+  async function handleDelete(transactionId: string) {
+    if (deletingId) {
+      return;
+    }
+
+    setActionErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (confirmDeleteId !== transactionId) {
+      setConfirmDeleteId(transactionId);
+      return;
+    }
+
+    setDeletingId(transactionId);
+
+    try {
+      await deleteTransaction(transactionId);
+      setConfirmDeleteId(null);
+      setDeletingId(null);
+      if (editingTransactionId === transactionId) {
+        setEditingTransactionId(null);
+      }
+      setSuccessMessage("删除成功");
+      setManualReloadKey((value) => value + 1);
+    } catch (error) {
+      setActionErrorMessage(error instanceof Error ? error.message : "删除失败。");
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -95,6 +135,10 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
         <p className="form-message success transaction-list-message">{successMessage}</p>
       ) : null}
 
+      {!isLoading && actionErrorMessage ? (
+        <p className="form-message error transaction-list-message">{actionErrorMessage}</p>
+      ) : null}
+
       {!isLoading && errorMessage ? (
         <div className="list-state error">
           <p>{errorMessage}</p>
@@ -115,8 +159,17 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
               <TransactionCard
                 transaction={transaction}
                 isEditing={editingTransactionId === transaction.id}
+                isConfirmingDelete={confirmDeleteId === transaction.id}
+                isDeleting={deletingId === transaction.id}
                 onEdit={handleEdit}
+                onDelete={handleDelete}
               />
+              {deletingId === transaction.id ? (
+                <p className="delete-confirm-note">删除中</p>
+              ) : null}
+              {confirmDeleteId === transaction.id && deletingId !== transaction.id ? (
+                <p className="delete-confirm-note">再次点击删除按钮确认删除。</p>
+              ) : null}
               {editingTransactionId === transaction.id ? (
                 <EditTransactionForm
                   key={transaction.id}

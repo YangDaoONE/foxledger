@@ -21,7 +21,12 @@ type UpdatedTransactionResult = {
   updated_at: string;
 };
 
+type DeletedTransactionResult = {
+  id: string;
+};
+
 const noEditableTransactionMessage = "未找到可编辑的账单，或你没有权限修改这条记录。";
+const noDeletableTransactionMessage = "未找到可删除的账单，或你没有权限删除这条记录。";
 
 const transactionSelectColumns = [
   "id",
@@ -124,4 +129,36 @@ export async function updateTransaction(
   }
 
   return updatedTransaction;
+}
+
+export async function deleteTransaction(transactionId: string): Promise<DeletedTransactionResult> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  if (!userData.user) {
+    throw new Error("请先登录后再删除账单");
+  }
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .delete()
+    .eq("id", transactionId)
+    .eq("user_id", userData.user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const deletedTransaction = data as unknown as DeletedTransactionResult | null;
+
+  if (!deletedTransaction?.id) {
+    throw new Error(noDeletableTransactionMessage);
+  }
+
+  return deletedTransaction;
 }

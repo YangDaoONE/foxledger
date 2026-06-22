@@ -367,6 +367,15 @@ button:disabled {
   background: #eef5f2;
 }
 
+.small-icon-button.danger {
+  color: #a33a22;
+}
+
+.small-icon-button.danger.confirm {
+  border-color: #f2b9a9;
+  background: #fff1ed;
+}
+
 .summary-panel,
 .chat-panel,
 .manual-panel,
@@ -577,6 +586,17 @@ textarea::placeholder {
 
 .transaction-list-message {
   margin-top: 0;
+}
+
+.delete-confirm-note {
+  margin: 0;
+  border: 1px solid #f2b9a9;
+  border-radius: 8px;
+  background: #fff8f5;
+  color: #9b341c;
+  padding: 9px 10px;
+  font-size: 0.82rem;
+  line-height: 1.45;
 }
 
 .list-state {

@@ -9,9 +9,10 @@ import type { Transaction } from "@/types/transaction";
 
 type TransactionListProps = {
   refreshKey: number;
+  onChanged?: () => void;
 };
 
-export function TransactionList({ refreshKey }: TransactionListProps) {
+export function TransactionList({ refreshKey, onChanged }: TransactionListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
     setActionErrorMessage(null);
     setSuccessMessage("保存成功");
     setManualReloadKey((value) => value + 1);
+    onChanged?.();
   }
 
   async function handleDelete(transactionId: string) {
@@ -105,6 +107,7 @@ export function TransactionList({ refreshKey }: TransactionListProps) {
       }
       setSuccessMessage("删除成功");
       setManualReloadKey((value) => value + 1);
+      onChanged?.();
     } catch (error) {
       setActionErrorMessage(error instanceof Error ? error.message : "删除失败。");
       setDeletingId(null);

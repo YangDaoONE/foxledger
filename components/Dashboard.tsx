@@ -1,21 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Bell, Search } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
 import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
+import { StatsPanel } from "@/components/StatsPanel";
 import { TransactionList } from "@/components/TransactionList";
-import { formatCny } from "@/lib/format";
-import { mockCategorySpend, mockMonthlySummary } from "@/lib/mockData";
+import type { MonthlySummaryData } from "@/types/transaction";
 
 export function Dashboard() {
   const [transactionRefreshKey, setTransactionRefreshKey] = useState(0);
+  const [monthlySummary, setMonthlySummary] = useState<MonthlySummaryData>({
+    month: "本月",
+    expense: 0,
+    income: 0,
+    balance: 0,
+    budgetUsedPercent: 0,
+  });
 
   function handleTransactionSaved() {
     setTransactionRefreshKey((value) => value + 1);
   }
+
+  const handleSummaryChange = useCallback((summary: MonthlySummaryData) => {
+    setMonthlySummary(summary);
+  }, []);
 
   return (
     <>
@@ -35,37 +46,15 @@ export function Dashboard() {
           </div>
         </header>
 
-        <MonthlySummary summary={mockMonthlySummary} />
+        <MonthlySummary summary={monthlySummary} />
 
         <ManualTransactionForm onSaved={handleTransactionSaved} />
 
         <ChatInput onSaved={handleTransactionSaved} />
 
-        <TransactionList refreshKey={transactionRefreshKey} />
+        <TransactionList refreshKey={transactionRefreshKey} onChanged={handleTransactionSaved} />
 
-        <section className="section-block" id="stats" aria-labelledby="category-title">
-          <div className="section-heading horizontal">
-            <div>
-              <p>分类支出</p>
-              <h2 id="category-title">本月排行</h2>
-            </div>
-            <a href="#stats">统计</a>
-          </div>
-
-          <div className="category-list">
-            {mockCategorySpend.map((item) => (
-              <div className="category-row" key={item.category}>
-                <div className="category-row-top">
-                  <span>{item.category}</span>
-                  <strong>{formatCny(item.amount)}</strong>
-                </div>
-                <div className="category-meter" aria-label={`${item.category} 占比 ${item.percent}%`}>
-                  <span style={{ width: `${item.percent}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <StatsPanel refreshKey={transactionRefreshKey} onSummaryChange={handleSummaryChange} />
       </div>
 
       <BottomNav />

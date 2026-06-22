@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 11 阶段，AI 确认后入库。
+当前阶段：第 12 阶段，统计页。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。
 
 已完成的数据库 migration：
 
@@ -23,8 +23,8 @@ supabase/migrations/002_grant_transactions_permissions.sql
 
 当前限制：
 
-- 本月概览和分类支出仍然使用 Mock 数据，真实统计留到后续统计阶段。
 - AI 暂不支持多轮对话。
+- 暂未支持跨月筛选、年度统计、预算和 CSV 导出。
 
 第 6 阶段新增的关键文件：
 
@@ -102,6 +102,22 @@ AI 确认后入库规则：
 - `amount` 入库前统一转为正数，方向由 `type` 表示。
 - `currency` 强制为 `CNY`，`source` 强制为 `ai`。
 - 保存成功后刷新真实账单列表。
+
+第 12 阶段新增的关键文件：
+
+```text
+components/StatsPanel.tsx
+lib/stats.ts
+```
+
+统计规则：
+
+- 统计只读取当前登录用户自己的 `transactions`。
+- 本月支出统计 `type = expense`。
+- 本月收入统计 `type = income`。
+- 本月结余 = 收入 - 支出。
+- `transfer` 暂不计入收入、支出和结余。
+- 统计不调用 AI。
 
 ## Environment
 

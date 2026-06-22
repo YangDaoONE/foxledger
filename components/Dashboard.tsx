@@ -39,7 +39,7 @@ export function Dashboard() {
 
         <ManualTransactionForm onSaved={handleTransactionSaved} />
 
-        <ChatInput />
+        <ChatInput onSaved={handleTransactionSaved} />
 
         <TransactionList refreshKey={transactionRefreshKey} />
 

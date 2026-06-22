@@ -10,7 +10,11 @@ type ApiErrorResponse = {
   error?: string;
 };
 
-export function ChatInput() {
+type ChatInputProps = {
+  onSaved?: () => void;
+};
+
+export function ChatInput({ onSaved }: ChatInputProps) {
   const [text, setText] = useState("");
   const [parsedTransaction, setParsedTransaction] = useState<ParsedTransaction | null>(null);
   const [resultVersion, setResultVersion] = useState(0);
@@ -78,6 +82,12 @@ export function ChatInput() {
     setErrorMessage(null);
   }
 
+  function handleSaved() {
+    setParsedTransaction(null);
+    setErrorMessage(null);
+    onSaved?.();
+  }
+
   return (
     <section className="chat-panel" aria-labelledby="ai-input-title">
       <div className="section-heading">
@@ -116,6 +126,7 @@ export function ChatInput() {
         <ConfirmTransaction
           key={`${resultVersion}-${parsedTransaction.raw_text}`}
           transaction={parsedTransaction}
+          onSaved={handleSaved}
         />
       ) : null}
     </section>

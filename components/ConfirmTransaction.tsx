@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { CheckCircle2, Info } from "lucide-react";
+import { createAiTransaction } from "@/lib/aiTransactions";
 import type {
   ConfirmTransactionDraft,
   ParsedTransaction,
@@ -10,6 +11,7 @@ import type {
 
 type ConfirmTransactionProps = {
   transaction: ParsedTransaction;
+  onSaved: () => void;
 };
 
 const transactionTypes: Array<{ label: string; value: TransactionType }> = [
@@ -84,9 +86,33 @@ function validateDraft(draft: ConfirmTransactionDraft) {
   return messages;
 }
 
-export function ConfirmTransaction({ transaction }: ConfirmTransactionProps) {
+export function ConfirmTransaction({ transaction, onSaved }: ConfirmTransactionProps) {
   const [draft, setDraft] = useState<ConfirmTransactionDraft>(() => createDraft(transaction));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const validationMessages = useMemo(() => validateDraft(draft), [draft]);
+  const canSave = !transaction.needs_clarification && validationMessages.length === 0 && !isSaving;
+
+  async function handleSave() {
+    if (!canSave) {
+      return;
+    }
+
+    setErrorMessage(null);
+    setSuccessMessage(null);
+    setIsSaving(true);
+
+    try {
+      await createAiTransaction(transaction, draft);
+      setSuccessMessage("保存成功");
+      onSaved();
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "保存失败。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   if (transaction.needs_clarification) {
     return (
@@ -222,6 +248,8 @@ export function ConfirmTransaction({ transaction }: ConfirmTransactionProps) {
           ))}
         </div>
       ) : null}
+      {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
+      {successMessage ? <p className="form-message success">{successMessage}</p> : null}
 
       <dl className="confirm-readonly">
         <div>
@@ -250,8 +278,8 @@ export function ConfirmTransaction({ transaction }: ConfirmTransactionProps) {
         </div>
       </dl>
 
-      <button className="primary-button manual-submit" type="button" disabled>
-        第 11 阶段确认保存
+      <button className="primary-button manual-submit" type="button" disabled={!canSave} onClick={handleSave}>
+        {isSaving ? "保存中" : "确认保存"}
       </button>
     </article>
   );

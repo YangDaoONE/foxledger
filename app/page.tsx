@@ -1,17 +1,83 @@
+import { Bell, Plus, Search } from "lucide-react";
+import { BottomNav } from "@/components/BottomNav";
+import { ChatInput } from "@/components/ChatInput";
+import { MonthlySummary } from "@/components/MonthlySummary";
+import { TransactionCard } from "@/components/TransactionCard";
+import { formatCny } from "@/lib/format";
+import { mockCategorySpend, mockMonthlySummary, mockTransactions } from "@/lib/mockData";
+
 export default function Home() {
   return (
-    <main className="page-shell">
-      <section className="hero">
-        <p className="eyebrow">FoxLedger</p>
-        <h1>狐狐记账</h1>
-        <p className="intro">
-          自用 AI 记账 App，当前已完成第 1 阶段项目骨架。
-        </p>
-        <div className="stage-status" aria-label="current project stage">
-          <span>Stage 1</span>
-          <strong>Next.js + TypeScript skeleton is ready.</strong>
-        </div>
-      </section>
+    <main className="app-root" id="home">
+      <div className="app-content">
+        <header className="app-header">
+          <div>
+            <p>FoxLedger</p>
+            <h1>狐狐记账</h1>
+          </div>
+          <div className="header-actions" aria-label="快捷操作">
+            <button className="icon-button" type="button" aria-label="搜索账单">
+              <Search size={20} aria-hidden="true" />
+            </button>
+            <button className="icon-button" type="button" aria-label="通知">
+              <Bell size={20} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+        <MonthlySummary summary={mockMonthlySummary} />
+
+        <section className="quick-entry" aria-label="快速记账">
+          <button className="quick-entry-button" type="button">
+            <Plus size={20} aria-hidden="true" />
+            新增一笔手动账单
+          </button>
+        </section>
+
+        <ChatInput />
+
+        <section className="section-block" id="transactions" aria-labelledby="recent-title">
+          <div className="section-heading horizontal">
+            <div>
+              <p>最近账单</p>
+              <h2 id="recent-title">今天和本周</h2>
+            </div>
+            <a href="#transactions">查看全部</a>
+          </div>
+
+          <div className="transaction-list">
+            {mockTransactions.map((transaction) => (
+              <TransactionCard transaction={transaction} key={transaction.id} />
+            ))}
+          </div>
+        </section>
+
+        <section className="section-block" id="stats" aria-labelledby="category-title">
+          <div className="section-heading horizontal">
+            <div>
+              <p>分类支出</p>
+              <h2 id="category-title">本月排行</h2>
+            </div>
+            <a href="#stats">统计</a>
+          </div>
+
+          <div className="category-list">
+            {mockCategorySpend.map((item) => (
+              <div className="category-row" key={item.category}>
+                <div className="category-row-top">
+                  <span>{item.category}</span>
+                  <strong>{formatCny(item.amount)}</strong>
+                </div>
+                <div className="category-meter" aria-label={`${item.category} 占比 ${item.percent}%`}>
+                  <span style={{ width: `${item.percent}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
+
+      <BottomNav />
     </main>
   );
 }

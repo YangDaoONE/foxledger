@@ -1,0 +1,39 @@
+{
+  "name": "foxledger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FoxLedger self-use AI bookkeeping app.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YangDaoONE/foxledger.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/YangDaoONE/foxledger/issues"
+  },
+  "homepage": "https://github.com/YangDaoONE/foxledger#readme",
+  "dependencies": {
+    "next": "^16.2.9",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.9",
+    "typescript": "^6.0.3"
+  },
+  "overrides": {
+    "postcss": "^8.5.10"
+  }
+}

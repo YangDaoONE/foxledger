@@ -1,0 +1,100 @@
+:root {
+  color-scheme: light;
+  --background: #f4f7f2;
+  --foreground: #17211c;
+  --muted: #5e6b63;
+  --surface: #ffffff;
+  --border: #d8e0d9;
+  --accent: #e4572e;
+  --accent-strong: #246a73;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(circle at top left, rgba(228, 87, 46, 0.08), transparent 32rem),
+    linear-gradient(180deg, var(--background), #edf4f3);
+  color: var(--foreground);
+  font-family:
+    Arial,
+    "Microsoft YaHei",
+    sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.page-shell {
+  display: flex;
+  min-height: 100svh;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.hero {
+  width: min(100%, 540px);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: var(--accent-strong);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 12vw, 4.5rem);
+  line-height: 1;
+}
+
+.intro {
+  max-width: 34rem;
+  margin: 20px 0 0;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.stage-status {
+  display: grid;
+  gap: 8px;
+  margin-top: 32px;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.74);
+  padding: 16px 18px;
+  box-shadow: 0 16px 50px rgba(36, 106, 115, 0.12);
+}
+
+.stage-status span {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.stage-status strong {
+  color: var(--foreground);
+  font-size: 1rem;
+}
+
+@media (max-width: 480px) {
+  .page-shell {
+    align-items: flex-start;
+    padding-top: 72px;
+  }
+}

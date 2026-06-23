@@ -1,6 +1,14 @@
 import { supabase } from "@/lib/supabase";
 import type { MonthlySummaryData, Transaction } from "@/types/transaction";
 
+export type StatsRangePreset = "this-week" | "this-month" | "last-month" | "this-year";
+
+export type StatsDateRange = {
+  label: string;
+  startDate: string;
+  endDate: string;
+};
+
 export type DailySpend = {
   date: string;
   amount: number;
@@ -16,23 +24,26 @@ export type MonthlyStats = {
   }>;
   dailySpend: DailySpend[];
   transactionCount: number;
+  averageDailyExpense: number;
+  maxExpenseAmount: number;
+  dayCount: number;
+  range: StatsDateRange;
 };
 
 type StatsTransactionRow = Pick<Transaction, "type" | "amount" | "category" | "date"> & {
   amount: number | string;
 };
 
-function getCurrentMonthRange() {
+function getCurrentMonthRange(): StatsDateRange {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const start = new Date(year, month, 1);
-  const end = new Date(year, month + 1, 0);
 
   return {
     label: `${year} 年 ${month + 1} 月`,
     startDate: toLocalDate(start),
-    endDate: toLocalDate(end),
+    endDate: toLocalDate(now),
   };
 }
 
@@ -43,10 +54,22 @@ function toLocalDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function emptyStats(month: string): MonthlyStats {
+function getInclusiveDayCount(startDate: string, endDate: string) {
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const millisecondsPerDay = 24 * 60 * 60 * 1000;
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || start > end) {
+    return 1;
+  }
+
+  return Math.floor((end.getTime() - start.getTime()) / millisecondsPerDay) + 1;
+}
+
+function emptyStats(range: StatsDateRange): MonthlyStats {
   return {
     summary: {
-      month,
+      month: range.label,
       expense: 0,
       income: 0,
       balance: 0,
@@ -55,11 +78,65 @@ function emptyStats(month: string): MonthlyStats {
     categorySpend: [],
     dailySpend: [],
     transactionCount: 0,
+    averageDailyExpense: 0,
+    maxExpenseAmount: 0,
+    dayCount: getInclusiveDayCount(range.startDate, range.endDate),
+    range,
   };
 }
 
-export async function getMonthlyStats(): Promise<MonthlyStats> {
-  const monthRange = getCurrentMonthRange();
+export function getPresetStatsDateRange(preset: StatsRangePreset): StatsDateRange {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+
+  if (preset === "this-week") {
+    const day = now.getDay();
+    const mondayOffset = day === 0 ? -6 : 1 - day;
+    const start = new Date(year, month, now.getDate() + mondayOffset);
+
+    return {
+      label: "本周",
+      startDate: toLocalDate(start),
+      endDate: toLocalDate(now),
+    };
+  }
+
+  if (preset === "last-month") {
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+
+    return {
+      label: "上月",
+      startDate: toLocalDate(start),
+      endDate: toLocalDate(end),
+    };
+  }
+
+  if (preset === "this-year") {
+    return {
+      label: "今年",
+      startDate: toLocalDate(new Date(year, 0, 1)),
+      endDate: toLocalDate(now),
+    };
+  }
+
+  return {
+    ...getCurrentMonthRange(),
+    label: "本月",
+  };
+}
+
+export async function getStatsForDateRange(
+  startDate: string,
+  endDate: string,
+  label = `${startDate} 至 ${endDate}`,
+): Promise<MonthlyStats> {
+  const range: StatsDateRange = {
+    label,
+    startDate,
+    endDate,
+  };
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
   if (userError) {
@@ -74,8 +151,8 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
     .from("transactions")
     .select("type, amount, category, date")
     .eq("user_id", userData.user.id)
-    .gte("date", monthRange.startDate)
-    .lte("date", monthRange.endDate)
+    .gte("date", range.startDate)
+    .lte("date", range.endDate)
     .order("date", { ascending: true });
 
   if (error) {
@@ -84,11 +161,11 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
 
   const rows = ((data ?? []) as unknown as StatsTransactionRow[]).map((row) => ({
     ...row,
-    amount: Number(row.amount),
+    amount: Math.abs(Number(row.amount)),
   }));
 
   if (rows.length === 0) {
-    return emptyStats(monthRange.label);
+    return emptyStats(range);
   }
 
   const expense = rows
@@ -97,6 +174,9 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
   const income = rows
     .filter((row) => row.type === "income")
     .reduce((sum, row) => sum + row.amount, 0);
+  const maxExpenseAmount = rows
+    .filter((row) => row.type === "expense")
+    .reduce((max, row) => Math.max(max, row.amount), 0);
   const categoryTotals = new Map<string, number>();
   const dailyTotals = new Map<string, number>();
 
@@ -111,10 +191,11 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
 
   const maxCategoryAmount = Math.max(...categoryTotals.values(), 0);
   const maxDailyAmount = Math.max(...dailyTotals.values(), 0);
+  const dayCount = getInclusiveDayCount(range.startDate, range.endDate);
 
   return {
     summary: {
-      month: monthRange.label,
+      month: range.label,
       expense,
       income,
       balance: income - expense,
@@ -135,5 +216,14 @@ export async function getMonthlyStats(): Promise<MonthlyStats> {
       }))
       .sort((first, second) => first.date.localeCompare(second.date)),
     transactionCount: rows.length,
+    averageDailyExpense: dayCount > 0 ? expense / dayCount : 0,
+    maxExpenseAmount,
+    dayCount,
+    range,
   };
+}
+
+export async function getMonthlyStats(): Promise<MonthlyStats> {
+  const monthRange = getCurrentMonthRange();
+  return getStatsForDateRange(monthRange.startDate, monthRange.endDate, monthRange.label);
 }

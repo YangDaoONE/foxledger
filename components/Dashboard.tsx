@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, Search } from "lucide-react";
 import { BottomNav, type DashboardView } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
@@ -49,10 +49,6 @@ export function Dashboard() {
     setTransactionRefreshKey((value) => value + 1);
   }
 
-  const handleSummaryChange = useCallback((summary: MonthlySummaryData) => {
-    setMonthlySummary(summary);
-  }, []);
-
   function renderActiveView() {
     if (activeView === "home") {
       return (
@@ -86,7 +82,7 @@ export function Dashboard() {
     }
 
     if (activeView === "stats") {
-      return <StatsPanel refreshKey={transactionRefreshKey} onSummaryChange={handleSummaryChange} />;
+      return <StatsPanel refreshKey={transactionRefreshKey} />;
     }
 
     return (

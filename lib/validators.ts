@@ -94,7 +94,10 @@ function collectDatesFromText(text: string, todayIsoDate: string) {
   const dates: string[] = [];
   const fullDatePattern =
     /(?:^|[^\d])((?:19|20)\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日|号)?(?=$|[^\d])/g;
-  const monthDayPattern = /(?:^|[^\d])(\d{1,2})月(\d{1,2})(?:日|号)?(?=$|[^\d])/g;
+  const explicitMonthDayPattern =
+    /(?:^|[^\d])(\d{1,2})(?:月|[./-])(\d{1,2})(?:日|号)(?=$|[^\d])/g;
+  const plainMonthDayPattern =
+    /(?:^|[\s,，.。;；:：、])(\d{1,2})(?:月|[./-])(\d{1,2})(?=$|[\s,，.。;；:：、])/g;
 
   for (const match of text.matchAll(fullDatePattern)) {
     const [, year, month, day] = match;
@@ -125,7 +128,17 @@ function collectDatesFromText(text: string, todayIsoDate: string) {
     }
   }
 
-  for (const match of text.matchAll(monthDayPattern)) {
+  for (const match of text.matchAll(explicitMonthDayPattern)) {
+    const [, month, day] = match;
+    const year = Number(todayIsoDate.slice(0, 4));
+    const isoDate = toIsoDate(year, Number(month), Number(day));
+
+    if (isoDate && !dates.includes(isoDate)) {
+      dates.push(isoDate);
+    }
+  }
+
+  for (const match of text.matchAll(plainMonthDayPattern)) {
     const [, month, day] = match;
     const year = Number(todayIsoDate.slice(0, 4));
     const isoDate = toIsoDate(year, Number(month), Number(day));

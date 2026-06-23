@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Search } from "lucide-react";
 import { BottomNav, type DashboardView } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
 import { ImportTransactions } from "@/components/ImportTransactions";
@@ -95,14 +94,6 @@ export function Dashboard() {
           <div>
             <p>FoxLedger</p>
             <h1>狐狐记账</h1>
-          </div>
-          <div className="header-actions" aria-label="快捷操作">
-            <button className="icon-button" type="button" aria-label="搜索账单">
-              <Search size={20} aria-hidden="true" />
-            </button>
-            <button className="icon-button" type="button" aria-label="通知">
-              <Bell size={20} aria-hidden="true" />
-            </button>
           </div>
         </header>
 

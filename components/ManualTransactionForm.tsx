@@ -4,43 +4,19 @@ import { FormEvent, useState } from "react";
 import { Save } from "lucide-react";
 import { getLocalDateInputValue } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
+import {
+  DEFAULT_CURRENCY,
+  defaultCategories,
+  isTransactionType,
+  normalizeDefaultCategory,
+  toNullableText,
+  transactionTypeOptions,
+} from "@/lib/transactionRules";
 import type { TransactionType } from "@/types/transaction";
-
-const transactionTypes: Array<{ label: string; value: TransactionType }> = [
-  { label: "支出", value: "expense" },
-  { label: "收入", value: "income" },
-  { label: "转账", value: "transfer" },
-];
-
-const defaultCategories = [
-  "餐饮",
-  "交通",
-  "购物",
-  "住房",
-  "学习",
-  "医疗",
-  "娱乐",
-  "日用",
-  "旅行",
-  "订阅",
-  "人情",
-  "收入",
-  "转账",
-  "其他",
-];
 
 type ManualTransactionFormProps = {
   onSaved?: () => void;
 };
-
-function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
-
-function toNullableText(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
 
 export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
   const [type, setType] = useState<TransactionType>("expense");
@@ -61,7 +37,7 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
 
     const trimmedAmount = amount.trim();
     const parsedAmount = Number(trimmedAmount);
-    const trimmedCategory = category.trim();
+    const trimmedCategory = normalizeDefaultCategory(category);
 
     if (!isTransactionType(type)) {
       setErrorMessage("账单类型不正确。");
@@ -107,7 +83,7 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
       user_id: userData.user.id,
       type,
       amount: parsedAmount,
-      currency: "CNY",
+      currency: DEFAULT_CURRENCY,
       category: trimmedCategory,
       date,
       merchant: toNullableText(merchant),
@@ -151,7 +127,7 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
                 }
               }}
             >
-              {transactionTypes.map((item) => (
+              {transactionTypeOptions.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
                 </option>

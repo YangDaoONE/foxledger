@@ -1,33 +1,24 @@
 import type {
   ConfirmTransactionDraft,
   ParsedTransaction,
-  TransactionType,
 } from "@/types/transaction";
+import {
+  defaultCategories,
+  isDefaultCategory,
+  isTransactionType,
+  isValidIsoDate,
+  normalizeDefaultCategory,
+  toNullableText,
+  transactionTypeOptions,
+} from "@/lib/transactionRules";
 
-export const transactionTypeOptions: Array<{ label: string; value: TransactionType }> = [
-  { label: "支出", value: "expense" },
-  { label: "收入", value: "income" },
-  { label: "转账", value: "transfer" },
-];
-
-export const defaultCategories = [
-  "餐饮",
-  "交通",
-  "购物",
-  "住房",
-  "学习",
-  "医疗",
-  "娱乐",
-  "日用",
-  "旅行",
-  "订阅",
-  "人情",
-  "收入",
-  "转账",
-  "其他",
-];
-
-const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+export {
+  defaultCategories,
+  isTransactionType,
+  isValidIsoDate,
+  toNullableText,
+  transactionTypeOptions,
+};
 
 export function createConfirmTransactionDraft(
   transaction: ParsedTransaction,
@@ -35,25 +26,12 @@ export function createConfirmTransactionDraft(
   return {
     type: transaction.type ?? "expense",
     amount: transaction.amount === null ? "" : String(transaction.amount),
-    category: transaction.category,
+    category: normalizeDefaultCategory(transaction.category),
     date: transaction.date,
     merchant: transaction.merchant ?? "",
     payment_method: transaction.payment_method ?? "",
     note: transaction.note ?? "",
   };
-}
-
-export function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
-
-export function isValidIsoDate(value: string) {
-  if (!isoDatePattern.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 export function validateConfirmTransactionDraft(draft: ConfirmTransactionDraft) {
@@ -72,6 +50,8 @@ export function validateConfirmTransactionDraft(draft: ConfirmTransactionDraft) 
 
   if (!draft.category.trim()) {
     messages.push("分类不能为空。");
+  } else if (!isDefaultCategory(draft.category)) {
+    messages.push("分类只能选择默认分类。");
   }
 
   if (!isValidIsoDate(draft.date)) {
@@ -79,11 +59,6 @@ export function validateConfirmTransactionDraft(draft: ConfirmTransactionDraft) 
   }
 
   return messages;
-}
-
-export function toNullableText(value: string | null) {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 export function normalizeAiConfidence(value: number | null) {
@@ -114,6 +89,6 @@ export function validateAiTransactionDraft(
 
   return {
     amount: Math.abs(Number(draft.amount.trim())),
-    category: draft.category.trim(),
+    category: normalizeDefaultCategory(draft.category),
   };
 }

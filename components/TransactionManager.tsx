@@ -4,11 +4,10 @@ import { FormEvent, useEffect, useState } from "react";
 import { CheckSquare, ListFilter, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
 import { TransactionCard } from "@/components/TransactionCard";
-import { defaultCategories } from "@/lib/transactionDrafts";
+import { defaultCategories } from "@/lib/transactionRules";
 import {
   deleteTransaction,
   deleteTransactionsByIds,
-  listTransactionCategories,
   listTransactionsPage,
   type TransactionFilterSummary,
   type TransactionSortOption,
@@ -151,7 +150,6 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
   const [appliedFilters, setAppliedFilters] = useState<FilterValues>(initialFilters);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<TransactionFilterSummary>(emptySummary);
-  const [categoryOptions, setCategoryOptions] = useState<string[]>(defaultCategories);
   const [totalCount, setTotalCount] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -168,32 +166,6 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
   const [isBatchDeleteConfirming, setIsBatchDeleteConfirming] = useState(false);
   const [isBatchDeleting, setIsBatchDeleting] = useState(false);
   const [manualReloadKey, setManualReloadKey] = useState(0);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadCategoryOptions() {
-      try {
-        const nextCategories = await listTransactionCategories();
-
-        if (!isMounted) {
-          return;
-        }
-
-        setCategoryOptions(Array.from(new Set([...defaultCategories, ...nextCategories])));
-      } catch {
-        if (isMounted) {
-          setCategoryOptions(defaultCategories);
-        }
-      }
-    }
-
-    loadCategoryOptions();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshKey, manualReloadKey]);
 
   useEffect(() => {
     let isMounted = true;
@@ -531,7 +503,7 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
               }
             >
               <option value="">全部分类</option>
-              {categoryOptions.map((item) => (
+              {defaultCategories.map((item) => (
                 <option key={item} value={item}>
                   {item}
                 </option>

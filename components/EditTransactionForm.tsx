@@ -3,6 +3,13 @@
 import { FormEvent, useState } from "react";
 import { Save, X } from "lucide-react";
 import { updateTransaction } from "@/lib/transactions";
+import {
+  defaultCategories,
+  isTransactionType,
+  normalizeDefaultCategory,
+  toNullableText,
+  transactionTypeOptions,
+} from "@/lib/transactionRules";
 import type { Transaction, TransactionType } from "@/types/transaction";
 
 type EditTransactionFormProps = {
@@ -11,38 +18,6 @@ type EditTransactionFormProps = {
   onUpdated: () => void;
 };
 
-const transactionTypes: Array<{ label: string; value: TransactionType }> = [
-  { label: "支出", value: "expense" },
-  { label: "收入", value: "income" },
-  { label: "转账", value: "transfer" },
-];
-
-const defaultCategories = [
-  "餐饮",
-  "交通",
-  "购物",
-  "住房",
-  "学习",
-  "医疗",
-  "娱乐",
-  "日用",
-  "旅行",
-  "订阅",
-  "人情",
-  "收入",
-  "转账",
-  "其他",
-];
-
-function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
-
-function toNullableText(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export function EditTransactionForm({
   transaction,
   onCancel,
@@ -50,7 +25,7 @@ export function EditTransactionForm({
 }: EditTransactionFormProps) {
   const [type, setType] = useState<TransactionType>(transaction.type);
   const [amount, setAmount] = useState(String(transaction.amount));
-  const [category, setCategory] = useState(transaction.category);
+  const [category, setCategory] = useState(normalizeDefaultCategory(transaction.category));
   const [date, setDate] = useState(transaction.date);
   const [merchant, setMerchant] = useState(transaction.merchant ?? "");
   const [paymentMethod, setPaymentMethod] = useState(transaction.payment_method ?? "");
@@ -66,7 +41,7 @@ export function EditTransactionForm({
 
     const trimmedAmount = amount.trim();
     const parsedAmount = Number(trimmedAmount);
-    const trimmedCategory = category.trim();
+    const trimmedCategory = normalizeDefaultCategory(category);
 
     if (!isTransactionType(type)) {
       setErrorMessage("账单类型不正确。");
@@ -151,7 +126,7 @@ export function EditTransactionForm({
               }
             }}
           >
-            {transactionTypes.map((item) => (
+            {transactionTypeOptions.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>

@@ -10,82 +10,15 @@ import type { Transaction } from "@/types/transaction";
 type TransactionListProps = {
   refreshKey: number;
   onChanged?: () => void;
-  grouped?: boolean;
   limit?: number;
   title?: string;
   eyebrow?: string;
   emptyMessage?: string;
 };
 
-type DateGroup = {
-  date: string;
-  transactions: Transaction[];
-};
-
-type MonthGroup = {
-  month: string;
-  dates: DateGroup[];
-};
-
-type YearGroup = {
-  year: string;
-  months: MonthGroup[];
-};
-
-function groupTransactionsByDate(transactions: Transaction[]): YearGroup[] {
-  const yearGroups: YearGroup[] = [];
-
-  for (const transaction of transactions) {
-    const [year = "未知年份", month = "未知月份"] = transaction.date.split("-");
-    let yearGroup = yearGroups.find((group) => group.year === year);
-
-    if (!yearGroup) {
-      yearGroup = { year, months: [] };
-      yearGroups.push(yearGroup);
-    }
-
-    let monthGroup = yearGroup.months.find((group) => group.month === month);
-
-    if (!monthGroup) {
-      monthGroup = { month, dates: [] };
-      yearGroup.months.push(monthGroup);
-    }
-
-    let dateGroup = monthGroup.dates.find((group) => group.date === transaction.date);
-
-    if (!dateGroup) {
-      dateGroup = { date: transaction.date, transactions: [] };
-      monthGroup.dates.push(dateGroup);
-    }
-
-    dateGroup.transactions.push(transaction);
-  }
-
-  return yearGroups;
-}
-
-function formatYearLabel(year: string) {
-  return /^\d{4}$/.test(year) ? `${year} 年` : year;
-}
-
-function formatMonthLabel(month: string) {
-  return /^\d{2}$/.test(month) ? `${Number(month)} 月` : month;
-}
-
-function formatDateLabel(date: string) {
-  const [, month, day] = date.split("-");
-
-  if (!month || !day) {
-    return date;
-  }
-
-  return `${Number(month)} 月 ${Number(day)} 日`;
-}
-
 export function TransactionList({
   refreshKey,
   onChanged,
-  grouped = false,
   limit,
   title = "真实数据",
   eyebrow = "最近账单",
@@ -233,7 +166,7 @@ export function TransactionList({
         <p className="list-state">{emptyMessage}</p>
       ) : null}
 
-      {!isLoading && !errorMessage && transactions.length > 0 && !grouped ? (
+      {!isLoading && !errorMessage && transactions.length > 0 ? (
         <div className="transaction-list">
           {transactions.map((transaction) => (
             <div className="transaction-edit-item" key={transaction.id}>
@@ -264,53 +197,6 @@ export function TransactionList({
         </div>
       ) : null}
 
-      {!isLoading && !errorMessage && transactions.length > 0 && grouped ? (
-        <div className="transaction-group-list">
-          {groupTransactionsByDate(transactions).map((yearGroup) => (
-            <section className="transaction-year-group" key={yearGroup.year}>
-              <div className="transaction-year-heading">{formatYearLabel(yearGroup.year)}</div>
-              {yearGroup.months.map((monthGroup) => (
-                <section className="transaction-month-group" key={`${yearGroup.year}-${monthGroup.month}`}>
-                  <div className="transaction-month-heading">{formatMonthLabel(monthGroup.month)}</div>
-                  {monthGroup.dates.map((dateGroup) => (
-                    <section className="transaction-date-group" key={dateGroup.date}>
-                      <div className="transaction-date-heading">{formatDateLabel(dateGroup.date)}</div>
-                      <div className="transaction-list">
-                        {dateGroup.transactions.map((transaction) => (
-                          <div className="transaction-edit-item" key={transaction.id}>
-                            <TransactionCard
-                              transaction={transaction}
-                              isEditing={editingTransactionId === transaction.id}
-                              isConfirmingDelete={confirmDeleteId === transaction.id}
-                              isDeleting={deletingId === transaction.id}
-                              onEdit={handleEdit}
-                              onDelete={handleDelete}
-                            />
-                            {deletingId === transaction.id ? (
-                              <p className="delete-confirm-note">删除中</p>
-                            ) : null}
-                            {confirmDeleteId === transaction.id && deletingId !== transaction.id ? (
-                              <p className="delete-confirm-note">再次点击删除按钮确认删除。</p>
-                            ) : null}
-                            {editingTransactionId === transaction.id ? (
-                              <EditTransactionForm
-                                key={transaction.id}
-                                transaction={transaction}
-                                onCancel={handleCancelEdit}
-                                onUpdated={handleTransactionUpdated}
-                              />
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  ))}
-                </section>
-              ))}
-            </section>
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }

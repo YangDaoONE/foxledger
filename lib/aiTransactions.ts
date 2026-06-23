@@ -4,6 +4,7 @@ import {
   toNullableText,
   validateAiTransactionDraft,
 } from "@/lib/transactionDrafts";
+import { DEFAULT_CURRENCY } from "@/lib/transactionRules";
 import type {
   ConfirmTransactionDraft,
   ParsedTransaction,
@@ -49,7 +50,7 @@ function buildAiTransactionInsertPayload(
     user_id: userId,
     type: draft.type,
     amount,
-    currency: "CNY",
+    currency: DEFAULT_CURRENCY,
     category,
     tag: toNullableText(parsedTransaction.tag),
     merchant: toNullableText(draft.merchant),
@@ -61,32 +62,6 @@ function buildAiTransactionInsertPayload(
     source: "ai",
     ai_confidence: normalizeAiConfidence(parsedTransaction.ai_confidence),
   };
-}
-
-export async function createAiTransaction(
-  parsedTransaction: ParsedTransaction,
-  draft: ConfirmTransactionDraft,
-): Promise<CreateAiTransactionResult> {
-  const userId = await getCurrentUserId();
-  const insertPayload = buildAiTransactionInsertPayload(userId, parsedTransaction, draft);
-
-  const { data, error } = await supabase
-    .from("transactions")
-    .insert(insertPayload)
-    .select("id, created_at")
-    .single();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const createdTransaction = data as unknown as CreateAiTransactionResult | null;
-
-  if (!createdTransaction?.id) {
-    throw new Error("保存失败，未创建账单。");
-  }
-
-  return createdTransaction;
 }
 
 export async function createAiTransactions(

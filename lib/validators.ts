@@ -2,10 +2,16 @@ import {
   MAX_PARSED_TRANSACTIONS,
   MAX_PARSE_INPUT_CHARS,
 } from "@/lib/parseTransactionLimits";
+import {
+  DEFAULT_CATEGORY,
+  DEFAULT_CURRENCY,
+  isTransactionType,
+  isValidIsoDate,
+  normalizeDefaultCategory,
+} from "@/lib/transactionRules";
 import type {
   ParsedTransaction,
   ParsedTransactionBatch,
-  TransactionType,
 } from "@/types/transaction";
 
 export class InputValidationError extends Error {
@@ -14,10 +20,6 @@ export class InputValidationError extends Error {
     this.name = "InputValidationError";
   }
 }
-
-const defaultCategory = "其他";
-const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
-const transactionTypes: TransactionType[] = ["expense", "income", "transfer"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -33,7 +35,7 @@ function toNullableString(value: unknown) {
 }
 
 function toSafeCategory(value: unknown) {
-  return toNullableString(value) ?? defaultCategory;
+  return normalizeDefaultCategory(toNullableString(value));
 }
 
 function toSafeConfidence(value: unknown) {
@@ -59,19 +61,6 @@ function toFiniteNumber(value: unknown) {
   }
 
   return null;
-}
-
-function isTransactionType(value: unknown): value is TransactionType {
-  return typeof value === "string" && transactionTypes.includes(value as TransactionType);
-}
-
-function isValidIsoDate(value: string) {
-  if (!isoDatePattern.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function toIsoDate(year: number, month: number, day: number) {
@@ -260,12 +249,14 @@ export function sanitizeParsedTransaction(
   const amountCameFromText = hasValidAmount ? textContainsAmountToken(candidateRawText, amount) : false;
   const shouldClarify = needsClarification || !hasValidAmount || !amountCameFromText;
   const safeDate = resolveDateFromText(candidateRawText, rawText, todayIsoDate);
+  const safeType =
+    typeof aiValue.type === "string" && isTransactionType(aiValue.type) ? aiValue.type : "expense";
 
   return {
-    type: shouldClarify ? null : isTransactionType(aiValue.type) ? aiValue.type : "expense",
+    type: shouldClarify ? null : safeType,
     amount: shouldClarify ? null : amount,
-    currency: "CNY",
-    category: shouldClarify ? defaultCategory : toSafeCategory(aiValue.category),
+    currency: DEFAULT_CURRENCY,
+    category: shouldClarify ? DEFAULT_CATEGORY : toSafeCategory(aiValue.category),
     tag: toNullableString(aiValue.tag),
     merchant: toNullableString(aiValue.merchant),
     payment_method: toNullableString(aiValue.payment_method),

@@ -339,24 +339,10 @@ button:disabled {
   padding: 0 2px;
 }
 
-.header-actions,
 .action-row {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.icon-button {
-  display: inline-flex;
-  width: 40px;
-  height: 40px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--foreground);
-  box-shadow: 0 8px 18px rgba(23, 33, 28, 0.05);
 }
 
 .small-icon-button {

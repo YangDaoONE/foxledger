@@ -1,4 +1,5 @@
 import { MAX_PARSED_TRANSACTIONS } from "@/lib/parseTransactionLimits";
+import { defaultCategories } from "@/lib/transactionRules";
 
 const openAiDefaultBaseUrl = "https://api.openai.com/v1";
 const openAiDefaultModel = "gpt-4o-mini";
@@ -58,6 +59,8 @@ function buildParserPrompt(text: string, todayIsoDate: string) {
         "date must use YYYY-MM-DD.",
         "currency must be CNY.",
         "source must be ai.",
+        `category must be one of these default categories only: ${defaultCategories.join(", ")}.`,
+        "Classify the transaction into the closest default category. For example, coffee and meals should be 餐饮.",
         "If category is uncertain, use 其他.",
         "Optional missing fields must be null.",
         "Each transaction item must include keys: type, amount, currency, category, tag, merchant, payment_method, account, date, note, raw_text, source, ai_confidence, needs_clarification.",

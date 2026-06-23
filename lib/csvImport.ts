@@ -1,4 +1,11 @@
 import type { TransactionSource, TransactionType } from "@/types/transaction";
+import {
+  DEFAULT_CURRENCY,
+  isTransactionType,
+  isValidIsoDate,
+  normalizeDefaultCategory,
+  toNullableText,
+} from "@/lib/transactionRules";
 
 export type CsvImportTransaction = {
   type: TransactionType;
@@ -115,35 +122,8 @@ function isBlankRow(row: string[]) {
   return row.every((cell) => cell.trim() === "");
 }
 
-function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
-
 function isTransactionSource(value: string): value is TransactionSource {
   return value === "manual" || value === "ai";
-}
-
-function isValidDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    return false;
-  }
-
-  const [yearText, monthText, dayText] = value.split("-");
-  const year = Number(yearText);
-  const month = Number(monthText);
-  const day = Number(dayText);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-function toNullableText(value: string | undefined) {
-  const trimmed = value?.trim() ?? "";
-  return trimmed.length > 0 ? trimmed : null;
 }
 
 function getCell(row: string[], headerIndexes: Map<string, number>, header: string) {
@@ -218,7 +198,7 @@ export function parseTransactionsCsv(text: string): CsvImportResult {
 
     if (!date) {
       reasons.push("date 不能为空。");
-    } else if (!isValidDate(date)) {
+    } else if (!isValidIsoDate(date)) {
       reasons.push("date 必须是 YYYY-MM-DD 格式。");
     }
 
@@ -240,7 +220,6 @@ export function parseTransactionsCsv(text: string): CsvImportResult {
     }
 
     const sourceText = getCell(row, headerIndexes, "source").trim().toLowerCase();
-    const currencyText = getCell(row, headerIndexes, "currency").trim().toUpperCase();
     const categoryText = getCell(row, headerIndexes, "category").trim();
 
     validRows.push({
@@ -248,8 +227,8 @@ export function parseTransactionsCsv(text: string): CsvImportResult {
       transaction: {
         type: parsedType,
         amount,
-        currency: currencyText || "CNY",
-        category: categoryText || "其他",
+        currency: DEFAULT_CURRENCY,
+        category: normalizeDefaultCategory(categoryText),
         tag: toNullableText(getCell(row, headerIndexes, "tag")),
         merchant: toNullableText(getCell(row, headerIndexes, "merchant")),
         payment_method: toNullableText(getCell(row, headerIndexes, "payment_method")),

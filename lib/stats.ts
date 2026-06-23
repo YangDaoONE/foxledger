@@ -34,6 +34,8 @@ type StatsTransactionRow = Pick<Transaction, "type" | "amount" | "category" | "d
   amount: number | string;
 };
 
+const statsPageSize = 1000;
+
 function getCurrentMonthRange(): StatsDateRange {
   const now = new Date();
   const year = now.getFullYear();
@@ -147,19 +149,35 @@ export async function getStatsForDateRange(
     throw new Error("请先登录后查看统计。");
   }
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("type, amount, category, date")
-    .eq("user_id", userData.user.id)
-    .gte("date", range.startDate)
-    .lte("date", range.endDate)
-    .order("date", { ascending: true });
+  const statsRows: StatsTransactionRow[] = [];
+  let offset = 0;
 
-  if (error) {
-    throw new Error(error.message);
+  while (true) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select("type, amount, category, date")
+      .eq("user_id", userData.user.id)
+      .gte("date", range.startDate)
+      .lte("date", range.endDate)
+      .order("date", { ascending: true })
+      .order("id", { ascending: true })
+      .range(offset, offset + statsPageSize - 1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const currentRows = (data ?? []) as unknown as StatsTransactionRow[];
+    statsRows.push(...currentRows);
+
+    if (currentRows.length < statsPageSize) {
+      break;
+    }
+
+    offset += statsPageSize;
   }
 
-  const rows = ((data ?? []) as unknown as StatsTransactionRow[]).map((row) => ({
+  const rows = statsRows.map((row) => ({
     ...row,
     amount: Math.abs(Number(row.amount)),
   }));

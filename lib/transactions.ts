@@ -1,4 +1,8 @@
 import { supabase } from "@/lib/supabase";
+import {
+  DEFAULT_CURRENCY,
+  normalizeDefaultCategory,
+} from "@/lib/transactionRules";
 import type { Transaction, TransactionType } from "@/types/transaction";
 
 type TransactionRow = Omit<Transaction, "amount" | "currency"> & {
@@ -57,6 +61,7 @@ export type TransactionPageResult = {
 
 const noEditableTransactionMessage = "未找到可编辑的账单，或你没有权限修改这条记录。";
 const noDeletableTransactionMessage = "未找到可删除的账单，或你没有权限删除这条记录。";
+const summaryPageSize = 1000;
 
 const transactionSelectColumns = [
   "id",
@@ -82,7 +87,7 @@ function normalizeTransaction(row: TransactionRow): Transaction {
   return {
     ...row,
     amount: Number(row.amount),
-    currency: "CNY",
+    currency: DEFAULT_CURRENCY,
   };
 }
 
@@ -92,10 +97,6 @@ function sanitizeSearchTerm(value: string | undefined) {
     .replace(/[,%()]/g, " ")
     .replace(/\s+/g, " ")
     .slice(0, 80);
-}
-
-export async function listRecentTransactions(limit = 20): Promise<Transaction[]> {
-  return listTransactions({ limit });
 }
 
 export async function listTransactions(options: ListTransactionsOptions = {}): Promise<Transaction[]> {
@@ -194,41 +195,62 @@ export async function listTransactionsPage(
     throw new Error(error.message);
   }
 
-  let summaryQuery = supabase
-    .from("transactions")
-    .select("type, amount")
-    .eq("user_id", userData.user.id);
+  const summaryRows: Array<{ type: TransactionType; amount: number | string }> = [];
+  let summaryOffset = 0;
 
-  if (searchTerm) {
-    const pattern = `%${searchTerm}%`;
-    summaryQuery = summaryQuery.or(
-      `merchant.ilike.${pattern},note.ilike.${pattern},category.ilike.${pattern}`,
+  while (true) {
+    let summaryQuery = supabase
+      .from("transactions")
+      .select("type, amount")
+      .eq("user_id", userData.user.id)
+      .order("id", { ascending: true });
+
+    if (searchTerm) {
+      const pattern = `%${searchTerm}%`;
+      summaryQuery = summaryQuery.or(
+        `merchant.ilike.${pattern},note.ilike.${pattern},category.ilike.${pattern}`,
+      );
+    }
+
+    if (filters.type) {
+      summaryQuery = summaryQuery.eq("type", filters.type);
+    }
+
+    if (category) {
+      summaryQuery = summaryQuery.eq("category", category);
+    }
+
+    if (startDate) {
+      summaryQuery = summaryQuery.gte("date", startDate);
+    }
+
+    if (endDate) {
+      summaryQuery = summaryQuery.lte("date", endDate);
+    }
+
+    const { data: summaryPageRows, error: summaryError } = await summaryQuery.range(
+      summaryOffset,
+      summaryOffset + summaryPageSize - 1,
     );
+
+    if (summaryError) {
+      throw new Error(summaryError.message);
+    }
+
+    const currentRows = (summaryPageRows ?? []) as Array<{
+      type: TransactionType;
+      amount: number | string;
+    }>;
+    summaryRows.push(...currentRows);
+
+    if (currentRows.length < summaryPageSize) {
+      break;
+    }
+
+    summaryOffset += summaryPageSize;
   }
 
-  if (filters.type) {
-    summaryQuery = summaryQuery.eq("type", filters.type);
-  }
-
-  if (category) {
-    summaryQuery = summaryQuery.eq("category", category);
-  }
-
-  if (startDate) {
-    summaryQuery = summaryQuery.gte("date", startDate);
-  }
-
-  if (endDate) {
-    summaryQuery = summaryQuery.lte("date", endDate);
-  }
-
-  const { data: summaryRows, error: summaryError } = await summaryQuery;
-
-  if (summaryError) {
-    throw new Error(summaryError.message);
-  }
-
-  const summary = ((summaryRows ?? []) as Array<{ type: TransactionType; amount: number | string }>).reduce(
+  const summary = summaryRows.reduce(
     (current, row) => {
       const amount = Math.abs(Number(row.amount));
 
@@ -256,36 +278,6 @@ export async function listTransactionsPage(
   };
 }
 
-export async function listTransactionCategories(): Promise<string[]> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-
-  if (userError) {
-    throw new Error(userError.message);
-  }
-
-  if (!userData.user) {
-    throw new Error("请先登录后查看账单分类。");
-  }
-
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("category")
-    .eq("user_id", userData.user.id)
-    .order("category", { ascending: true });
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return Array.from(
-    new Set(
-      ((data ?? []) as Array<{ category: string | null }>)
-        .map((row) => row.category?.trim())
-        .filter((category): category is string => Boolean(category)),
-    ),
-  );
-}
-
 export async function updateTransaction(
   transaction: Transaction,
   values: EditableTransactionValues,
@@ -303,7 +295,7 @@ export async function updateTransaction(
   const updatePayload: EditableTransactionValues = {
     type: values.type,
     amount: values.amount,
-    category: values.category,
+    category: normalizeDefaultCategory(values.category),
     date: values.date,
     merchant: values.merchant,
     payment_method: values.payment_method,

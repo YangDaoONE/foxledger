@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 14 阶段，PWA 优化。
+当前阶段：第 15 阶段，Vercel 部署。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单，并已添加基础 PWA manifest、App 图标和移动端安全区优化。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单，并已添加基础 PWA manifest、App 图标和移动端安全区优化。项目已部署到 Vercel，线上 AI 解析链路已验证可用。
 
 已完成的数据库 migration：
 
@@ -26,6 +26,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 - AI 暂不支持多轮对话。
 - 暂未支持跨月筛选、年度统计、预算、中文表头识别和微信 / 支付宝 / 银行卡自动导入。
 - PWA 当前只支持基础安装信息和手机端显示优化，不支持离线记账、离线同步或 push notification。
+- 当前已登录用户都可以调用 AI 解析；如果只想本人使用，后续需要增加账号白名单。
 
 第 13 阶段 CSV 导入规则：
 
@@ -156,6 +157,33 @@ PWA 优化规则：
 - 不注册 service worker。
 - 不缓存 Supabase 用户数据。
 - 当前仍然是联网 App。
+
+第 15 阶段 Vercel 部署信息：
+
+- 生产地址：`https://foxledger.vercel.app`
+- Vercel 使用 GitHub `main` 分支部署。
+- 线上 AI 链路：Vercel API Route -> CPA 公网地址 -> Gemini。
+- CPA 公网地址使用 `OPENAI_BASE_URL` 配置，当前应指向 `https://cpa-api.foxyang.com/v1`。
+- CPA API Key 使用 `OPENAI_API_KEY` 配置，只能放在 Vercel 环境变量里，不能提交到 Git。
+- 线上 AI 解析已验证可用。
+
+Vercel 生产环境变量：
+
+```text
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+AI_PROVIDER
+OPENAI_API_KEY
+OPENAI_BASE_URL
+OPENAI_MODEL
+```
+
+部署规则：
+
+- 修改 Vercel 环境变量后必须重新部署。
+- 重新部署时建议不要勾选 `Use existing Build Cache`。
+- 不要配置 Supabase `service_role key`。
+- 不要把 `.env.local`、CPA API Key 或 OpenAI API Key 提交到 Git。
 
 ## Environment
 

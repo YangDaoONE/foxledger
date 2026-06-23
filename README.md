@@ -1,28 +1,67 @@
 # FoxLedger / 狐狐记账
 
-FoxLedger 是一个自用 AI 记账 Web App / PWA 雏形，目标是用尽量简单、可维护的技术栈完成个人记账闭环：登录、记账、AI 辅助解析、账单管理、统计和批量导入。
+FoxLedger 是一个个人自用的 AI 记账 Web/PWA，基于 Next.js、Supabase 和 OpenAI-compatible API。当前版本为 **v1.1 功能完成版**，已经完成从“一句话 AI 记账”到“批量文本账单录入工具”的升级。
 
-当前生产地址：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+生产地址：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
-当前定位：第一版核心功能已经打通，适合作为个人长期自用项目继续迭代，不是商业化 SaaS，也不是多人共享账本。
+项目定位：个人长期自用记账工具，不是商业化 SaaS，也不是多人共享账本。最高优先级是数据安全、RLS 用户隔离、记账准确性、代码简单可维护和手机端可用性。
 
-## 功能列表
+## 当前功能
 
-已完成：
+### 账号与安全
 
-- 邮箱 + 密码登录和注册，基于 Supabase Auth。
-- 手动新增账单，写入 Supabase `public.transactions`。
-- 最近账单读取真实数据。
-- 编辑账单，只允许更新 `type`、`amount`、`category`、`date`、`merchant`、`payment_method`、`note`。
-- 删除账单，删除前二次确认。
-- AI 一句话记账解析，调用 OpenAI-compatible API。
-- AI 解析结果确认卡片，用户确认后才入库。
-- AI 解析 API 账号白名单，使用 `ALLOWED_EMAILS` 限制可调用邮箱。
-- 本月收入、支出、结余统计。
+- Supabase Auth 邮箱 + 密码登录和注册。
+- 前端只使用 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
+- `public.transactions` 表启用 RLS。
+- 用户只能读取、创建、修改、删除自己的账单。
+- 项目不使用 Supabase `service_role key`。
+- `.env.local` 不提交到 Git。
+
+### 记账
+
+- 手动新增账单，写入 `public.transactions`。
+- AI 批量解析文本账单：
+  - 单次输入最多 `3000` 字。
+  - 单次最多返回 `50` 条候选账单。
+  - API 始终返回批量结构，即使只有一笔账单也返回数组。
+  - AI 只能解析用户本次输入文本，不读取历史账单或统计数据。
+  - AI 不直接写数据库。
+  - 服务端会对 AI JSON 做二次校验、清洗和候选数量截断。
+  - 每条候选优先保存对应 `raw_text` 原文片段，无法可靠切分时才 fallback 为完整输入。
+  - 日期由服务端二次处理：完整日期优先，`今天` / `昨天` / `前天` 按服务端日期推算，缺失日期使用服务端今天。
+  - 所有候选必须经过前端确认后才能入库。
+- 批量确认 UI：
+  - 每条候选可编辑类型、金额、分类、日期、商家、支付方式和备注。
+  - 每条候选可删除或取消选择，二者是独立行为。
+  - 不明确候选可以在确认页补全必要字段后保存。
+  - 确认保存时使用一次 Supabase `insert` 写入多条记录。
+
+### 账单管理
+
+- 首页显示最近 5 笔账单。
+- 账单子界面显示全部账单。
+- 全部账单按年份、月份、日期分组。
+- 支持编辑账单。
+- 支持删除账单，删除前二次确认。
+- 更新和删除都同时约束 `id` 和当前 `user_id`。
+
+### 统计
+
+- 本月总支出。
+- 本月总收入。
+- 本月结余。
 - 分类支出排行。
 - 每日支出趋势。
-- 宽松版 CSV 导入，预览确认后追加导入合法账单。
-- 基础 PWA metadata、manifest 和 App 图标。
+- 统计由代码和数据库查询计算，不调用 AI。
+
+### 导入与界面
+
+- 设置子界面提供宽松版 CSV 导入。
+- CSV 导入为前端解析、预览、确认后追加写入。
+- 错误行不入库，合法行可以单独导入。
+- 移动端优先单页布局。
+- 底部导航切换 `首页` / `账单` / `统计` / `设置` 四个子界面。
+- 基础 PWA metadata、manifest 和动态图标。
 - Vercel 生产部署。
 
 ## 技术栈
@@ -38,9 +77,7 @@ FoxLedger 是一个自用 AI 记账 Web App / PWA 雏形，目标是用尽量简
 - lucide-react
 - ESLint
 
-## 目录结构
-
-当前主要目录：
+## 主要目录
 
 ```text
 app/
@@ -52,21 +89,27 @@ app/
 components/
   AuthGate.tsx
   AuthForm.tsx
+  BottomNav.tsx
   ChatInput.tsx
   ConfirmTransaction.tsx
+  ConfirmTransactionBatch.tsx
   Dashboard.tsx
   EditTransactionForm.tsx
   ImportTransactions.tsx
   ManualTransactionForm.tsx
+  MonthlySummary.tsx
   StatsPanel.tsx
+  TransactionCard.tsx
   TransactionList.tsx
 lib/
   ai.ts
   aiTransactions.ts
   allowedEmails.ts
   csvImport.ts
+  parseTransactionLimits.ts
   stats.ts
   supabase.ts
+  transactionDrafts.ts
   transactions.ts
   validators.ts
 supabase/migrations/
@@ -111,24 +154,37 @@ updated_at
 - `user_id` references `auth.users(id)`。
 - `type` 只能是 `expense` / `income` / `transfer`。
 - `amount` 使用 `numeric(12, 2)`，必须大于 0。
-- `currency` 默认 `CNY`。
+- 支出和收入方向由 `type` 表示，不使用负数入库。
+- `currency` 固定为 `CNY`。
 - `category` 默认 `其他`。
 - `source` 只能是 `manual` / `ai`。
 - `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
 - `updated_at` 由 trigger 自动更新。
 
-## 数据安全与权限
+## AI 解析链路
 
-- Supabase RLS 已开启。
-- 用户只能读取、创建、修改、删除自己的 `transactions`。
-- 前端只使用 Supabase publishable key。
-- 项目不使用 Supabase `service_role key`。
-- `.env.local` 不提交到 Git。
-- AI API key 只放在服务端环境变量中。
-- AI 解析 API 必须携带 Supabase access token。
-- AI 解析 API 会验证 `ALLOWED_EMAILS` 白名单。
-- AI 只接收当前输入文本，不读取历史账单。
-- 统计由代码和数据库查询计算，不调用 AI。
+```text
+frontend ChatInput
+-> /api/parse-transaction
+-> validate Supabase access token
+-> assert ALLOWED_EMAILS
+-> OpenAI-compatible API
+-> server-side JSON parse, sanitize, validate, truncate
+-> ConfirmTransactionBatch
+-> user confirms
+-> Supabase insert
+```
+
+安全边界：
+
+- `/api/parse-transaction` 必须登录后调用。
+- 前端请求必须携带 `Authorization: Bearer <supabase_access_token>`。
+- 服务端只验证 token 和白名单，不读取历史账单。
+- `ALLOWED_EMAILS` 未命中返回 `403`。
+- AI 返回内容必须先 `JSON.parse`。
+- AI 返回结果必须服务端二次校验和清洗。
+- AI 不允许直接写数据库。
+- AI 不允许计算统计。
 
 ## 环境变量
 
@@ -152,7 +208,7 @@ ALLOWED_EMAILS
 - `OPENAI_API_KEY`：OpenAI-compatible provider API key。
 - `OPENAI_BASE_URL`：OpenAI-compatible API base URL，格式类似 `https://example.com/v1`。
 - `OPENAI_MODEL`：当前 provider 支持的模型名。
-- `ALLOWED_EMAILS`：允许调用 AI 解析的邮箱，多个邮箱用英文逗号分隔。
+- `ALLOWED_EMAILS`：允许调用 AI 解析 API 的邮箱，多个邮箱用英文逗号分隔。
 
 ## 本地开发
 
@@ -213,8 +269,6 @@ http://localhost:3000/**
 https://*.vercel.app/**
 ```
 
-如果使用具体 Vercel preview 域名，也可以加入对应 preview URL。
-
 ## 部署
 
 当前部署平台：Vercel
@@ -229,41 +283,32 @@ Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 - 修改 Vercel 环境变量后需要重新部署。
 - 重新部署排查环境变量问题时，建议不勾选 `Use existing Build Cache`。
 
-当前线上 AI 链路：
-
-```text
-FoxLedger frontend
--> /api/parse-transaction
--> OpenAI-compatible API configured by OPENAI_BASE_URL
--> model configured by OPENAI_MODEL
-```
-
 ## 当前限制
 
-- 当前是单页 Web/PWA 雏形，不是完整原生 App。
-- 注册入口尚未做整站账号白名单限制。
-- AI 白名单只限制 AI 解析 API，不限制手动记账等普通功能。
-- 统计只覆盖本月，不支持跨月、年度或自定义日期范围。
+- 注册入口仍然公开；白名单目前只限制 AI 解析 API。
+- AI 批量解析不读取历史账单，不自动去重。
+- 搜索和通知入口仍是界面占位。
+- 设置页当前只承载 CSV 导入，尚未做完整偏好设置。
+- 统计只支持本月，不支持跨月、年度或自定义日期范围。
 - CSV 导入只支持英文表头，不支持中文表头自动识别。
 - CSV 导入不自动去重、不覆盖已有账单。
 - 暂不支持微信、支付宝、银行卡原始账单自动导入。
 - 暂不支持预算、账户管理、支付方式管理。
-- PWA 只包含基础 manifest 和图标，没有 service worker、离线记账或 push notification。
-- 搜索、通知、设置入口目前是界面占位或基础导航，不是完整功能。
+- PWA 只有基础 manifest 和图标，没有 service worker、离线记账或 push notification。
 - 项目还没有自动化测试覆盖。
 
 ## Roadmap
 
-下一版本可以考虑：
+下一阶段建议从 v1.2 统计增强开始：
 
-- UI/UX 优化，减少首页信息密度，改善移动端交互。
-- 更完整的统计，包括跨月筛选、年度统计和自定义日期范围。
-- 预算功能。
-- 多账户、支付方式和分类管理增强。
-- 数据导出。
-- PWA 安装体验优化。
-- 错误提示和空状态优化。
-- AI 解析兼容性和失败重试优化。
-- 整站账号白名单或关闭公开注册。
-- 测试覆盖，包括 CSV parser、AI validator 和 transactions 数据操作。
+- 本周 / 本月 / 上月 / 自定义日期范围。
+- 年度统计。
+- 分类支出趋势。
+- Top 商户统计。
+- 支付方式统计。
+- 收入、支出、结余趋势图。
 
+后续版本候选：
+
+- v1.3：分类、账户、支付方式管理。
+- v2.0：PWA / App 化、安装引导、本地草稿、离线记账和恢复同步。

@@ -32,6 +32,7 @@ body {
     Arial,
     "Microsoft YaHei",
     sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
 a {
@@ -48,6 +49,7 @@ textarea {
 
 button {
   cursor: pointer;
+  touch-action: manipulation;
 }
 
 button:disabled {
@@ -57,15 +59,16 @@ button:disabled {
 
 .app-root {
   width: min(100%, 430px);
-  min-height: 100svh;
+  min-height: 100dvh;
   margin: 0 auto;
   background: var(--page-background);
+  padding-top: env(safe-area-inset-top);
 }
 
 .app-content {
   display: grid;
   gap: 16px;
-  padding: 16px 16px 96px;
+  padding: 16px 16px calc(96px + env(safe-area-inset-bottom));
 }
 
 .auth-root {

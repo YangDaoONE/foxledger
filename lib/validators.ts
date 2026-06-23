@@ -1,4 +1,12 @@
-import type { ParsedTransaction, TransactionType } from "@/types/transaction";
+import {
+  MAX_PARSED_TRANSACTIONS,
+  MAX_PARSE_INPUT_CHARS,
+} from "@/lib/parseTransactionLimits";
+import type {
+  ParsedTransaction,
+  ParsedTransactionBatch,
+  TransactionType,
+} from "@/types/transaction";
 
 export class InputValidationError extends Error {
   constructor(message: string) {
@@ -8,7 +16,6 @@ export class InputValidationError extends Error {
 }
 
 const defaultCategory = "其他";
-const maxTextLength = 500;
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const transactionTypes: TransactionType[] = ["expense", "income", "transfer"];
 
@@ -67,6 +74,86 @@ function isValidIsoDate(value: string) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+function toIsoDate(year: number, month: number, day: number) {
+  const isoDate = [
+    String(year).padStart(4, "0"),
+    String(month).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
+
+  return isValidIsoDate(isoDate) ? isoDate : null;
+}
+
+function addDaysToIsoDate(isoDate: string, days: number) {
+  const date = new Date(`${isoDate}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function collectDatesFromText(text: string, todayIsoDate: string) {
+  const dates: string[] = [];
+  const fullDatePattern =
+    /(?:^|[^\d])((?:19|20)\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日|号)?(?=$|[^\d])/g;
+  const monthDayPattern = /(?:^|[^\d])(\d{1,2})月(\d{1,2})(?:日|号)?(?=$|[^\d])/g;
+
+  for (const match of text.matchAll(fullDatePattern)) {
+    const [, year, month, day] = match;
+    const isoDate = toIsoDate(Number(year), Number(month), Number(day));
+
+    if (isoDate && !dates.includes(isoDate)) {
+      dates.push(isoDate);
+    }
+  }
+
+  if (text.includes("前天")) {
+    const isoDate = addDaysToIsoDate(todayIsoDate, -2);
+    if (!dates.includes(isoDate)) {
+      dates.push(isoDate);
+    }
+  }
+
+  if (text.includes("昨天") || text.includes("昨日")) {
+    const isoDate = addDaysToIsoDate(todayIsoDate, -1);
+    if (!dates.includes(isoDate)) {
+      dates.push(isoDate);
+    }
+  }
+
+  if (text.includes("今天") || text.includes("今日")) {
+    if (!dates.includes(todayIsoDate)) {
+      dates.push(todayIsoDate);
+    }
+  }
+
+  for (const match of text.matchAll(monthDayPattern)) {
+    const [, month, day] = match;
+    const year = Number(todayIsoDate.slice(0, 4));
+    const isoDate = toIsoDate(year, Number(month), Number(day));
+
+    if (isoDate && !dates.includes(isoDate)) {
+      dates.push(isoDate);
+    }
+  }
+
+  return dates;
+}
+
+function resolveDateFromText(text: string, fullText: string, todayIsoDate: string) {
+  const candidateDates = collectDatesFromText(text, todayIsoDate);
+
+  if (candidateDates.length > 0) {
+    return candidateDates[0];
+  }
+
+  const fullTextDates = collectDatesFromText(fullText, todayIsoDate);
+
+  if (fullTextDates.length === 1) {
+    return fullTextDates[0];
+  }
+
+  return todayIsoDate;
+}
+
 function getDigitLikeAmountTokens(text: string) {
   return text.match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
 }
@@ -115,8 +202,8 @@ export function validateParseRequestBody(body: unknown) {
     throw new InputValidationError("text 不能为空。");
   }
 
-  if (text.length > maxTextLength) {
-    throw new InputValidationError(`text 不能超过 ${maxTextLength} 个字符。`);
+  if (text.length > MAX_PARSE_INPUT_CHARS) {
+    throw new InputValidationError(`text 不能超过 ${MAX_PARSE_INPUT_CHARS} 个字符。`);
   }
 
   if (hasSensitiveLongNumber(text)) {
@@ -134,6 +221,16 @@ export function parseAiJson(content: string) {
   }
 }
 
+function getCandidateRawText(aiValue: Record<string, unknown>, rawText: string) {
+  const candidateRawText = toNullableString(aiValue.raw_text);
+
+  if (candidateRawText && rawText.includes(candidateRawText)) {
+    return candidateRawText;
+  }
+
+  return rawText;
+}
+
 export function sanitizeParsedTransaction(
   aiValue: unknown,
   rawText: string,
@@ -144,12 +241,12 @@ export function sanitizeParsedTransaction(
   }
 
   const needsClarification = aiValue.needs_clarification === true;
+  const candidateRawText = getCandidateRawText(aiValue, rawText);
   const amount = toFiniteNumber(aiValue.amount);
   const hasValidAmount = amount !== null && Number.isFinite(amount) && amount !== 0;
-  const amountCameFromText = hasValidAmount ? textContainsAmountToken(rawText, amount) : false;
+  const amountCameFromText = hasValidAmount ? textContainsAmountToken(candidateRawText, amount) : false;
   const shouldClarify = needsClarification || !hasValidAmount || !amountCameFromText;
-  const aiDate = toNullableString(aiValue.date);
-  const safeDate = aiDate && isValidIsoDate(aiDate) ? aiDate : todayIsoDate;
+  const safeDate = resolveDateFromText(candidateRawText, rawText, todayIsoDate);
 
   return {
     type: shouldClarify ? null : isTransactionType(aiValue.type) ? aiValue.type : "expense",
@@ -162,9 +259,34 @@ export function sanitizeParsedTransaction(
     account: toNullableString(aiValue.account),
     date: safeDate,
     note: toNullableString(aiValue.note),
-    raw_text: rawText,
+    raw_text: candidateRawText,
     source: "ai",
     ai_confidence: shouldClarify ? null : toSafeConfidence(aiValue.ai_confidence),
     needs_clarification: shouldClarify,
+  };
+}
+
+export function sanitizeParsedTransactionsBatch(
+  aiValue: unknown,
+  rawText: string,
+  todayIsoDate: string,
+): ParsedTransactionBatch {
+  if (!isRecord(aiValue)) {
+    throw new Error("AI 返回 JSON 必须是对象。");
+  }
+
+  if (!Array.isArray(aiValue.transactions)) {
+    throw new Error("AI 返回 JSON 必须包含 transactions 数组。");
+  }
+
+  const slicedTransactions = aiValue.transactions.slice(0, MAX_PARSED_TRANSACTIONS);
+
+  return {
+    transactions: slicedTransactions.map((transaction) =>
+      sanitizeParsedTransaction(transaction, rawText, todayIsoDate),
+    ),
+    truncated: aiValue.transactions.length > MAX_PARSED_TRANSACTIONS,
+    max_transactions: MAX_PARSED_TRANSACTIONS,
+    max_input_chars: MAX_PARSE_INPUT_CHARS,
   };
 }

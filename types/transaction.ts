@@ -39,6 +39,13 @@ export type ParsedTransaction = {
   needs_clarification: boolean;
 };
 
+export type ParsedTransactionBatch = {
+  transactions: ParsedTransaction[];
+  truncated: boolean;
+  max_transactions: number;
+  max_input_chars: number;
+};
+
 export type ConfirmTransactionDraft = {
   type: TransactionType;
   amount: string;

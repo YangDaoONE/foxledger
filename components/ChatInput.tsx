@@ -2,9 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import { Send, Sparkles, XCircle } from "lucide-react";
-import { ConfirmTransaction } from "@/components/ConfirmTransaction";
+import { ConfirmTransactionBatch } from "@/components/ConfirmTransactionBatch";
+import {
+  MAX_PARSED_TRANSACTIONS,
+  MAX_PARSE_INPUT_CHARS,
+} from "@/lib/parseTransactionLimits";
 import { supabase } from "@/lib/supabase";
-import type { ParsedTransaction } from "@/types/transaction";
+import type { ParsedTransactionBatch } from "@/types/transaction";
 
 type ApiErrorResponse = {
   error?: string;
@@ -16,11 +20,12 @@ type ChatInputProps = {
 
 export function ChatInput({ onSaved }: ChatInputProps) {
   const [text, setText] = useState("");
-  const [parsedTransaction, setParsedTransaction] = useState<ParsedTransaction | null>(null);
+  const [parsedBatch, setParsedBatch] = useState<ParsedTransactionBatch | null>(null);
   const [resultVersion, setResultVersion] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
-  const canParse = text.trim().length > 0 && !isParsing;
+  const canParse =
+    text.trim().length > 0 && text.length <= MAX_PARSE_INPUT_CHARS && !isParsing;
 
   async function handleParse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,7 +36,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
 
     setIsParsing(true);
     setErrorMessage(null);
-    setParsedTransaction(null);
+    setParsedBatch(null);
 
     const { data, error } = await supabase.auth.getSession();
     const accessToken = data.session?.access_token;
@@ -53,7 +58,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
       });
 
       const responseBody = (await response.json().catch(() => null)) as
-        | ParsedTransaction
+        | ParsedTransactionBatch
         | ApiErrorResponse
         | null;
 
@@ -70,7 +75,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
         return;
       }
 
-      setParsedTransaction(responseBody as ParsedTransaction);
+      setParsedBatch(responseBody as ParsedTransactionBatch);
       setResultVersion((value) => value + 1);
     } catch {
       setErrorMessage("AI 解析失败，请稍后重试。");
@@ -80,12 +85,13 @@ export function ChatInput({ onSaved }: ChatInputProps) {
   }
 
   function handleClear() {
-    setParsedTransaction(null);
+    setParsedBatch(null);
     setErrorMessage(null);
   }
 
   function handleSaved() {
-    setParsedTransaction(null);
+    setText("");
+    setParsedBatch(null);
     setErrorMessage(null);
     onSaved?.();
   }
@@ -94,7 +100,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
     <section className="chat-panel" aria-labelledby="ai-input-title">
       <div className="section-heading">
         <p>AI 记账</p>
-        <h2 id="ai-input-title">一句话记一笔</h2>
+        <h2 id="ai-input-title">一段文本记多笔</h2>
       </div>
 
       <form className="chat-form" onSubmit={handleParse}>
@@ -104,11 +110,15 @@ export function ChatInput({ onSaved }: ChatInputProps) {
         </label>
         <textarea
           id="ai-input"
-          placeholder="例如：今天中午麦当劳花了 38，支付宝"
-          rows={3}
+          maxLength={MAX_PARSE_INPUT_CHARS}
+          placeholder="例如：今天中午麦当劳花了 38，支付宝；晚上地铁 6 元；昨天工资到账 12000"
+          rows={4}
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
+        <p className="confirm-note">
+          最多 {MAX_PARSE_INPUT_CHARS} 字，单次最多解析 {MAX_PARSED_TRANSACTIONS} 笔候选账单。
+        </p>
 
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
 
@@ -124,10 +134,10 @@ export function ChatInput({ onSaved }: ChatInputProps) {
         </div>
       </form>
 
-      {parsedTransaction ? (
-        <ConfirmTransaction
-          key={`${resultVersion}-${parsedTransaction.raw_text}`}
-          transaction={parsedTransaction}
+      {parsedBatch ? (
+        <ConfirmTransactionBatch
+          key={`${resultVersion}-${parsedBatch.transactions.length}`}
+          batch={parsedBatch}
           onSaved={handleSaved}
         />
       ) : null}

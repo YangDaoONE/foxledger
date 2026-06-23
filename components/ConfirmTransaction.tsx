@@ -3,55 +3,22 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, Info } from "lucide-react";
 import { createAiTransaction } from "@/lib/aiTransactions";
+import {
+  createConfirmTransactionDraft,
+  defaultCategories,
+  isTransactionType,
+  transactionTypeOptions,
+  validateConfirmTransactionDraft,
+} from "@/lib/transactionDrafts";
 import type {
   ConfirmTransactionDraft,
   ParsedTransaction,
-  TransactionType,
 } from "@/types/transaction";
 
 type ConfirmTransactionProps = {
   transaction: ParsedTransaction;
   onSaved: () => void;
 };
-
-const transactionTypes: Array<{ label: string; value: TransactionType }> = [
-  { label: "支出", value: "expense" },
-  { label: "收入", value: "income" },
-  { label: "转账", value: "transfer" },
-];
-
-const defaultCategories = [
-  "餐饮",
-  "交通",
-  "购物",
-  "住房",
-  "学习",
-  "医疗",
-  "娱乐",
-  "日用",
-  "旅行",
-  "订阅",
-  "人情",
-  "收入",
-  "转账",
-  "其他",
-];
-
-function createDraft(transaction: ParsedTransaction): ConfirmTransactionDraft {
-  return {
-    type: transaction.type ?? "expense",
-    amount: transaction.amount === null ? "" : String(transaction.amount),
-    category: transaction.category,
-    date: transaction.date,
-    merchant: transaction.merchant ?? "",
-    payment_method: transaction.payment_method ?? "",
-    note: transaction.note ?? "",
-  };
-}
-
-function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
 
 function formatConfidence(value: number | null) {
   if (value === null) {
@@ -61,37 +28,14 @@ function formatConfidence(value: number | null) {
   return `${Math.round(value * 100)}%`;
 }
 
-function validateDraft(draft: ConfirmTransactionDraft) {
-  const messages: string[] = [];
-  const amount = Number(draft.amount.trim());
-
-  if (!isTransactionType(draft.type)) {
-    messages.push("账单类型不正确。");
-  }
-
-  if (!draft.amount.trim()) {
-    messages.push("金额不能为空。");
-  } else if (!Number.isFinite(amount) || amount === 0) {
-    messages.push("金额必须是非 0 的有效数字，可正可负。");
-  }
-
-  if (!draft.category.trim()) {
-    messages.push("分类不能为空。");
-  }
-
-  if (!draft.date) {
-    messages.push("日期不能为空。");
-  }
-
-  return messages;
-}
-
 export function ConfirmTransaction({ transaction, onSaved }: ConfirmTransactionProps) {
-  const [draft, setDraft] = useState<ConfirmTransactionDraft>(() => createDraft(transaction));
+  const [draft, setDraft] = useState<ConfirmTransactionDraft>(() =>
+    createConfirmTransactionDraft(transaction),
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const validationMessages = useMemo(() => validateDraft(draft), [draft]);
+  const validationMessages = useMemo(() => validateConfirmTransactionDraft(draft), [draft]);
   const canSave = !transaction.needs_clarification && validationMessages.length === 0 && !isSaving;
 
   async function handleSave() {
@@ -161,7 +105,7 @@ export function ConfirmTransaction({ transaction, onSaved }: ConfirmTransactionP
               }
             }}
           >
-            {transactionTypes.map((item) => (
+            {transactionTypeOptions.map((item) => (
               <option key={item.value} value={item.value}>
                 {item.label}
               </option>

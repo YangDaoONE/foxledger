@@ -6,7 +6,7 @@ import {
   getServerTodayIsoDate,
   InputValidationError,
   parseAiJson,
-  sanitizeParsedTransaction,
+  sanitizeParsedTransactionsBatch,
   validateParseRequestBody,
 } from "@/lib/validators";
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     const todayIsoDate = getServerTodayIsoDate();
     const aiContent = await parseTransactionWithAi(text, todayIsoDate);
     const aiJson = parseAiJson(aiContent);
-    const result = sanitizeParsedTransaction(aiJson, text, todayIsoDate);
+    const result = sanitizeParsedTransactionsBatch(aiJson, text, todayIsoDate);
 
     return NextResponse.json(result);
   } catch (error) {

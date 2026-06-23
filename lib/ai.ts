@@ -1,3 +1,5 @@
+import { MAX_PARSED_TRANSACTIONS } from "@/lib/parseTransactionLimits";
+
 const openAiDefaultBaseUrl = "https://api.openai.com/v1";
 const openAiDefaultModel = "gpt-4o-mini";
 
@@ -41,16 +43,24 @@ function buildParserPrompt(text: string, todayIsoDate: string) {
         "Return strict JSON only. Do not include markdown, comments, or extra text.",
         "Parse only the current user input. Do not infer from history.",
         "Do not calculate summaries or statistics.",
+        `Return at most ${MAX_PARSED_TRANSACTIONS} candidate transactions.`,
+        "Return a JSON object with exactly one top-level key: transactions.",
+        "transactions must be an array. Use an empty array only when no transaction-like item exists.",
         "The amount must come from the user input. Do not invent an amount.",
         "Amounts may be positive or negative. Preserve the sign if the user explicitly writes one.",
         "If there is no reliable amount, set needs_clarification to true and amount to null.",
-        `If date is missing or uncertain, use ${todayIsoDate}.`,
+        "For each transaction, raw_text must be the shortest original text fragment that supports that transaction.",
+        "If you cannot split a fragment reliably, use the full input text as raw_text for that transaction.",
+        "For dates: use dates explicitly present in the text.",
+        `Resolve 今天 as ${todayIsoDate}. Resolve 昨天 and 前天 relative to ${todayIsoDate}.`,
+        `If date is missing, use ${todayIsoDate}.`,
+        "If the text contains month/day without a year, use the current server year only. Do not infer previous or next year across year boundaries.",
         "date must use YYYY-MM-DD.",
         "currency must be CNY.",
         "source must be ai.",
         "If category is uncertain, use 其他.",
         "Optional missing fields must be null.",
-        "Return keys: type, amount, currency, category, tag, merchant, payment_method, account, date, note, raw_text, source, ai_confidence, needs_clarification.",
+        "Each transaction item must include keys: type, amount, currency, category, tag, merchant, payment_method, account, date, note, raw_text, source, ai_confidence, needs_clarification.",
         "type must be expense, income, or transfer when needs_clarification is false.",
       ].join("\n"),
     },

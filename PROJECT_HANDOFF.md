@@ -191,6 +191,9 @@ ALLOWED_EMAILS
 
 ## 8. 当前已知问题 / 限制
 
+- AI 记账当前只支持一次解析单条账单，不支持一段文本解析多条账单。
+- AI 解析结果当前使用单条确认卡片，不支持批量候选交易列表、逐条编辑、逐条删除、部分确认入库。
+
 - 注册入口仍然公开；白名单目前只限制 AI 解析 API。
 - 首页功能较多，移动端信息密度偏高。
 - 搜索、通知、设置入口尚未实现完整功能。
@@ -205,70 +208,37 @@ ALLOWED_EMAILS
 - 没有自动化测试覆盖。
 - iOS/Android 原生封装尚未开始。
 
-## 9. 下一版本推荐开发路线
+## 9. 下一版本开发路线
 
-建议按小阶段推进，不要一次性做大版本。
+## V1.1 AI 批量文本记账
 
-优先级建议：
+- 将现有“一句话 AI 记账”升级为“一段文本解析多条候选账单”。
+- 用户可以输入一天、几天或一周的账单文本。
+- AI 只能解析用户本次输入文本，不能读取历史账单或统计数据。
+- AI 返回 transactions 数组。
+- 服务端必须逐条 JSON parse、sanitize、validate。
+- 前端显示批量确认列表。
+- 每条候选交易可以编辑、删除、取消选择。
+- 用户确认后才批量写入 Supabase。
+- 暂不读取历史账单，暂不做自动去重，暂不修改数据库 schema。
 
-1. UI/UX 优化
-   - 拆分首页模块或改善折叠/导航。
-   - 优化空状态、错误提示、加载状态。
+### V1.1 第一阶段：AI 批量解析文本账单
 
-2. 整站账号限制
-   - 关闭公开注册，或加整站白名单。
-   - 保持 AI 白名单逻辑。
+已完成：
 
-3. 统计增强
-   - 月份切换。
-   - 年度统计。
-   - 自定义日期范围。
+- `app/api/parse-transaction` 现在稳定返回批量结构 `{ transactions, truncated, max_transactions, max_input_chars }`，即使只有一笔账单也返回数组。
+- 单次输入长度限制统一为 `MAX_PARSE_INPUT_CHARS = 3000`，候选数量限制统一为 `MAX_PARSED_TRANSACTIONS = 50`。
+- AI prompt、服务端校验和前端提示共用同一组限制常量。
+- 服务端会对 AI 返回的 `transactions` 执行 `slice(0, MAX_PARSED_TRANSACTIONS)`，超量时返回 `truncated = true`。
+- 每条候选优先保存 AI 返回且能在完整输入中找到的 `raw_text` 原文片段；无法可靠切分时 fallback 为完整输入。
+- 日期由服务端从原文片段二次处理：完整年月日优先，`今天` / `昨天` / `前天` 按服务端日期推算，中文月日使用服务端当前年份，缺失日期使用服务端今天。
+- 前端新增批量确认列表，每条候选可编辑、删除、取消选择；删除和取消选择是独立行为。
+- 批量保存使用一次 Supabase `insert` 写入多条记录，仍然只使用当前登录用户和 RLS，不使用 `service_role key`。
+- 批量保存成功后清空 AI 输入和候选列表，避免重复保存。
 
-4. 基础配置管理
-   - 分类管理。
-   - 支付方式管理。
-   - 账户字段启用。
+本阶段未做：
 
-5. 预算功能
-   - 月预算。
-   - 分类预算。
-
-6. 数据能力
-   - 数据导出。
-   - CSV 导入模板。
-   - 导入重复检查。
-
-7. 测试覆盖
-   - `lib/validators.ts`
-   - `lib/csvImport.ts`
-   - `lib/transactions.ts`
-   - `lib/stats.ts`
-
-8. PWA / App
-   - PWA 安装体验优化。
-   - 再考虑 Capacitor Android。
-   - iOS 需要 Mac 和 Apple Developer 相关条件。
-
-## 10. 新对话启动 Prompt
-
-可以在新 ChatGPT/Codex 对话中使用以下提示：
-
-```text
-请先阅读当前仓库中的 AGENTS.md、README.md 和 PROJECT_HANDOFF.md。
-
-这是 FoxLedger / 狐狐记账，一个基于 Next.js + Supabase 的个人 AI 记账 Web/PWA。第一版核心闭环已经完成，包括 Auth、transactions 表/RLS、手动记账、真实账单列表、编辑删除、AI 解析、AI 确认入库、CSV 导入、本月统计、PWA metadata、Vercel 部署和 AI 邮箱白名单。
-
-请严格遵守：
-- 不提交 .env.local 或任何密钥。
-- 不使用 Supabase service_role key。
-- 不绕过 RLS。
-- 不让 AI 直接写数据库。
-- 统计必须由代码/数据库计算，不调用 AI。
-- 每次只做一个小阶段。
-- 不主动实现超出本阶段的功能。
-
-接下来我要做的是：[在这里填写具体任务]。
-
-请先根据当前代码给出计划，等我确认后再实施。
-```
-
+- 不做历史账单读取。
+- 不做自动去重。
+- 不修改数据库 schema 或 RLS policy。
+- 不做首页整体 UI/UX 重排。

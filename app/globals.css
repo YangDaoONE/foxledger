@@ -826,6 +826,31 @@ textarea::placeholder {
   padding: 12px;
 }
 
+.batch-confirm,
+.batch-candidate-list {
+  display: grid;
+  gap: 12px;
+}
+
+.batch-confirm-summary {
+  display: grid;
+  gap: 8px;
+}
+
+.batch-candidate-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.batch-candidate-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .confirm-card-title {
   display: flex;
   align-items: flex-start;

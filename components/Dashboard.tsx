@@ -9,6 +9,7 @@ import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
 import { StatsPanel } from "@/components/StatsPanel";
 import { TransactionList } from "@/components/TransactionList";
+import { TransactionManager } from "@/components/TransactionManager";
 import { getMonthlyStats } from "@/lib/stats";
 import type { MonthlySummaryData } from "@/types/transaction";
 
@@ -69,16 +70,7 @@ export function Dashboard() {
     }
 
     if (activeView === "transactions") {
-      return (
-        <TransactionList
-          grouped
-          eyebrow="全部账单"
-          title="按年月日分组"
-          refreshKey={transactionRefreshKey}
-          emptyMessage="还没有账单。保存账单后会按年份、月份和日期显示在这里。"
-          onChanged={handleTransactionSaved}
-        />
-      );
+      return <TransactionManager refreshKey={transactionRefreshKey} onChanged={handleTransactionSaved} />;
     }
 
     if (activeView === "stats") {

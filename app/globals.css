@@ -690,12 +690,73 @@ textarea::placeholder {
 .stats-grid,
 .stats-subsection,
 .stats-range-controls,
+.transaction-filter-form,
 .transaction-group-list,
 .transaction-year-group,
 .transaction-month-group,
 .transaction-date-group {
   display: grid;
   gap: 10px;
+}
+
+.filter-search-control {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--muted);
+  padding: 0 12px;
+}
+
+.filter-search-control input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.transaction-filter-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.filter-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.filter-summary-grid div {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.filter-summary-grid span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.filter-summary-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--foreground);
+  font-size: 0.9rem;
+}
+
+.load-more-block {
+  display: grid;
+  gap: 8px;
 }
 
 .range-button-row {
@@ -1105,7 +1166,9 @@ textarea::placeholder {
   .import-summary,
   .import-actions,
   .range-button-row,
-  .custom-range-fields {
+  .custom-range-fields,
+  .transaction-filter-actions,
+  .filter-summary-grid {
     grid-template-columns: 1fr;
   }
 }

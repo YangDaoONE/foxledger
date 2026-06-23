@@ -318,14 +318,6 @@ Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
 ## Roadmap
 
-下一阶段建议进入 v1.3：
-
-- 自定义分类。
-- 自定义账户。
-- 自定义支付方式。
-- 常用商户和默认分类映射。
-- 默认货币设置。
-
 更后续版本候选：
 
 - v2.0：PWA / App 化、安装引导、本地草稿、离线记账和恢复同步。

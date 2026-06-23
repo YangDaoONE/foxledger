@@ -104,10 +104,6 @@ export function validateAiTransactionDraft(
 ) {
   const validationMessages = validateConfirmTransactionDraft(draft);
 
-  if (parsedTransaction.needs_clarification) {
-    throw new Error("AI 解析结果仍需补充信息，不能保存。");
-  }
-
   if (validationMessages.length > 0) {
     throw new Error(validationMessages.join(" "));
   }

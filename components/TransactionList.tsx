@@ -4,15 +4,93 @@ import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
 import { TransactionCard } from "@/components/TransactionCard";
-import { deleteTransaction, listRecentTransactions } from "@/lib/transactions";
+import { deleteTransaction, listTransactions } from "@/lib/transactions";
 import type { Transaction } from "@/types/transaction";
 
 type TransactionListProps = {
   refreshKey: number;
   onChanged?: () => void;
+  grouped?: boolean;
+  limit?: number;
+  title?: string;
+  eyebrow?: string;
+  emptyMessage?: string;
 };
 
-export function TransactionList({ refreshKey, onChanged }: TransactionListProps) {
+type DateGroup = {
+  date: string;
+  transactions: Transaction[];
+};
+
+type MonthGroup = {
+  month: string;
+  dates: DateGroup[];
+};
+
+type YearGroup = {
+  year: string;
+  months: MonthGroup[];
+};
+
+function groupTransactionsByDate(transactions: Transaction[]): YearGroup[] {
+  const yearGroups: YearGroup[] = [];
+
+  for (const transaction of transactions) {
+    const [year = "未知年份", month = "未知月份"] = transaction.date.split("-");
+    let yearGroup = yearGroups.find((group) => group.year === year);
+
+    if (!yearGroup) {
+      yearGroup = { year, months: [] };
+      yearGroups.push(yearGroup);
+    }
+
+    let monthGroup = yearGroup.months.find((group) => group.month === month);
+
+    if (!monthGroup) {
+      monthGroup = { month, dates: [] };
+      yearGroup.months.push(monthGroup);
+    }
+
+    let dateGroup = monthGroup.dates.find((group) => group.date === transaction.date);
+
+    if (!dateGroup) {
+      dateGroup = { date: transaction.date, transactions: [] };
+      monthGroup.dates.push(dateGroup);
+    }
+
+    dateGroup.transactions.push(transaction);
+  }
+
+  return yearGroups;
+}
+
+function formatYearLabel(year: string) {
+  return /^\d{4}$/.test(year) ? `${year} 年` : year;
+}
+
+function formatMonthLabel(month: string) {
+  return /^\d{2}$/.test(month) ? `${Number(month)} 月` : month;
+}
+
+function formatDateLabel(date: string) {
+  const [, month, day] = date.split("-");
+
+  if (!month || !day) {
+    return date;
+  }
+
+  return `${Number(month)} 月 ${Number(day)} 日`;
+}
+
+export function TransactionList({
+  refreshKey,
+  onChanged,
+  grouped = false,
+  limit,
+  title = "真实数据",
+  eyebrow = "最近账单",
+  emptyMessage = "还没有账单。先新增一笔手动账单，保存后会显示在这里。",
+}: TransactionListProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -31,7 +109,7 @@ export function TransactionList({ refreshKey, onChanged }: TransactionListProps)
       setErrorMessage(null);
 
       try {
-        const nextTransactions = await listRecentTransactions();
+        const nextTransactions = await listTransactions({ limit });
 
         if (isMounted) {
           setTransactions(nextTransactions);
@@ -52,7 +130,7 @@ export function TransactionList({ refreshKey, onChanged }: TransactionListProps)
     return () => {
       isMounted = false;
     };
-  }, [refreshKey, manualReloadKey]);
+  }, [refreshKey, manualReloadKey, limit]);
 
   function handleReload() {
     setActionErrorMessage(null);
@@ -115,11 +193,11 @@ export function TransactionList({ refreshKey, onChanged }: TransactionListProps)
   }
 
   return (
-    <section className="section-block" id="transactions" aria-labelledby="recent-title">
+    <section className="section-block" aria-labelledby="transaction-list-title">
       <div className="section-heading horizontal">
         <div>
-          <p>最近账单</p>
-          <h2 id="recent-title">真实数据</h2>
+          <p>{eyebrow}</p>
+          <h2 id="transaction-list-title">{title}</h2>
         </div>
         <button
           className="text-button"
@@ -152,10 +230,10 @@ export function TransactionList({ refreshKey, onChanged }: TransactionListProps)
       ) : null}
 
       {!isLoading && !errorMessage && transactions.length === 0 ? (
-        <p className="list-state">还没有账单。先新增一笔手动账单，保存后会显示在这里。</p>
+        <p className="list-state">{emptyMessage}</p>
       ) : null}
 
-      {!isLoading && !errorMessage && transactions.length > 0 ? (
+      {!isLoading && !errorMessage && transactions.length > 0 && !grouped ? (
         <div className="transaction-list">
           {transactions.map((transaction) => (
             <div className="transaction-edit-item" key={transaction.id}>
@@ -182,6 +260,54 @@ export function TransactionList({ refreshKey, onChanged }: TransactionListProps)
                 />
               ) : null}
             </div>
+          ))}
+        </div>
+      ) : null}
+
+      {!isLoading && !errorMessage && transactions.length > 0 && grouped ? (
+        <div className="transaction-group-list">
+          {groupTransactionsByDate(transactions).map((yearGroup) => (
+            <section className="transaction-year-group" key={yearGroup.year}>
+              <div className="transaction-year-heading">{formatYearLabel(yearGroup.year)}</div>
+              {yearGroup.months.map((monthGroup) => (
+                <section className="transaction-month-group" key={`${yearGroup.year}-${monthGroup.month}`}>
+                  <div className="transaction-month-heading">{formatMonthLabel(monthGroup.month)}</div>
+                  {monthGroup.dates.map((dateGroup) => (
+                    <section className="transaction-date-group" key={dateGroup.date}>
+                      <div className="transaction-date-heading">{formatDateLabel(dateGroup.date)}</div>
+                      <div className="transaction-list">
+                        {dateGroup.transactions.map((transaction) => (
+                          <div className="transaction-edit-item" key={transaction.id}>
+                            <TransactionCard
+                              transaction={transaction}
+                              isEditing={editingTransactionId === transaction.id}
+                              isConfirmingDelete={confirmDeleteId === transaction.id}
+                              isDeleting={deletingId === transaction.id}
+                              onEdit={handleEdit}
+                              onDelete={handleDelete}
+                            />
+                            {deletingId === transaction.id ? (
+                              <p className="delete-confirm-note">删除中</p>
+                            ) : null}
+                            {confirmDeleteId === transaction.id && deletingId !== transaction.id ? (
+                              <p className="delete-confirm-note">再次点击删除按钮确认删除。</p>
+                            ) : null}
+                            {editingTransactionId === transaction.id ? (
+                              <EditTransactionForm
+                                key={transaction.id}
+                                transaction={transaction}
+                                onCancel={handleCancelEdit}
+                                onUpdated={handleTransactionUpdated}
+                              />
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </section>
+              ))}
+            </section>
           ))}
         </div>
       ) : null}

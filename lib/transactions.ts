@@ -25,6 +25,10 @@ type DeletedTransactionResult = {
   id: string;
 };
 
+type ListTransactionsOptions = {
+  limit?: number;
+};
+
 const noEditableTransactionMessage = "未找到可编辑的账单，或你没有权限修改这条记录。";
 const noDeletableTransactionMessage = "未找到可删除的账单，或你没有权限删除这条记录。";
 
@@ -57,6 +61,10 @@ function normalizeTransaction(row: TransactionRow): Transaction {
 }
 
 export async function listRecentTransactions(limit = 20): Promise<Transaction[]> {
+  return listTransactions({ limit });
+}
+
+export async function listTransactions(options: ListTransactionsOptions = {}): Promise<Transaction[]> {
   const { data: userData, error: userError } = await supabase.auth.getUser();
 
   if (userError) {
@@ -67,13 +75,18 @@ export async function listRecentTransactions(limit = 20): Promise<Transaction[]>
     throw new Error("请先登录后查看账单。");
   }
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("transactions")
     .select(transactionSelectColumns)
     .eq("user_id", userData.user.id)
     .order("date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(limit);
+    .order("created_at", { ascending: false });
+
+  if (typeof options.limit === "number") {
+    query = query.limit(options.limit);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(error.message);

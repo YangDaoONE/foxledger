@@ -41,7 +41,7 @@ function createCandidateStates(transactions: ParsedTransaction[]): CandidateStat
     id: `${index}-${transaction.raw_text}-${transaction.amount ?? "unknown"}`,
     transaction,
     draft: createConfirmTransactionDraft(transaction),
-    selected: !transaction.needs_clarification,
+    selected: true,
   }));
 }
 
@@ -54,10 +54,6 @@ function formatConfidence(value: number | null) {
 }
 
 function getCandidateMessages(candidate: CandidateState) {
-  if (candidate.transaction.needs_clarification) {
-    return ["AI 没有找到明确金额，请修改原文后重新解析，或删除该候选。"];
-  }
-
   return validateConfirmTransactionDraft(candidate.draft);
 }
 
@@ -97,7 +93,7 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
   function toggleCandidate(id: string) {
     setCandidates((current) =>
       current.map((candidate) =>
-        candidate.id === id && !candidate.transaction.needs_clarification
+        candidate.id === id
           ? { ...candidate, selected: !candidate.selected }
           : candidate,
       ),
@@ -193,7 +189,7 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
                     aria-label={candidate.selected ? "取消选择该候选" : "选择该候选"}
                     aria-pressed={candidate.selected}
                     className="small-icon-button"
-                    disabled={candidate.transaction.needs_clarification || isSaving}
+                    disabled={isSaving}
                     title={candidate.selected ? "取消选择" : "选择"}
                     type="button"
                     onClick={() => toggleCandidate(candidate.id)}
@@ -324,6 +320,9 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
                     </p>
                   ))}
                 </div>
+              ) : null}
+              {candidate.transaction.needs_clarification && messages.length === 0 ? (
+                <p className="form-message success">已补全必要信息，可以保存。</p>
               ) : null}
 
               <dl className="confirm-readonly">

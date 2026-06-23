@@ -1,173 +1,138 @@
-# FoxLedger
+# FoxLedger / 狐狐记账
 
-FoxLedger / 狐狐记账是一个自用 AI 记账 App。
+FoxLedger 是一个自用 AI 记账 Web App / PWA 雏形，目标是用尽量简单、可维护的技术栈完成个人记账闭环：登录、记账、AI 辅助解析、账单管理、统计和批量导入。
 
-当前阶段：第 15.5 阶段，AI 账号白名单安全加固。
+当前生产地址：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单，并已添加基础 PWA manifest、App 图标和移动端安全区优化。项目已部署到 Vercel，线上 AI 解析链路已验证可用，并已为 AI 解析 API 增加账号白名单。
+当前定位：第一版核心功能已经打通，适合作为个人长期自用项目继续迭代，不是商业化 SaaS，也不是多人共享账本。
 
-已完成的数据库 migration：
+## 功能列表
+
+已完成：
+
+- 邮箱 + 密码登录和注册，基于 Supabase Auth。
+- 手动新增账单，写入 Supabase `public.transactions`。
+- 最近账单读取真实数据。
+- 编辑账单，只允许更新 `type`、`amount`、`category`、`date`、`merchant`、`payment_method`、`note`。
+- 删除账单，删除前二次确认。
+- AI 一句话记账解析，调用 OpenAI-compatible API。
+- AI 解析结果确认卡片，用户确认后才入库。
+- AI 解析 API 账号白名单，使用 `ALLOWED_EMAILS` 限制可调用邮箱。
+- 本月收入、支出、结余统计。
+- 分类支出排行。
+- 每日支出趋势。
+- 宽松版 CSV 导入，预览确认后追加导入合法账单。
+- 基础 PWA metadata、manifest 和 App 图标。
+- Vercel 生产部署。
+
+## 技术栈
+
+- Next.js App Router
+- React
+- TypeScript
+- Supabase Auth
+- Supabase Postgres
+- Supabase Row Level Security
+- OpenAI-compatible API provider
+- Vercel
+- lucide-react
+- ESLint
+
+## 目录结构
+
+当前主要目录：
 
 ```text
-supabase/migrations/001_create_transactions.sql
-supabase/migrations/002_grant_transactions_permissions.sql
+app/
+  api/parse-transaction/route.ts
+  icons/
+  layout.tsx
+  manifest.ts
+  page.tsx
+components/
+  AuthGate.tsx
+  AuthForm.tsx
+  ChatInput.tsx
+  ConfirmTransaction.tsx
+  Dashboard.tsx
+  EditTransactionForm.tsx
+  ImportTransactions.tsx
+  ManualTransactionForm.tsx
+  StatsPanel.tsx
+  TransactionList.tsx
+lib/
+  ai.ts
+  aiTransactions.ts
+  allowedEmails.ts
+  csvImport.ts
+  stats.ts
+  supabase.ts
+  transactions.ts
+  validators.ts
+supabase/migrations/
+  001_create_transactions.sql
+  002_grant_transactions_permissions.sql
+types/
+  transaction.ts
 ```
 
-这些 SQL 用于创建 `public.transactions` 表、字段约束、RLS policies、`updated_at` trigger、常用索引，并授予已登录用户访问 `transactions` 表所需的权限。
+## 数据模型
 
-如果保存账单时出现 `permission denied for table transactions`，请在 Supabase SQL Editor 执行：
+核心表：
 
 ```text
-supabase/migrations/002_grant_transactions_permissions.sql
+public.transactions
 ```
 
-当前限制：
-
-- AI 暂不支持多轮对话。
-- 暂未支持跨月筛选、年度统计、预算、中文表头识别和微信 / 支付宝 / 银行卡自动导入。
-- PWA 当前只支持基础安装信息和手机端显示优化，不支持离线记账、离线同步或 push notification。
-- 当前白名单只限制 AI 解析 API；整站登录入口暂未限制到白名单账号。
-
-第 13 阶段 CSV 导入规则：
-
-- 第一版只做用户手动上传 CSV、预览确认后追加写入当前登录用户自己的 `transactions`。
-- CSV 必须包含 `date`、`amount`、`type` 三个表头。
-- 推荐格式是 `date,amount,type,category,note`。
-- 列顺序不限，多余列会忽略。
-- `amount` 必须大于 0，`type` 只能是 `expense` / `income` / `transfer`，`date` 必须是 `YYYY-MM-DD`。
-- `currency` 为空时默认 `CNY`，`category` 为空时默认 `其他`，`source` 为空或非法时默认 `manual`。
-- 错误行不会入库；只要至少一行合法，就可以确认导入合法行。
-
-第 6 阶段新增的关键文件：
+字段：
 
 ```text
-components/Dashboard.tsx
-components/TransactionList.tsx
-lib/transactions.ts
-```
-
-第 7 阶段新增的关键文件：
-
-```text
-components/EditTransactionForm.tsx
-```
-
-编辑账单只允许更新以下字段：
-
-```text
+id
+user_id
 type
 amount
+currency
 category
-date
+tag
 merchant
 payment_method
+account
+date
 note
+raw_text
+source
+ai_confidence
+created_at
+updated_at
 ```
 
-不会更新 `id`、`user_id`、`currency`、`source`、`raw_text`、`ai_confidence`、`created_at`、`updated_at`。
+关键约束：
 
-第 8 阶段删除账单规则：
+- `user_id` references `auth.users(id)`。
+- `type` 只能是 `expense` / `income` / `transfer`。
+- `amount` 使用 `numeric(12, 2)`，必须大于 0。
+- `currency` 默认 `CNY`。
+- `category` 默认 `其他`。
+- `source` 只能是 `manual` / `ai`。
+- `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
+- `updated_at` 由 trigger 自动更新。
 
-- 删除前必须已登录。
-- 删除查询同时使用 `id` 和当前登录用户的 `user_id`。
-- 删除后会重新读取真实账单列表。
-- 不做批量删除、软删除，也不修改数据库结构。
+## 数据安全与权限
 
-第 9 阶段新增的关键文件：
+- Supabase RLS 已开启。
+- 用户只能读取、创建、修改、删除自己的 `transactions`。
+- 前端只使用 Supabase publishable key。
+- 项目不使用 Supabase `service_role key`。
+- `.env.local` 不提交到 Git。
+- AI API key 只放在服务端环境变量中。
+- AI 解析 API 必须携带 Supabase access token。
+- AI 解析 API 会验证 `ALLOWED_EMAILS` 白名单。
+- AI 只接收当前输入文本，不读取历史账单。
+- 统计由代码和数据库查询计算，不调用 AI。
 
-```text
-app/api/parse-transaction/route.ts
-lib/ai.ts
-lib/validators.ts
-```
+## 环境变量
 
-AI 解析 API 规则：
-
-- 请求必须携带 `Authorization: Bearer <supabase_access_token>`。
-- 服务端只验证 Supabase token，不读取历史账单。
-- 只把当前输入文本发送给 AI。
-- AI 返回结果必须经过服务端 JSON 解析、校验和清洗。
-
-第 10 阶段新增的关键文件：
-
-```text
-components/ConfirmTransaction.tsx
-```
-
-AI 确认卡片规则：
-
-- 前端只发送 `{ text }` 到解析 API。
-- 确认卡片可以编辑 `type`、`amount`、`category`、`date`、`merchant`、`payment_method`、`note`。
-- `currency`、`raw_text`、`source`、`ai_confidence` 只读展示。
-- 用户点击确认保存后才写入 `transactions` 表。
-
-第 11 阶段新增的关键文件：
-
-```text
-lib/aiTransactions.ts
-```
-
-AI 确认后入库规则：
-
-- 保存前重新获取当前登录用户。
-- insert payload 显式构造，不直接展开确认卡片对象。
-- `amount` 入库前统一转为正数，方向由 `type` 表示。
-- `currency` 强制为 `CNY`，`source` 强制为 `ai`。
-- 保存成功后刷新真实账单列表。
-
-第 12 阶段新增的关键文件：
-
-```text
-components/StatsPanel.tsx
-lib/stats.ts
-```
-
-统计规则：
-
-- 统计只读取当前登录用户自己的 `transactions`。
-- 本月支出统计 `type = expense`。
-- 本月收入统计 `type = income`。
-- 本月结余 = 收入 - 支出。
-- `transfer` 暂不计入收入、支出和结余。
-- 统计不调用 AI。
-
-第 13 阶段新增的关键文件：
-
-```text
-components/ImportTransactions.tsx
-lib/csvImport.ts
-```
-
-CSV 导入不新增数据库结构，不使用 `service_role key`，也不接 AI。
-
-第 14 阶段新增的关键文件：
-
-```text
-app/manifest.ts
-app/icons/icon-192/route.tsx
-app/icons/icon-512/route.tsx
-app/icons/apple-touch-icon/route.tsx
-lib/pwaIcon.tsx
-```
-
-PWA 优化规则：
-
-- 使用 Next.js 原生 `manifest.ts` 和图标 route。
-- 不引入额外 PWA 库。
-- 不注册 service worker。
-- 不缓存 Supabase 用户数据。
-- 当前仍然是联网 App。
-
-第 15 阶段 Vercel 部署信息：
-
-- 生产地址：`https://foxledger.vercel.app`
-- Vercel 使用 GitHub `main` 分支部署。
-- 线上 AI 链路：Vercel API Route -> CPA 公网地址 -> Gemini。
-- CPA 公网地址使用 `OPENAI_BASE_URL` 配置，当前应指向 `https://cpa-api.foxyang.com/v1`。
-- CPA API Key 使用 `OPENAI_API_KEY` 配置，只能放在 Vercel 环境变量里，不能提交到 Git。
-- 线上 AI 解析已验证可用。
-
-Vercel 生产环境变量：
+本地 `.env.local` 和 Vercel Project Settings 需要配置以下变量。不要提交真实值。
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
@@ -179,44 +144,126 @@ OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-部署规则：
+说明：
 
-- 修改 Vercel 环境变量后必须重新部署。
-- 重新部署时建议不要勾选 `Use existing Build Cache`。
-- 不要配置 Supabase `service_role key`。
-- 不要把 `.env.local`、CPA API Key 或 OpenAI API Key 提交到 Git。
+- `NEXT_PUBLIC_SUPABASE_URL`：Supabase project URL。
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`：Supabase publishable key。
+- `AI_PROVIDER`：当前应为 `openai`。
+- `OPENAI_API_KEY`：OpenAI-compatible provider API key。
+- `OPENAI_BASE_URL`：OpenAI-compatible API base URL，格式类似 `https://example.com/v1`。
+- `OPENAI_MODEL`：当前 provider 支持的模型名。
+- `ALLOWED_EMAILS`：允许调用 AI 解析的邮箱，多个邮箱用英文逗号分隔。
 
-第 15.5 阶段 AI 账号白名单规则：
+## 本地开发
 
-- `/api/parse-transaction` 会先验证 Supabase 登录 token。
-- 登录用户邮箱必须在 `ALLOWED_EMAILS` 中，才能调用 AI 解析。
-- `ALLOWED_EMAILS` 使用英文逗号分隔，例如 `me@example.com,other@example.com`。
-- 未登录用户返回 `401`。
-- 已登录但不在白名单的用户返回 `403`。
-- 如果没有配置 `ALLOWED_EMAILS`，AI 解析 API 会返回服务端配置错误。
-- 这个白名单只保护 AI 额度，不改变 Supabase RLS；账单数据仍然由 RLS 限制用户只能访问自己的数据。
-
-## Environment
-
-本地需要创建 `.env.local`，并配置：
-
-```bash
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-supabase-publishable-key
-AI_PROVIDER=openai
-OPENAI_API_KEY=your-openai-compatible-api-key
-OPENAI_BASE_URL=https://your-openai-compatible-base-url/v1
-OPENAI_MODEL=your-model-name
-ALLOWED_EMAILS=your-email@example.com
-```
-
-不要提交 `.env.local`。
-
-## Development
+安装依赖：
 
 ```bash
 npm install
+```
+
+创建 `.env.local` 并填入环境变量。
+
+启动开发服务器：
+
+```bash
 npm run dev
 ```
 
-打开 `http://localhost:3000` 查看本地页面。
+打开：
+
+```text
+http://localhost:3000
+```
+
+检查代码：
+
+```bash
+npm run lint
+npm run build
+```
+
+安全检查：
+
+```bash
+npm audit --audit-level=moderate
+```
+
+## Supabase 设置
+
+需要在 Supabase SQL Editor 执行：
+
+```text
+supabase/migrations/001_create_transactions.sql
+supabase/migrations/002_grant_transactions_permissions.sql
+```
+
+`001_create_transactions.sql` 创建 `transactions` 表、约束、RLS policies、`updated_at` trigger 和常用索引。
+
+`002_grant_transactions_permissions.sql` 授权 authenticated role 访问 `transactions` 表。
+
+Supabase Auth URL Configuration 建议包含：
+
+```text
+Site URL:
+https://foxledger.vercel.app
+
+Additional Redirect URLs:
+http://localhost:3000/**
+https://*.vercel.app/**
+```
+
+如果使用具体 Vercel preview 域名，也可以加入对应 preview URL。
+
+## 部署
+
+当前部署平台：Vercel
+
+Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+
+部署方式：
+
+- Vercel 连接 GitHub 仓库。
+- `main` 分支 push 后触发部署。
+- 环境变量在 Vercel Project Settings 配置。
+- 修改 Vercel 环境变量后需要重新部署。
+- 重新部署排查环境变量问题时，建议不勾选 `Use existing Build Cache`。
+
+当前线上 AI 链路：
+
+```text
+FoxLedger frontend
+-> /api/parse-transaction
+-> OpenAI-compatible API configured by OPENAI_BASE_URL
+-> model configured by OPENAI_MODEL
+```
+
+## 当前限制
+
+- 当前是单页 Web/PWA 雏形，不是完整原生 App。
+- 注册入口尚未做整站账号白名单限制。
+- AI 白名单只限制 AI 解析 API，不限制手动记账等普通功能。
+- 统计只覆盖本月，不支持跨月、年度或自定义日期范围。
+- CSV 导入只支持英文表头，不支持中文表头自动识别。
+- CSV 导入不自动去重、不覆盖已有账单。
+- 暂不支持微信、支付宝、银行卡原始账单自动导入。
+- 暂不支持预算、账户管理、支付方式管理。
+- PWA 只包含基础 manifest 和图标，没有 service worker、离线记账或 push notification。
+- 搜索、通知、设置入口目前是界面占位或基础导航，不是完整功能。
+- 项目还没有自动化测试覆盖。
+
+## Roadmap
+
+下一版本可以考虑：
+
+- UI/UX 优化，减少首页信息密度，改善移动端交互。
+- 更完整的统计，包括跨月筛选、年度统计和自定义日期范围。
+- 预算功能。
+- 多账户、支付方式和分类管理增强。
+- 数据导出。
+- PWA 安装体验优化。
+- 错误提示和空状态优化。
+- AI 解析兼容性和失败重试优化。
+- 整站账号白名单或关闭公开注册。
+- 测试覆盖，包括 CSV parser、AI validator 和 transactions 数据操作。
+

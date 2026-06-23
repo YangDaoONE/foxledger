@@ -1,99 +1,62 @@
 # AGENTS.md
 
-## 1. 项目定位
+本文件面向后续 Codex / AI 开发助手。请先阅读本文件，再修改 FoxLedger 项目。
 
-本项目是一个自用 AI 记账 App，项目名暂定为 **FoxLedger / 狐狐记账**。
+## 1. 项目角色
 
-这是一个真实长期自用项目，不是作品集 Demo，也不是商业化 SaaS。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账应用。
 
-第一优先级：
+当前项目已经完成第一版 Web/PWA 核心闭环：
 
-1. 记账稳定
-2. 数据准确
-3. 隐私安全
-4. 代码简单可维护
-5. 手机端好用
+- Supabase Auth 邮箱密码登录。
+- `public.transactions` 表和 RLS。
+- 手动记账。
+- 真实账单列表。
+- 编辑和删除账单。
+- AI 一句话解析账单。
+- AI 确认后入库。
+- 宽松版 CSV 导入。
+- 本月统计。
+- 基础 PWA metadata。
+- Vercel 部署。
+- AI API 邮箱白名单。
 
-核心原则：
+最高优先级：
 
-- AI 只负责把自然语言解析成结构化账单。
-- AI 不能直接入账，必须用户确认后才能保存。
-- 统计必须由代码和数据库计算，不能让 AI 计算。
-- 第一版优先做 PWA，后期再考虑 Capacitor 封装为 iOS / Android App。
+1. 数据安全。
+2. Supabase RLS 和用户隔离。
+3. 记账准确性。
+4. 代码简单可维护。
+5. 手机端可用性。
 
-## 2. 用户与协作方式
+## 2. 开发原则
 
-用户是 0 基础开发者。开发时必须遵守：
+- 每次只做一个小阶段。
+- 不要主动实现用户没有要求的功能。
+- 不要大规模重构项目结构。
+- 不要修改与当前任务无关的文件。
+- 不要删除已有功能。
+- 不要提交 `.env.local`。
+- 不要提交任何 API key、Supabase key、数据库密码或其他密钥。
+- 不要引入 Supabase `service_role key`。
+- 不要绕过 Supabase RLS。
+- 不要让 AI 直接写数据库。
+- AI 只能解析当前输入文本，不能读取历史账单。
+- 统计必须由代码和数据库查询计算，不能调用 AI。
+- 修改完成后需要用中文说明改了什么、改了哪些文件、如何运行、如何测试、是否需要环境变量。
+- 每次完成明确修改后，尽量 commit 并 push 到 GitHub。
 
-1. 每次只实现一个小阶段。
-2. 不要一次性实现完整 App。
-3. 不要引入复杂架构。
-4. 不要过度设计。
-5. 不要修改与当前任务无关的文件。
-6. 每次修改后用中文解释：改了什么、改了哪些文件、如何运行、如何测试。
-7. 如果出现报错，优先做最小范围修复，不要大规模重构。
+代码命名规则：
 
-回复和总结使用中文。
+- 解释和总结使用中文。
+- 代码变量名、数据库字段、文件名和技术名词使用英文。
 
-代码变量名、数据库字段、文件名和技术名词使用英文。
+## 3. 数据规则
 
-## 3. 技术栈
-
-第一阶段使用：
-
-- Next.js
-- TypeScript
-- Supabase Auth
-- Supabase Postgres
-- Supabase Row Level Security
-- OpenAI API 或 DeepSeek API
-- Recharts
-- Vercel
-- PWA
-
-后期可使用：
-
-- Capacitor
-
-## 4. MVP 功能范围
-
-第一版必须实现：
-
-1. 用户登录
-2. 手动记账
-3. AI 对话式记账
-4. AI 解析后生成确认卡片
-5. 用户确认后入库
-6. 账单列表
-7. 编辑账单
-8. 删除账单
-9. 月度收入、支出、结余统计
-10. 分类支出统计
-11. 每日支出趋势
-12. CSV 导入
-13. 移动端 PWA 适配
-
-第一版暂时不做：
-
-1. 银行卡同步
-2. 微信 / 支付宝自动导入
-3. 短信自动读取
-4. OCR 发票识别
-5. 多人共享账本
-6. 投资理财建议
-7. 复杂资产负债表
-8. 订阅付费
-9. 社交功能
-10. 商业化多租户系统
-
-不要主动实现超出 MVP 的功能，除非用户明确要求。
-
-## 5. 核心数据表
-
-核心表名：
+核心表：
 
 ```text
-transactions
+public.transactions
 ```
 
 字段：
@@ -118,22 +81,17 @@ created_at
 updated_at
 ```
 
-字段规则：
+规则：
 
-- `user_id`: 当前 Supabase Auth 用户 id
-- `type`: `expense` / `income` / `transfer`
-- `amount`: 金额，必须大于 0
-- `currency`: 第一版默认 `CNY`
-- `category`: 分类
-- `tag`: 标签，可选
-- `merchant`: 商家，可选
-- `payment_method`: 支付方式，可选
-- `account`: 账户，可选，第一版可先保留字段
-- `date`: 实际消费日期
-- `note`: 用户备注
-- `raw_text`: AI 记账时的用户原始输入
-- `source`: `manual` / `ai`
-- `ai_confidence`: AI 解析置信度，可选
+- `user_id` 是当前 Supabase Auth 用户 id。
+- `type` 只能是 `expense` / `income` / `transfer`。
+- `amount` 入库必须大于 0。
+- 支出和收入方向由 `type` 表示，不用负数入库。
+- `currency` 第一版固定为 `CNY`。
+- `category` 默认 `其他`。
+- `source` 只能是 `manual` / `ai`。
+- `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
+- 不要新增表或改 schema，除非用户明确要求。
 
 默认分类：
 
@@ -154,265 +112,242 @@ updated_at
 其他
 ```
 
-如果分类不确定，使用 `其他`。
+## 4. Supabase / Auth / RLS 规则
 
-## 6. AI 解析规则
+必须保持：
 
-AI 只解析当前用户输入，不读取历史账单。
+- Supabase RLS 已开启。
+- 用户只能操作自己的 `transactions`。
+- 查询、更新、删除应同时约束当前用户。
+- 前端只使用 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
+- 不要使用 `service_role key`。
+- 不要把 Supabase 密钥写入前端代码。
 
-示例输入：
+现有 migration：
 
 ```text
-今天中午麦当劳花了 38，支付宝
+supabase/migrations/001_create_transactions.sql
+supabase/migrations/002_grant_transactions_permissions.sql
 ```
 
-期望输出：
+如果出现 `permission denied for table transactions`，优先检查 `002_grant_transactions_permissions.sql` 是否已经在 Supabase SQL Editor 执行。
 
-```json
-{
-  "type": "expense",
-  "amount": 38,
-  "currency": "CNY",
-  "category": "餐饮",
-  "tag": "午餐",
-  "merchant": "麦当劳",
-  "payment_method": "支付宝",
-  "account": null,
-  "date": "2026-06-22",
-  "note": "中午麦当劳",
-  "raw_text": "今天中午麦当劳花了 38，支付宝",
-  "source": "ai",
-  "ai_confidence": 0.95,
-  "needs_clarification": false
-}
+## 5. AI 解析规则
+
+AI API：
+
+```text
+app/api/parse-transaction/route.ts
+```
+
+当前链路：
+
+```text
+frontend ChatInput
+-> /api/parse-transaction
+-> validate Supabase access token
+-> assert ALLOWED_EMAILS
+-> OpenAI-compatible API
+-> server-side JSON parse and sanitize
+-> ConfirmTransaction card
+-> user confirms
+-> insert transaction
+```
+
+必须保持：
+
+- `/api/parse-transaction` 必须要求登录。
+- 前端请求必须携带 `Authorization: Bearer <supabase_access_token>`。
+- 服务端只验证 token，不读取历史账单。
+- 服务端必须检查 `ALLOWED_EMAILS`。
+- 未登录返回 `401`。
+- 已登录但邮箱不在白名单返回 `403`。
+- 输入错误返回 `400`。
+- AI 或服务端错误返回 `500`。
+- AI 返回结果必须先 `JSON.parse`。
+- AI 返回结果必须服务端二次校验和清洗。
+- `raw_text` 必须等于用户原始输入。
+- 日期必须是 `YYYY-MM-DD`。
+- 日期不确定时使用服务端今天日期。
+- 如果没有可靠金额，返回 `needs_clarification: true`，不能保存。
+- AI 不允许直接写数据库。
+- AI 不允许计算统计。
+
+安全注意：
+
+- 不要发送历史账单、统计数据、银行卡号、身份证号、完整地址等敏感信息给 AI。
+- `OPENAI_API_KEY`、CPA API Key 等只允许在服务端环境变量中。
+
+## 6. CSV 导入规则
+
+当前 CSV 导入是前端解析、预览、确认后写入 Supabase。
+
+文件：
+
+```text
+components/ImportTransactions.tsx
+lib/csvImport.ts
 ```
 
 规则：
 
-1. AI 必须返回严格 JSON。
-2. 金额必须来自用户原文，不能编造。
-3. 如果没有金额，返回 `needs_clarification: true`。
-4. 如果没有日期，默认使用今天。
-5. 如果没有支付方式，`payment_method` 为 `null`。
-6. 如果没有商家，`merchant` 为 `null`。
-7. 如果分类不确定，`category` 为 `其他`。
-8. AI 不允许直接写数据库。
-9. AI 不允许计算统计。
-10. 前端必须显示确认卡片。
-11. 用户必须可以修改 AI 解析结果。
-12. 用户点击确认后才保存。
+- 必须已登录才能导入。
+- 导入数据只能写入当前用户。
+- 第一版只做追加新增，不做覆盖、合并、自动去重。
+- 第一版只强制要求 `date`、`amount`、`type` 三个表头。
+- 列顺序不限，多余列忽略。
+- 错误行不入库，合法行可以单独导入。
+- `amount` 必须大于 0。
+- `date` 必须是 `YYYY-MM-DD`。
+- `type` 只能是 `expense` / `income` / `transfer`。
+- `currency` 为空默认 `CNY`。
+- `category` 为空默认 `其他`。
+- `source` 为空或非法默认 `manual`。
+- 不接 AI，不改数据库结构，不使用 `service_role key`。
 
-## 7. 安全规则
+## 7. 统计规则
 
-必须遵守：
+文件：
 
-1. Supabase 必须开启 Row Level Security。
-2. 用户只能读取、创建、修改、删除自己的 `transactions`。
-3. API Key 只能放在服务端环境变量。
-4. 不要把 OpenAI API Key 或 DeepSeek API Key 写进前端。
-5. 不要提交 `.env.local`。
-6. 不要把 Supabase service role key 放到前端。
-7. 不要把银行卡号、身份证号、完整地址等高度敏感信息传给 AI。
-8. AI 解析时只发送当前输入句子，不发送全部历史账单。
-9. 自用部署时，AI 解析 API 必须使用 `ALLOWED_EMAILS` 白名单限制可调用账号，避免非本人账号消耗 AI 额度。
+```text
+lib/stats.ts
+components/StatsPanel.tsx
+```
 
-环境变量示例：
+当前统计：
+
+- 本月总支出。
+- 本月总收入。
+- 本月结余。
+- 分类支出排行。
+- 每日支出趋势。
+
+规则：
+
+- 只读取当前用户自己的 `transactions`。
+- `expense` 计入支出。
+- `income` 计入收入。
+- `balance = income - expense`。
+- `transfer` 暂不计入收入、支出、结余。
+- 统计不调用 AI。
+
+## 8. UI/UX 规则
+
+当前 UI 是移动端优先的单页布局。
+
+请保持：
+
+- 表单简单、清晰、可用。
+- 按钮有明确禁用态和加载态。
+- 错误信息要能指导用户下一步。
+- 移动端宽度和文本不要溢出。
+- 不引入大型 UI 框架，除非用户明确要求。
+- 当前已使用 `lucide-react` 图标，新增图标优先继续用它。
+- 不要把卡片嵌套成复杂层级。
+- 新功能尽量复用现有样式类，例如 `section-block`、`manual-field`、`primary-button`、`form-message`。
+
+## 9. PWA 规则
+
+当前 PWA 只做基础 metadata：
+
+```text
+app/manifest.ts
+app/icons/icon-192/route.tsx
+app/icons/icon-512/route.tsx
+app/icons/apple-touch-icon/route.tsx
+lib/pwaIcon.tsx
+```
+
+当前没有：
+
+- service worker。
+- 离线记账。
+- 离线同步。
+- push notification。
+
+不要在没有明确需求时加入离线缓存，尤其不要缓存 Supabase 用户数据。
+
+## 10. 部署规则
+
+生产地址：
+
+[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+
+部署平台：
+
+```text
+Vercel
+```
+
+规则：
+
+- Vercel 连接 GitHub `main` 分支。
+- 环境变量在 Vercel Project Settings 配置。
+- 修改环境变量后需要 redeploy。
+- 排查环境变量问题时，redeploy 建议不要勾选 `Use existing Build Cache`。
+- 不要把 `.env.local` 提交到 GitHub。
+- Supabase Auth URL Configuration 要包含生产地址和 preview redirect URLs。
+
+Vercel 环境变量名：
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-OPENAI_API_KEY
-DEEPSEEK_API_KEY
 AI_PROVIDER
+OPENAI_API_KEY
+OPENAI_BASE_URL
+OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-说明：
+不要在文档或代码中写真实值。
 
-- `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 可以前端使用。
-- 旧项目中的 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 属于 legacy anon key，第一版新项目优先使用 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
-- `OPENAI_API_KEY` 和 `DEEPSEEK_API_KEY` 只能服务端使用。
-- `ALLOWED_EMAILS` 只能服务端使用，用英文逗号分隔允许调用 AI 解析的账号邮箱。
+## 11. 提交前检查
 
-## 8. 统计和导入规则
+修改前：
 
-统计必须由代码和数据库计算，不调用 AI。
-
-需要支持：
-
-1. 本月总支出
-2. 本月总收入
-3. 本月结余
-4. 分类支出排行
-5. 每日支出趋势
-
-CSV 导入至少支持：
-
-```text
-date
-type
-amount
-currency
-category
-tag
-merchant
-payment_method
-account
-note
-raw_text
-source
+```bash
+git status
 ```
 
-导入规则：
+提交前至少执行：
 
-1. CSV 导入必须要求用户已登录。
-2. 导入的数据只能写入当前登录用户自己的 `transactions`。
-3. 导入必须经过前端预览和用户确认后才能入库。
-4. 第一版导入只做追加新增，不做覆盖、合并、自动去重。
-5. 第一版导入不修改数据库结构，不新增 `categories` 表。
-6. 第一版只强制要求 `date`、`amount`、`type` 三个表头。
-7. CSV 列顺序不限，多余列直接忽略。
-8. 某一行错误不影响其他合法行导入；只要至少一行合法，就允许用户确认导入合法行。
-9. 全部行都有错误时，不允许导入。
-10. `amount` 入库仍必须大于 0，收入和支出方向由 `type` 表示。
-11. `type` 只能是 `expense` / `income` / `transfer`。
-12. `date` 必须是 `YYYY-MM-DD`。
-13. `currency` 为空时默认 `CNY`。
-14. `category` 为空时默认 `其他`。
-15. `source` 只能是 `manual` / `ai`；为空或不合法时默认 `manual`。
-16. `merchant`、`payment_method`、`account`、`tag`、`note`、`raw_text` 允许为空。
-17. 导入不能使用 `service_role key`，不能绕过 Supabase RLS。
-18. 暂时不做中文表头识别，不做微信 / 支付宝 / 银行卡自动导入，只做用户手动上传 CSV。
-
-## 9. 开发顺序
-
-请按以下顺序逐步实现，不要跳阶段：
-
-1. 项目骨架
-2. Mock UI 页面
-3. Supabase Auth
-4. `transactions` 表和 RLS
-5. 手动记账
-6. 账单列表
-7. 编辑账单
-8. 删除账单
-9. AI 解析 API
-10. AI 确认卡片
-11. 确认后入库
-12. 统计页
-13. CSV 导入
-14. PWA 优化
-15. Vercel 部署
-15.5. AI 账号白名单安全加固
-16. Capacitor 封装 App
-
-如果用户没有明确要求，不要自动进入下一阶段。
-
-## 10. 编码规则
-
-1. 使用 TypeScript。
-2. 保持代码简单、清晰、可读。
-3. 不要引入不必要的库。
-4. 不要使用复杂状态管理库，除非明确需要。
-5. 不要大规模重构项目结构。
-6. 不要修改与当前任务无关的文件。
-7. 不要删除已有功能。
-8. 数据库字段和 TypeScript 类型要保持一致。
-9. 表单必须做基础校验。
-10. 数据库操作必须处理错误。
-11. AI 解析结果必须做服务端校验。
-12. 页面优先简单、清晰、可用。
-
-## 11. 推荐文件结构
-
-推荐但不强制：
-
-```text
-fox-ledger/
-├─ app/
-│  ├─ page.tsx
-│  ├─ transactions/page.tsx
-│  ├─ stats/page.tsx
-│  ├─ settings/page.tsx
-│  └─ api/
-│     ├─ parse-transaction/route.ts
-│     ├─ import/route.ts
-│     └─ transactions/route.ts
-│
-├─ components/
-│  ├─ ChatInput.tsx
-│  ├─ TransactionCard.tsx
-│  ├─ ConfirmTransaction.tsx
-│  ├─ MonthlySummary.tsx
-│  ├─ CategoryChart.tsx
-│  └─ BottomNav.tsx
-│
-├─ lib/
-│  ├─ supabase.ts
-│  ├─ ai.ts
-│  ├─ validators.ts
-│  ├─ transactions.ts
-│  └─ date.ts
-│
-├─ types/
-│  └─ transaction.ts
-│
-├─ public/
-│  ├─ manifest.json
-│  └─ icons/
-│
-├─ AGENTS.md
-├─ README.md
-└─ .env.local
+```bash
+npm run lint
+npm run build
 ```
 
-如果项目已有更简单结构，优先保持简单，不要为了符合此结构而强行重构。
+必要时执行：
 
-## 12. 每次任务完成后的回复格式
+```bash
+npm audit --audit-level=moderate
+```
 
-每次修改后，请用中文报告：
+提交：
 
-1. 本次完成了什么
-2. 新增了哪些文件
-3. 修改了哪些文件
-4. 如何运行
-5. 如何测试
-6. 是否需要配置环境变量
-7. 是否有已知问题
-8. 下一步建议
+```bash
+git add <changed-files>
+git commit -m "<clear message>"
+git push
+```
 
-不要只给代码，不解释。
+如果只是文档修改但 lint/build 失败，需要如实说明失败原因，不要隐瞒。
 
-## 13. Git 保存规则
+## 12. 下一版本开发建议
 
-本项目需要使用 Git 和 GitHub 做长期备份。
+不要直接开始实现，除非用户明确要求。
 
-每次完成一个小阶段或一次明确修改后，必须尽量执行：
+适合下一版本优先做：
 
-1. 查看 `git status`。
-2. 暂存本次相关修改。
-3. 创建一条清晰的 Git commit。
-4. 如果已经配置 GitHub remote，则推送到 GitHub。
-5. 在完成回复中说明 commit 信息和是否已 push。
+1. UI/UX 优化，减少首页拥挤感。
+2. 关闭公开注册或增加整站账号白名单。
+3. 统计页增强：跨月、年度、自定义日期范围。
+4. 预算功能。
+5. 分类、账户、支付方式管理。
+6. 数据导出。
+7. CSV 导入增强：中文表头、模板下载、重复检查。
+8. PWA 安装体验优化。
+9. 错误提示和空状态优化。
+10. 测试覆盖：validators、CSV parser、transactions 操作。
+11. Capacitor 封装 App。
 
-注意：
-
-- 不要把 `.env.local` 提交到 Git。
-- 不要提交 API Key、数据库密码、Supabase service role key 等敏感信息。
-- 不要把与当前任务无关的文件混进同一个 commit。
-- 如果 GitHub 尚未接入，则先做本地 commit，再提示用户完成 remote 配置。
-
-## 14. README 同步规则
-
-每次完成一个阶段、功能、数据库变更、环境变量变更或运行方式变更后，必须检查并同步更新 `README.md`。
-
-README 至少需要保持以下内容准确：
-
-1. 当前项目阶段。
-2. 当前已完成的能力。
-3. 当前仍未完成或仍是 Mock 的能力。
-4. 新增的关键文件或 SQL migration。
-5. 本地运行方式。
-6. 必要环境变量。
-
-如果本次修改不需要更新 README，也要在完成回复中说明原因。

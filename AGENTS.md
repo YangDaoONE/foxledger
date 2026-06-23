@@ -214,6 +214,7 @@ AI 只解析当前用户输入，不读取历史账单。
 6. 不要把 Supabase service role key 放到前端。
 7. 不要把银行卡号、身份证号、完整地址等高度敏感信息传给 AI。
 8. AI 解析时只发送当前输入句子，不发送全部历史账单。
+9. 自用部署时，AI 解析 API 必须使用 `ALLOWED_EMAILS` 白名单限制可调用账号，避免非本人账号消耗 AI 额度。
 
 环境变量示例：
 
@@ -223,6 +224,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 OPENAI_API_KEY
 DEEPSEEK_API_KEY
 AI_PROVIDER
+ALLOWED_EMAILS
 ```
 
 说明：
@@ -230,6 +232,7 @@ AI_PROVIDER
 - `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 可以前端使用。
 - 旧项目中的 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 属于 legacy anon key，第一版新项目优先使用 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
 - `OPENAI_API_KEY` 和 `DEEPSEEK_API_KEY` 只能服务端使用。
+- `ALLOWED_EMAILS` 只能服务端使用，用英文逗号分隔允许调用 AI 解析的账号邮箱。
 
 ## 8. 统计和导入规则
 
@@ -300,6 +303,7 @@ source
 13. CSV 导入
 14. PWA 优化
 15. Vercel 部署
+15.5. AI 账号白名单安全加固
 16. Capacitor 封装 App
 
 如果用户没有明确要求，不要自动进入下一阶段。

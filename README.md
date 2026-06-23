@@ -2,9 +2,9 @@
 
 FoxLedger / 狐狐记账是一个自用 AI 记账 App。
 
-当前阶段：第 15 阶段，Vercel 部署。
+当前阶段：第 15.5 阶段，AI 账号白名单安全加固。
 
-当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单，并已添加基础 PWA manifest、App 图标和移动端安全区优化。项目已部署到 Vercel，线上 AI 解析链路已验证可用。
+当前页面已接入 Supabase Auth。登录后可以通过手动记账表单新增一笔账单，并保存到 Supabase 的 `public.transactions` 表；首页最近账单会读取当前登录用户自己的真实账单，并支持编辑和删除自己已有的账单。AI 记账输入框已接入 `/api/parse-transaction`，可以把当前输入的一句话解析成可编辑确认卡片，用户确认后再保存到数据库。首页本月概览、分类支出排行和每日支出趋势已改为真实统计。当前已支持手动上传 CSV，预览确认后批量导入合法账单，并已添加基础 PWA manifest、App 图标和移动端安全区优化。项目已部署到 Vercel，线上 AI 解析链路已验证可用，并已为 AI 解析 API 增加账号白名单。
 
 已完成的数据库 migration：
 
@@ -26,7 +26,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 - AI 暂不支持多轮对话。
 - 暂未支持跨月筛选、年度统计、预算、中文表头识别和微信 / 支付宝 / 银行卡自动导入。
 - PWA 当前只支持基础安装信息和手机端显示优化，不支持离线记账、离线同步或 push notification。
-- 当前已登录用户都可以调用 AI 解析；如果只想本人使用，后续需要增加账号白名单。
+- 当前白名单只限制 AI 解析 API；整站登录入口暂未限制到白名单账号。
 
 第 13 阶段 CSV 导入规则：
 
@@ -176,6 +176,7 @@ AI_PROVIDER
 OPENAI_API_KEY
 OPENAI_BASE_URL
 OPENAI_MODEL
+ALLOWED_EMAILS
 ```
 
 部署规则：
@@ -184,6 +185,16 @@ OPENAI_MODEL
 - 重新部署时建议不要勾选 `Use existing Build Cache`。
 - 不要配置 Supabase `service_role key`。
 - 不要把 `.env.local`、CPA API Key 或 OpenAI API Key 提交到 Git。
+
+第 15.5 阶段 AI 账号白名单规则：
+
+- `/api/parse-transaction` 会先验证 Supabase 登录 token。
+- 登录用户邮箱必须在 `ALLOWED_EMAILS` 中，才能调用 AI 解析。
+- `ALLOWED_EMAILS` 使用英文逗号分隔，例如 `me@example.com,other@example.com`。
+- 未登录用户返回 `401`。
+- 已登录但不在白名单的用户返回 `403`。
+- 如果没有配置 `ALLOWED_EMAILS`，AI 解析 API 会返回服务端配置错误。
+- 这个白名单只保护 AI 额度，不改变 Supabase RLS；账单数据仍然由 RLS 限制用户只能访问自己的数据。
 
 ## Environment
 
@@ -196,6 +207,7 @@ AI_PROVIDER=openai
 OPENAI_API_KEY=your-openai-compatible-api-key
 OPENAI_BASE_URL=https://your-openai-compatible-base-url/v1
 OPENAI_MODEL=your-model-name
+ALLOWED_EMAILS=your-email@example.com
 ```
 
 不要提交 `.env.local`。

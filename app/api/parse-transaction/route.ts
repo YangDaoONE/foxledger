@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { assertEmailAllowed, ForbiddenEmailError } from "@/lib/allowedEmails";
 import { parseTransactionWithAi } from "@/lib/ai";
 import {
   getServerTodayIsoDate,
@@ -9,7 +10,7 @@ import {
   validateParseRequestBody,
 } from "@/lib/validators";
 
-function errorResponse(message: string, status: 400 | 401 | 500) {
+function errorResponse(message: string, status: 400 | 401 | 403 | 500) {
   return NextResponse.json({ error: message }, { status });
 }
 
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
       return errorResponse("请先登录后再解析账单。", 401);
     }
 
+    assertEmailAllowed(user.email);
+
     const body = (await request.json().catch(() => null)) as unknown;
     const text = validateParseRequestBody(body);
     const todayIsoDate = getServerTodayIsoDate();
@@ -73,6 +76,10 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof InputValidationError) {
       return errorResponse(error.message, 400);
+    }
+
+    if (error instanceof ForbiddenEmailError) {
+      return errorResponse(error.message, 403);
     }
 
     return errorResponse(error instanceof Error ? error.message : "AI 解析失败。", 500);

@@ -62,6 +62,8 @@ export function ChatInput({ onSaved }: ChatInputProps) {
           setErrorMessage("请先登录后使用 AI 解析。");
         } else if (response.status === 400) {
           setErrorMessage((responseBody as ApiErrorResponse | null)?.error ?? "输入内容不正确。");
+        } else if (response.status === 403) {
+          setErrorMessage((responseBody as ApiErrorResponse | null)?.error ?? "当前账号不允许使用 AI 解析。");
         } else {
           setErrorMessage("AI 解析失败，请稍后重试。");
         }

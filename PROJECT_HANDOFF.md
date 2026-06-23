@@ -1,18 +1,16 @@
 # PROJECT_HANDOFF.md
 
-这是 FoxLedger 项目的新对话交接文件。后续 ChatGPT/Codex 对话开始前，应先阅读本文件、`README.md` 和 `AGENTS.md`。
+本文件用于把 FoxLedger 当前 v1 阶段状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md` 和本文件。
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个个人 AI 记账 Web/PWA，基于 Next.js、Supabase 和 OpenAI-compatible API。当前已经完成 v1.2：登录、手动记账、AI 批量文本账单解析、批量确认入库、账单管理、CSV 导入、日期范围统计、移动端子界面导航、PWA metadata 和 Vercel 部署均已打通。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA 雏形，已经完成从登录、手动/AI/CSV 记账、账单查询管理到日期范围统计的 v1 核心闭环。
 
 ## 2. 当前线上地址
 
-Production URL:
+Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
-[https://foxledger.vercel.app](https://foxledger.vercel.app/)
-
-Vercel 使用 GitHub `main` 分支部署。
+部署平台：Vercel。
 
 ## 3. 当前技术栈
 
@@ -22,204 +20,245 @@ Vercel 使用 GitHub `main` 分支部署。
 - Supabase Auth
 - Supabase Postgres
 - Supabase Row Level Security
-- OpenAI-compatible API provider
+- OpenAI-compatible Chat Completions API
 - Vercel
 - lucide-react
 - ESLint
 
-## 4. 当前完成状态
+## 4. 当前目录和关键文件
 
-### v1.0 核心闭环
+```text
+app/
+  api/parse-transaction/route.ts    AI 解析 API
+  manifest.ts                       PWA manifest
+  layout.tsx                        app metadata
+  page.tsx                          AuthGate + Dashboard 入口
+  icons/*/route.tsx                 PWA 图标路由
 
-已完成：
+components/
+  AuthGate.tsx                      登录态守卫
+  AuthForm.tsx                      登录/注册表单
+  Dashboard.tsx                     主界面和底部导航视图切换
+  BottomNav.tsx                     首页/账单/统计/设置导航
+  ManualTransactionForm.tsx         手动记账
+  ChatInput.tsx                     AI 文本输入
+  ConfirmTransactionBatch.tsx       AI 批量候选确认
+  TransactionList.tsx               首页最近账单
+  TransactionManager.tsx            账单搜索、筛选、排序、加载更多、多选删除
+  TransactionCard.tsx               账单卡片
+  EditTransactionForm.tsx           编辑账单
+  ImportTransactions.tsx            CSV 导入
+  StatsPanel.tsx                    日期范围统计页
+  MonthlySummary.tsx                首页本月概览
 
-- Next.js + TypeScript 项目初始化。
-- 移动端优先单页布局。
-- Supabase client 配置。
-- Supabase Auth 邮箱 + 密码登录/注册。
-- `public.transactions` 表、约束、索引、RLS policies 和 grants。
-- 手动新增账单。
-- 真实账单列表。
-- 编辑和删除账单。
-- 单条 AI 解析账单、确认后入库。
-- AI API 邮箱白名单。
-- 宽松版 CSV 导入。
-- 本月收入、支出、结余统计。
-- 分类支出排行。
-- 每日支出趋势。
-- 基础 PWA metadata、manifest 和动态图标。
-- Vercel 生产部署。
+lib/
+  supabase.ts                       Supabase browser client
+  transactions.ts                   账单读取、筛选、编辑、删除
+  ai.ts                             OpenAI-compatible 请求和 prompt
+  aiTransactions.ts                 AI 确认后批量入库
+  validators.ts                     AI API 输入和返回清洗
+  transactionRules.ts               CNY、默认分类、类型、日期等共享规则
+  transactionDrafts.ts              AI 确认草稿和保存校验
+  parseTransactionLimits.ts         AI 输入长度和候选数量限制
+  csvImport.ts                      CSV 解析和校验
+  stats.ts                          统计查询和计算
+  allowedEmails.ts                  AI 邮箱白名单
+  format.ts                         金额格式化
+  date.ts                           本地日期 input helper
+  pwaIcon.tsx                       PWA 图标生成
 
-### v1.1 AI 批量文本记账与首页体验优化
+supabase/migrations/
+  001_create_transactions.sql
+  002_grant_transactions_permissions.sql
 
-已完成：
+types/
+  transaction.ts                    交易、AI 解析、统计类型定义
+```
 
-- AI 解析从单条升级为批量候选。
-- `/api/parse-transaction` 稳定返回 `{ transactions, truncated, max_transactions, max_input_chars }`。
-- 单次输入长度限制为 `MAX_PARSE_INPUT_CHARS = 3000`。
-- 单次候选数量限制为 `MAX_PARSED_TRANSACTIONS = 50`。
-- AI prompt、服务端校验、前端提示共用同一组限制常量。
-- 服务端对 AI 返回的 `transactions` 执行截断，超量时返回 `truncated = true`。
-- 服务端逐条 JSON parse、sanitize、validate。
-- 每条候选优先保存 AI 返回且能在完整输入中找到的 `raw_text` 原文片段；无法可靠切分时 fallback 完整输入。
-- 日期由服务端从原文片段二次处理：完整年月日优先，支持 `今天` / `昨天` / `前天`、中文月日和 `5.30号` / `5/30` / `5-30` 等无年份日期，缺失日期使用服务端今天。
-- 前端批量确认列表支持逐条编辑、删除、取消选择。
-- 删除候选和取消选择是独立行为。
-- 不明确候选可以在确认页补全金额、类型、分类和日期后保存。
-- 批量保存使用一次 Supabase `insert` 写入多条记录。
-- 批量保存成功后清空 AI 输入和候选列表。
-- 底部导航改为真正的子界面切换：`首页` / `账单` / `统计` / `设置`。
-- 首页只保留本月概览、手动记账、AI 批量记账和最近 5 笔账单。
-- 账单子界面显示全部账单，并按年份、月份、日期分组。
-- 设置子界面承载 CSV 导入。
+## 5. 当前完成阶段列表
 
-### v1.2 日期范围统计增强
+### 初始化项目
 
-已完成：
+- Next.js + TypeScript 项目结构。
+- ESLint 配置。
+- 基础全局样式。
+- `npm run dev`、`npm run lint`、`npm run build` 脚本。
 
-- `lib/stats.ts` 支持按 `startDate` 和 `endDate` 计算统计。
-- 保留 `getMonthlyStats()` 给首页本月概览使用。
-- 统计页支持范围：
-  - 本周。
-  - 本月。
-  - 上月。
-  - 今年。
-  - 自定义日期范围。
-- 自定义范围校验开始日期和结束日期，开始日期不能晚于结束日期。
-- 每个范围展示：
-  - 总支出。
-  - 总收入。
-  - 结余。
-  - 交易笔数。
-  - 日均支出。
-  - 最大单笔支出。
-  - 分类支出排行。
-  - 每日支出趋势。
-- 金额规则：
+### Supabase 连接
+
+- `lib/supabase.ts` 使用 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 初始化客户端。
+- 不使用 `service_role` key。
+
+### Auth
+
+- Supabase Auth 邮箱密码登录。
+- `AuthGate` 检查 session，未登录显示 `AuthForm`。
+- 登录后显示当前用户邮箱和退出按钮。
+
+### transactions 表和 RLS
+
+- `001_create_transactions.sql` 创建 `public.transactions`。
+- 表字段覆盖类型、金额、货币、分类、商户、支付方式、账户、日期、备注、原文、来源、AI 置信度等。
+- 约束：
+  - `type in ('expense', 'income', 'transfer')`
+  - `amount > 0`
+  - `source in ('manual', 'ai')`
+  - `ai_confidence` 为空或 0 到 1。
+- RLS policy 覆盖 select、insert、update、delete。
+- `002_grant_transactions_permissions.sql` 授权 authenticated 角色访问表。
+
+### 手动记账
+
+- 首页提供手动记账表单。
+- 保存前检查类型、金额、日期、分类。
+- 固定写入 `CNY`。
+- 分类使用默认分类。
+- 保存后刷新首页概览、最近账单、账单页和统计页。
+
+### 最近账单
+
+- 首页显示最近 5 笔真实账单。
+- 支持编辑和单条删除。
+- 首页本月概览只调用 `getMonthlyStats()`，不受统计页范围切换污染。
+
+### 编辑和删除
+
+- `EditTransactionForm` 支持修改类型、金额、分类、日期、商户、支付方式、备注。
+- 更新和删除均显式约束当前用户。
+- 单条删除使用二次点击确认。
+- 账单页支持管理模式下多选当前已加载账单并批量删除。
+- 按日期范围删除、删除全部账单未实现；用户已决定 v1.3 保持当前删除能力。
+
+### AI 解析和确认入库
+
+- API：`app/api/parse-transaction/route.ts`。
+- 前端请求携带 Supabase access token。
+- 服务端验证 token，并检查 `ALLOWED_EMAILS`。
+- AI 只接收当前输入文本和服务端今天日期，不读取历史账单。
+- AI 返回必须是 JSON。
+- API 稳定返回批量结构：
+
+```text
+{
+  transactions: ParsedTransaction[],
+  truncated: boolean,
+  max_transactions: number,
+  max_input_chars: number
+}
+```
+
+- 输入长度限制：`MAX_PARSE_INPUT_CHARS = 3000`。
+- 候选数量限制：`MAX_PARSED_TRANSACTIONS = 50`。
+- 服务端不只依赖 AI 遵守数量限制，会 slice 到最大候选数量。
+- AI prompt 要求分类只能来自默认分类。
+- 服务端仍兜底校验分类，非默认分类归一为 `其他`。
+- 如果没有可靠金额，候选标记 `needs_clarification: true`，不能直接保存。
+- 用户可在确认页补全金额、日期、分类等字段后保存。
+- 批量保存使用一次 insert 多条。
+- AI 不直接写数据库。
+
+### CSV 导入
+
+- 文件：`components/ImportTransactions.tsx`、`lib/csvImport.ts`。
+- 前端解析 CSV，预览后确认导入。
+- 必须登录才能导入。
+- 只追加新增，不覆盖、不合并、不自动去重。
+- 必需表头：`date`、`amount`、`type`。
+- 合法行可以单独导入，错误行不入库。
+- 当前固定写入 `CNY`。
+- 非默认分类归一为 `其他`。
+
+### 统计页
+
+- 文件：`lib/stats.ts`、`components/StatsPanel.tsx`。
+- 支持：
+  - 本周
+  - 本月
+  - 上月
+  - 今年
+  - 自定义日期范围
+- 展示：
+  - 总支出
+  - 总收入
+  - 结余
+  - 交易笔数
+  - 日均支出
+  - 最大单笔支出
+  - 分类支出排行
+  - 每日支出趋势
+- 规则：
   - `expense` 计入支出。
   - `income` 计入收入。
-  - `balance = income - expense`。
   - `transfer` 暂不计入收入、支出、结余。
+  - `balance = income - expense`。
   - `amount` 按正数处理。
-- 统计只读取当前登录用户自己的 `transactions`。
 - 统计由代码和数据库查询计算，不调用 AI。
-- 首页本月概览只由 `Dashboard` 调用 `getMonthlyStats()` 更新，统计页范围切换不会污染首页概览。
-- 本阶段未新增表、未修改 schema、未使用 `service_role key`。
+- 统计查询按页读取，避免单次 Supabase 返回上限导致汇总不完整。
 
-## 5. 关键文件地图
+### 账单搜索、筛选和排序
 
-### 页面和布局
+- 文件：`components/TransactionManager.tsx`、`lib/transactions.ts`。
+- 支持搜索商户、备注、分类。
+- 支持类型筛选：全部、支出、收入、转账。
+- 支持默认分类筛选。
+- 支持开始日期、结束日期筛选，范围包含开始和结束当天。
+- 支持日期倒序、日期正序、金额倒序、金额正序。
+- 支持一键清空筛选。
+- 支持加载更多。
+- 显示筛选后的总支出、总收入和笔数。
+- 汇总查询按页读取，避免数据量大时被单次返回上限截断。
 
-```text
-app/page.tsx
-app/layout.tsx
-app/globals.css
-app/manifest.ts
-app/icons/
-```
+### PWA metadata / manifest
 
-### 核心组件
+- `app/manifest.ts` 提供基础 manifest。
+- `app/icons/*/route.tsx` 动态生成图标。
+- `app/layout.tsx` 提供 metadata。
+- 当前没有 service worker、离线记账、离线同步或推送。
 
-```text
-components/AuthGate.tsx
-components/AuthForm.tsx
-components/Dashboard.tsx
-components/BottomNav.tsx
-components/MonthlySummary.tsx
-components/ManualTransactionForm.tsx
-components/ChatInput.tsx
-components/ConfirmTransactionBatch.tsx
-components/TransactionList.tsx
-components/TransactionCard.tsx
-components/EditTransactionForm.tsx
-components/StatsPanel.tsx
-components/ImportTransactions.tsx
-```
+### Vercel 部署
 
-### 业务逻辑
-
-```text
-lib/supabase.ts
-lib/transactions.ts
-lib/stats.ts
-lib/ai.ts
-lib/aiTransactions.ts
-lib/validators.ts
-lib/transactionDrafts.ts
-lib/parseTransactionLimits.ts
-lib/csvImport.ts
-lib/allowedEmails.ts
-```
-
-### API 和类型
-
-```text
-app/api/parse-transaction/route.ts
-types/transaction.ts
-```
-
-### Supabase migration
-
-```text
-supabase/migrations/001_create_transactions.sql
-supabase/migrations/002_grant_transactions_permissions.sql
-```
+- 已部署到 Vercel。
+- Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+- 环境变量在 Vercel Project Settings 配置。
+- Supabase Auth URL Configuration 需要包含生产地址和 preview redirect URLs。
 
 ## 6. 当前数据模型摘要
 
-表：
+表：`public.transactions`
 
 ```text
-public.transactions
+id uuid primary key default gen_random_uuid()
+user_id uuid not null default auth.uid() references auth.users(id) on delete cascade
+type text not null
+amount numeric(12, 2) not null
+currency text not null default 'CNY'
+category text not null default '其他'
+tag text
+merchant text
+payment_method text
+account text
+date date not null default current_date
+note text
+raw_text text
+source text not null default 'manual'
+ai_confidence numeric(4, 3)
+created_at timestamptz not null default now()
+updated_at timestamptz not null default now()
 ```
 
-字段：
-
-```text
-id uuid primary key
-user_id uuid references auth.users(id)
-type text
-amount numeric(12, 2)
-currency text
-category text
-tag text nullable
-merchant text nullable
-payment_method text nullable
-account text nullable
-date date
-note text nullable
-raw_text text nullable
-source text
-ai_confidence numeric nullable
-created_at timestamptz
-updated_at timestamptz
-```
-
-约束：
-
-- `amount > 0`
-- `type in ('expense', 'income', 'transfer')`
-- `source in ('manual', 'ai')`
-- `ai_confidence` 为空或在 0 到 1 之间
-
-RLS policies：
-
-- select own transactions
-- insert own transactions
-- update own transactions
-- delete own transactions
-
-常用索引：
+索引：
 
 - `(user_id, date desc)`
 - `(user_id, category)`
 - `(user_id, created_at desc)`
 
+trigger：
+
+- `set_transactions_updated_at` 在 update 前更新 `updated_at`。
+
 ## 7. 当前环境变量摘要
 
-不要在文档、代码或提交中写真实值。
-
-本地 `.env.local` 和 Vercel 需要：
+不要在文档或代码中写真实值。
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
@@ -231,125 +270,132 @@ OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-含义：
+说明：
 
-- `NEXT_PUBLIC_SUPABASE_URL`：Supabase project URL。
+- `NEXT_PUBLIC_SUPABASE_URL`：Supabase 项目 URL。
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`：Supabase publishable key。
-- `AI_PROVIDER`：当前为 `openai`。
+- `AI_PROVIDER`：当前只支持 `openai`。
 - `OPENAI_API_KEY`：OpenAI-compatible provider API key。
-- `OPENAI_BASE_URL`：OpenAI-compatible API base URL，示例格式 `https://example.com/v1`。
-- `OPENAI_MODEL`：provider 支持的模型名。
-- `ALLOWED_EMAILS`：允许调用 AI 解析的邮箱列表，英文逗号分隔。
+- `OPENAI_BASE_URL`：OpenAI-compatible API base URL。
+- `OPENAI_MODEL`：账单解析模型。
+- `ALLOWED_EMAILS`：允许调用 AI 解析 API 的邮箱白名单，逗号分隔。
 
 ## 8. 当前安全边界
 
-- `.env.local` 已在 `.gitignore` 中。
-- 不使用 Supabase `service_role key`。
-- 所有账单数据访问依赖 Supabase Auth + RLS。
-- 前端查询、更新、删除仍显式约束当前 `user_id`。
-- AI 解析 API 需要 Supabase access token。
-- AI 解析 API 需要 `ALLOWED_EMAILS` 命中。
-- AI 只接收当前输入文本。
-- AI 不读取历史账单。
-- AI 不直接写数据库。
-- AI 不计算统计。
-- AI 候选必须经用户确认后才由前端 Supabase client 写入数据库。
-- 统计由代码和数据库查询计算，不调用 AI。
-- 统计查询只读取当前用户自己的 `transactions`。
-- CSV 导入要求用户预览确认后入库。
+必须继续保持：
 
-## 9. 当前已知限制
-
-- 注册入口仍然公开；白名单目前只限制 AI 解析 API。
-- AI 批量解析不读取历史账单，不自动去重。
-- AI 批量解析的 `raw_text` 片段依赖 AI 切分，服务端只接受能在完整输入中找到的片段，否则 fallback 完整输入。
-- 搜索和通知入口仍是界面占位。
-- 设置页当前只承载 CSV 导入，尚未做完整偏好设置。
-- 统计已有日期范围切换，但还没有趋势图可视化、Top 商户统计和支付方式统计。
-- 没有预算功能。
-- 没有账户、支付方式、分类的独立管理。
-- CSV 导入只支持英文表头，不支持中文表头和平台原始账单格式。
-- CSV 导入不做自动去重。
-- 没有数据导出功能。
-- PWA 没有 service worker、离线记账、离线同步、push notification。
-- 没有自动化测试覆盖。
-- iOS/Android 原生封装尚未开始。
-
-## 10. V1.3 计划：账单搜索、筛选与删除
-
-目标：把底部导航中的“账单”子界面升级为真正可查、可筛选、可排序、可安全批量删除的账单页。首页最近账单继续保持简洁，不加入批量管理。
-
-必须保持的安全边界：
-
-- 必须保持 Supabase RLS。
-- 只能读取和删除当前登录用户自己的账单。
-- 不使用 Supabase `service_role key`。
+- 不提交 `.env.local`。
+- 不提交任何密钥。
+- 不使用 Supabase `service_role` key。
 - 不绕过 RLS。
 - 不新增管理员删除接口。
-- 不允许前端传入任意 `user_id` 决定删除对象。
-- 所有删除操作除了依赖 RLS，也要显式约束当前登录用户。
-- 未登录用户不能查询或删除账单。
-- 保留现有单条编辑和单条删除功能。
-- 删除操作只删除 `transactions` 数据，不删除 Auth 用户、账号、配置、环境变量或数据库表。
+- 不允许前端传入任意 `user_id` 决定操作对象。
+- 查询、更新、删除必须限制当前登录用户。
+- AI 只解析当前输入文本。
+- AI 不读取历史账单。
+- AI 不直接写数据库。
+- AI 不做统计。
+- 统计只由代码和数据库查询计算。
+- 不缓存 Supabase 用户数据到 service worker。
 
-### V1.3 第一阶段：账单搜索、筛选、排序与加载更多
+## 9. 当前已知问题和限制
 
-已完成：
+- 当前是个人使用的 Web/PWA 雏形，不是完整商业产品。
+- 没有自定义分类、账户、支付方式管理。
+- 默认分类是固定集合，非默认分类归一为 `其他`。
+- 固定货币 `CNY`，没有多币种和汇率。
+- CSV 导入只做追加新增，不做覆盖、合并或自动去重。
+- 账单删除当前支持单条删除和当前已加载账单的多选删除；不支持按日期范围删除或删除全部账单。
+- 没有预算、AI 分析、自动建议或预测。
+- 没有 service worker、离线记账、离线同步、push notification。
+- 没有 Capacitor App 封装。
+- 当前没有单元测试或 E2E 测试脚本。
+- 文档提交前如果工作区存在用户或上一阶段留下的未提交业务代码，不能擅自回滚；先确认用户是否要提交。
 
-- 新增账单页专用组件，首页继续使用最近 5 笔账单组件。
-- 支持搜索商户、备注、分类，一个关键词同时匹配 `merchant` / `note` / `category`。
-- 支持类型筛选：全部、支出、收入、转账。
-- 支持分类筛选，分类选项合并默认分类和当前用户已有账单分类。
-- 支持开始日期和结束日期筛选，日期范围包含开始和结束当天。
-- 支持排序：日期倒序、日期正序、金额倒序、金额正序。
-- 支持“加载更多”，移动端优先，不做传统分页。
-- 支持一键清空筛选条件。
-- 显示筛选结果下的总收入、总支出和交易笔数。
-- 提供加载状态、查询失败状态、无账单状态和无匹配结果状态。
-- 查询仍然显式约束当前登录用户，并依赖 Supabase RLS。
+## 10. 下一版本推荐开发路线
 
-本阶段不做：
+建议下一轮先做规划，不要直接开始实现。
 
-- 不做多选删除。
-- 不做按日期范围删除。
-- 不做删除全部账单。
-- 不新增表，不修改 schema。
-- 不改 AI 解析链路。
+### 方向 A：V2 移动端 / PWA 体验
 
-### V1.3 第二阶段：多选删除
+- PWA 安装引导。
+- 移动端导航和页面密度优化。
+- 本地草稿。
+- 是否引入 service worker 的安全方案评估。
+- 如需离线记账，必须明确哪些数据可以本地保存、如何加密或清理、如何避免缓存 Supabase 用户数据。
 
-已完成：
+### 方向 B：自定义配置
 
-- 在账单页增加“管理”模式。
-- 每条账单显示复选框。
-- 显示已选择数量。
-- 支持全选当前已加载、当前可见的账单。
-- 支持取消全选和退出管理模式。
-- 支持删除已选择账单。
-- 筛选、排序、日期或加载批次变化时清空当前选择，避免误删不可见账单。
-- 删除前显示正式确认 UI，不使用浏览器原生 `confirm()`。
-- 删除按钮在未选择账单时禁用，删除过程中禁用以防重复提交。
-- 删除失败时保留选择状态并显示错误信息。
-- 删除成功后显示实际删除数量，并刷新账单页、首页最近账单、首页概览和统计数据。
-- 批量删除函数内部获取当前用户，并显式使用 `.in("id", ids).eq("user_id", user.id)`。
+- 自定义分类。
+- 自定义账户。
+- 自定义支付方式。
+- 常用商户和默认分类映射。
+- 默认货币设置。
+- 这条路线大概率需要新增表或修改 schema，必须先设计 migration、RLS policy 和回滚方案。
 
-### V1.3 第三阶段：按日期范围删除
+### 方向 C：账单管理增强
 
-计划：
+- 按日期范围删除。
+- 删除全部账单。
+- 更强的确认弹窗。
+- 导出 CSV。
+- 重复账单检测。
 
-- 在账单管理区域增加“按日期批量删除”。
-- 只按日期范围删除，不受当前搜索词、分类筛选或类型筛选影响。
-- 删除前先查询该日期范围内会影响多少条账单。
-- 确认界面显示日期范围、账单数量和永久删除警告。
-- 删除时显式约束当前用户和日期范围。
+### 方向 D：质量保障
 
-### V1.3 第四阶段：删除全部账单
+- 给 `lib/csvImport.ts` 增加单元测试。
+- 给 `lib/validators.ts` 的 AI sanitizer 增加单元测试。
+- 给 `lib/stats.ts` 增加统计规则测试。
+- 给登录、记账、AI 确认、CSV 导入、账单筛选增加最小 E2E 测试。
 
-计划：
+### 方向 E：AI 解析增强
 
-- 在账单页底部增加独立“危险操作”区域。
-- 删除当前登录用户的全部账单，不受当前搜索和筛选条件影响。
-- 删除前查询当前用户账单总数。
-- 强提醒说明将永久删除全部 N 条账单、当前版本无法恢复。
-- 最终确认前要求输入确认文字：`删除全部`。
-- 删除成功后清空账单列表、筛选条件、多选状态，并刷新首页和统计。
+- 改进中文日期、金额、收入/支出方向识别。
+- 更好的不明确候选提示。
+- 保持 AI 不读历史账单、不写数据库、不做统计。
+
+## 11. 新对话启动 Prompt
+
+下面这段可以直接复制给下一轮 ChatGPT / Codex：
+
+```text
+请先阅读当前仓库中的 AGENTS.md、README.md 和 PROJECT_HANDOFF.md。
+
+这是 FoxLedger / 狐狐记账，一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA 雏形。v1 已完成 Auth、transactions 表/RLS、手动记账、最近账单、编辑删除、AI 批量解析、AI 确认入库、CSV 导入、日期范围统计、账单搜索筛选排序、多选删除、基础 PWA metadata、Vercel 部署和 AI 邮箱白名单。
+
+请严格遵守：
+- 不提交 .env.local 或任何密钥。
+- 不使用 Supabase service_role key。
+- 不绕过 RLS。
+- 不让 AI 直接写数据库。
+- AI 只能解析当前输入文本，不能读取历史账单。
+- 统计必须由代码/数据库计算，不调用 AI。
+- 每次只做一个小阶段。
+- 不主动实现超出本阶段的功能。
+- 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等我确认后再实施。
+
+接下来我要开启 v2 开发。请先根据当前代码和文档，审计项目状态并给出下一阶段计划，等我确认后再实施。
+```
+
+## 12. 开发前检查清单
+
+每次开始前：
+
+```bash
+git status
+```
+
+提交前至少执行：
+
+```bash
+npm run lint
+npm run build
+```
+
+必要时：
+
+```bash
+npm audit --audit-level=moderate
+```
+
+不要自动回滚用户未提交改动。若工作区存在与当前任务无关的未提交业务代码，只提交本次任务明确要求的文件。

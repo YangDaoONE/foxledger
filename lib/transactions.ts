@@ -366,3 +366,34 @@ export async function deleteTransaction(transactionId: string): Promise<DeletedT
 
   return deletedTransaction;
 }
+
+export async function deleteTransactionsByIds(transactionIds: string[]): Promise<number> {
+  const uniqueIds = Array.from(new Set(transactionIds.map((id) => id.trim()).filter(Boolean)));
+
+  if (uniqueIds.length === 0) {
+    throw new Error("请选择要删除的账单。");
+  }
+
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  if (!userData.user) {
+    throw new Error("请先登录后再删除账单。");
+  }
+
+  const { data, error } = await supabase
+    .from("transactions")
+    .delete()
+    .in("id", uniqueIds)
+    .eq("user_id", userData.user.id)
+    .select("id");
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []).length;
+}

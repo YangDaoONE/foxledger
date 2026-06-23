@@ -759,6 +759,54 @@ textarea::placeholder {
   gap: 8px;
 }
 
+.manager-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.batch-delete-panel {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #f2b9a9;
+  border-radius: 8px;
+  background: #fff8f5;
+  padding: 10px;
+}
+
+.batch-delete-panel div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.batch-delete-panel span {
+  color: #9b341c;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.batch-delete-panel strong {
+  color: #9b341c;
+  font-size: 0.95rem;
+}
+
+.danger-action {
+  border-color: #f2b9a9;
+  color: #9b341c;
+}
+
+.managed-transaction-row {
+  display: grid;
+  gap: 8px;
+}
+
+.managed-transaction-row.selected-mode {
+  grid-template-columns: 32px 1fr;
+  align-items: start;
+}
+
 .range-button-row {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -1168,7 +1216,8 @@ textarea::placeholder {
   .range-button-row,
   .custom-range-fields,
   .transaction-filter-actions,
-  .filter-summary-grid {
+  .filter-summary-grid,
+  .manager-toolbar {
     grid-template-columns: 1fr;
   }
 }

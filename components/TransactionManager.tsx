@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ListFilter, RefreshCw, RotateCcw, Search } from "lucide-react";
+import { CheckSquare, ListFilter, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
 import { TransactionCard } from "@/components/TransactionCard";
 import { defaultCategories } from "@/lib/transactionDrafts";
 import {
   deleteTransaction,
+  deleteTransactionsByIds,
   listTransactionCategories,
   listTransactionsPage,
   type TransactionFilterSummary,
@@ -162,6 +163,10 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isManageMode, setIsManageMode] = useState(false);
+  const [selectedTransactionIds, setSelectedTransactionIds] = useState<string[]>([]);
+  const [isBatchDeleteConfirming, setIsBatchDeleteConfirming] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
   const [manualReloadKey, setManualReloadKey] = useState(0);
 
   useEffect(() => {
@@ -217,6 +222,8 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
         setSummary(result.summary);
         setHasMore(result.hasMore);
         setTotalCount(result.totalCount);
+        setSelectedTransactionIds([]);
+        setIsBatchDeleteConfirming(false);
       } catch (error) {
         if (isMounted) {
           setErrorMessage(error instanceof Error ? error.message : "读取账单失败。");
@@ -249,6 +256,8 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
     setSuccessMessage(null);
     setConfirmDeleteId(null);
     setEditingTransactionId(null);
+    setSelectedTransactionIds([]);
+    setIsBatchDeleteConfirming(false);
     setAppliedFilters({ ...filters, search: filters.search.trim() });
   }
 
@@ -260,12 +269,16 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
     setSuccessMessage(null);
     setConfirmDeleteId(null);
     setEditingTransactionId(null);
+    setSelectedTransactionIds([]);
+    setIsBatchDeleteConfirming(false);
   }
 
   function handleReload() {
     setActionErrorMessage(null);
     setSuccessMessage(null);
     setConfirmDeleteId(null);
+    setSelectedTransactionIds([]);
+    setIsBatchDeleteConfirming(false);
     setManualReloadKey((value) => value + 1);
   }
 
@@ -297,6 +310,64 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
       setActionErrorMessage(error instanceof Error ? error.message : "加载更多账单失败。");
     } finally {
       setIsLoadingMore(false);
+    }
+  }
+
+  function handleToggleManageMode() {
+    setIsManageMode((current) => !current);
+    setSelectedTransactionIds([]);
+    setIsBatchDeleteConfirming(false);
+    setActionErrorMessage(null);
+    setSuccessMessage(null);
+    setConfirmDeleteId(null);
+    setEditingTransactionId(null);
+  }
+
+  function toggleSelectedTransaction(transactionId: string) {
+    setSelectedTransactionIds((current) =>
+      current.includes(transactionId)
+        ? current.filter((id) => id !== transactionId)
+        : [...current, transactionId],
+    );
+    setIsBatchDeleteConfirming(false);
+  }
+
+  function handleSelectVisibleTransactions() {
+    setSelectedTransactionIds(transactions.map((transaction) => transaction.id));
+    setIsBatchDeleteConfirming(false);
+  }
+
+  function handleClearSelection() {
+    setSelectedTransactionIds([]);
+    setIsBatchDeleteConfirming(false);
+  }
+
+  async function handleBatchDelete() {
+    if (selectedTransactionIds.length === 0 || isBatchDeleting) {
+      return;
+    }
+
+    setActionErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!isBatchDeleteConfirming) {
+      setIsBatchDeleteConfirming(true);
+      return;
+    }
+
+    setIsBatchDeleting(true);
+
+    try {
+      const deletedCount = await deleteTransactionsByIds(selectedTransactionIds);
+      setSuccessMessage(`删除成功：${deletedCount} 笔账单。`);
+      setSelectedTransactionIds([]);
+      setIsBatchDeleteConfirming(false);
+      setManualReloadKey((value) => value + 1);
+      onChanged?.();
+    } catch (error) {
+      setActionErrorMessage(error instanceof Error ? error.message : "批量删除失败。");
+    } finally {
+      setIsBatchDeleting(false);
     }
   }
 
@@ -354,16 +425,35 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
   }
 
   function renderTransactionItem(transaction: Transaction) {
+    const isSelected = selectedTransactionIds.includes(transaction.id);
+
     return (
       <div className="transaction-edit-item" key={transaction.id}>
-        <TransactionCard
-          transaction={transaction}
-          isEditing={editingTransactionId === transaction.id}
-          isConfirmingDelete={confirmDeleteId === transaction.id}
-          isDeleting={deletingId === transaction.id}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
+        <div className={isManageMode ? "managed-transaction-row selected-mode" : "managed-transaction-row"}>
+          {isManageMode ? (
+            <button
+              aria-label={isSelected ? "取消选择这笔账单" : "选择这笔账单"}
+              aria-pressed={isSelected}
+              className="small-icon-button"
+              type="button"
+              onClick={() => toggleSelectedTransaction(transaction.id)}
+            >
+              {isSelected ? (
+                <CheckSquare size={17} aria-hidden="true" />
+              ) : (
+                <Square size={17} aria-hidden="true" />
+              )}
+            </button>
+          ) : null}
+          <TransactionCard
+            transaction={transaction}
+            isEditing={editingTransactionId === transaction.id}
+            isConfirmingDelete={confirmDeleteId === transaction.id}
+            isDeleting={deletingId === transaction.id}
+            onEdit={isManageMode ? undefined : handleEdit}
+            onDelete={isManageMode ? undefined : handleDelete}
+          />
+        </div>
         {deletingId === transaction.id ? <p className="delete-confirm-note">删除中</p> : null}
         {confirmDeleteId === transaction.id && deletingId !== transaction.id ? (
           <p className="delete-confirm-note">再次点击删除按钮确认删除。</p>
@@ -521,6 +611,49 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
           <strong>{summary.count}</strong>
         </div>
       </div>
+
+      <div className="manager-toolbar" aria-label="账单管理操作">
+        <button className="secondary-button" type="button" onClick={handleToggleManageMode}>
+          {isManageMode ? "退出管理" : "管理"}
+        </button>
+        {isManageMode ? (
+          <>
+            <button className="secondary-button" type="button" onClick={handleSelectVisibleTransactions}>
+              全选当前
+            </button>
+            <button className="secondary-button" type="button" onClick={handleClearSelection}>
+              取消全选
+            </button>
+          </>
+        ) : null}
+      </div>
+
+      {isManageMode ? (
+        <div className="batch-delete-panel">
+          <div>
+            <span>已选择</span>
+            <strong>{selectedTransactionIds.length} 笔</strong>
+          </div>
+          <button
+            className="secondary-button danger-action"
+            disabled={selectedTransactionIds.length === 0 || isBatchDeleting}
+            type="button"
+            onClick={handleBatchDelete}
+          >
+            <Trash2 size={17} aria-hidden="true" />
+            {isBatchDeleting
+              ? "删除中"
+              : isBatchDeleteConfirming
+                ? `确认删除 ${selectedTransactionIds.length} 笔`
+                : "删除已选择"}
+          </button>
+          {isBatchDeleteConfirming ? (
+            <p className="delete-confirm-note">
+              将永久删除已选择的 {selectedTransactionIds.length} 笔账单，再次点击确认删除。
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {isLoading ? <p className="list-state">正在读取账单</p> : null}
 

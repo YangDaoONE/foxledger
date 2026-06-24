@@ -21,6 +21,7 @@ type TransactionManagerProps = {
   refreshKey: number;
   userId: string;
   onChanged?: () => void;
+  onRefresh?: () => Promise<void>;
 };
 
 export type TransactionTypeFilter = TransactionType | "all";
@@ -181,6 +182,7 @@ export function TransactionManager({
   refreshKey,
   userId,
   onChanged,
+  onRefresh,
 }: TransactionManagerProps) {
   const initialFilterState = getInitialFilters(filterOverride);
   const [filters, setFilters] = useState<FilterValues>(initialFilterState);
@@ -191,6 +193,7 @@ export function TransactionManager({
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isRefreshingRemote, setIsRefreshingRemote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filterErrorMessage, setFilterErrorMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
@@ -284,12 +287,29 @@ export function TransactionManager({
     setIsBatchDeleteConfirming(false);
   }
 
-  function handleReload() {
+  async function handleReload() {
     setActionErrorMessage(null);
     setSuccessMessage(null);
     setConfirmDeleteId(null);
     setSelectedTransactionIds([]);
     setIsBatchDeleteConfirming(false);
+
+    if (isOnline && onRefresh) {
+      setIsRefreshingRemote(true);
+      setSuccessMessage("正在同步云端账单。");
+
+      try {
+        await onRefresh();
+        setSuccessMessage("同步完成。");
+      } catch (error) {
+        setActionErrorMessage(error instanceof Error ? error.message : "同步账单失败。");
+      } finally {
+        setIsRefreshingRemote(false);
+      }
+
+      return;
+    }
+
     setManualReloadKey((value) => value + 1);
   }
 
@@ -491,9 +511,14 @@ export function TransactionManager({
           <p>账单</p>
           <h2 id="transaction-manager-title">搜索与筛选</h2>
         </div>
-        <button className="text-button" disabled={isLoading} type="button" onClick={handleReload}>
+        <button
+          className="text-button"
+          disabled={isLoading || isRefreshingRemote}
+          type="button"
+          onClick={handleReload}
+        >
           <RefreshCw size={15} aria-hidden="true" />
-          刷新
+          {isRefreshingRemote ? "同步中" : "刷新"}
         </button>
       </div>
 

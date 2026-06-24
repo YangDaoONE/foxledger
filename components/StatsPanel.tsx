@@ -14,6 +14,7 @@ import type { TransactionType } from "@/types/transaction";
 
 type StatsPanelProps = {
   onDrilldown?: (target: StatsDrilldownTarget) => void;
+  onRefresh?: () => Promise<void>;
   refreshKey: number;
   userId: string;
 };
@@ -41,13 +42,14 @@ function formatRangeLabel(range: StatsDateRange) {
   return `${range.startDate} 至 ${range.endDate}`;
 }
 
-export function StatsPanel({ onDrilldown, refreshKey, userId }: StatsPanelProps) {
+export function StatsPanel({ onDrilldown, onRefresh, refreshKey, userId }: StatsPanelProps) {
   const [stats, setStats] = useState<MonthlyStats | null>(null);
   const [rangeMode, setRangeMode] = useState<StatsRangeMode>("this-month");
   const [activeRange, setActiveRange] = useState<StatsDateRange>(initialRange);
   const [customStartDate, setCustomStartDate] = useState(initialRange.startDate);
   const [customEndDate, setCustomEndDate] = useState(initialRange.endDate);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingRemote, setIsRefreshingRemote] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rangeErrorMessage, setRangeErrorMessage] = useState<string | null>(null);
   const [manualReloadKey, setManualReloadKey] = useState(0);
@@ -119,7 +121,22 @@ export function StatsPanel({ onDrilldown, refreshKey, userId }: StatsPanelProps)
     setRangeErrorMessage(null);
   }
 
-  function handleReload() {
+  async function handleReload() {
+    if (onRefresh) {
+      setIsRefreshingRemote(true);
+      setErrorMessage(null);
+
+      try {
+        await onRefresh();
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "同步账单失败。");
+      } finally {
+        setIsRefreshingRemote(false);
+      }
+
+      return;
+    }
+
     setManualReloadKey((value) => value + 1);
   }
 
@@ -147,9 +164,14 @@ export function StatsPanel({ onDrilldown, refreshKey, userId }: StatsPanelProps)
           <p>真实统计</p>
           <h2 id="stats-title">{activeRange.label}统计</h2>
         </div>
-        <button className="text-button" disabled={isLoading} type="button" onClick={handleReload}>
+        <button
+          className="text-button"
+          disabled={isLoading || isRefreshingRemote}
+          type="button"
+          onClick={handleReload}
+        >
           <RefreshCw size={15} aria-hidden="true" />
-          刷新
+          {isRefreshingRemote ? "同步中" : "刷新"}
         </button>
       </div>
 

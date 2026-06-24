@@ -59,6 +59,24 @@ export function Dashboard() {
     };
   }, [cacheVersion, userId]);
 
+  async function refreshRemoteTransactions() {
+    if (!isOnline) {
+      return;
+    }
+
+    try {
+      const result = await syncTransactionsFromRemote(userId);
+
+      setSyncMeta(result.meta);
+      setSyncError(null);
+      setCacheVersion((value) => value + 1);
+    } catch (error) {
+      // Keep the last local cache visible if remote sync fails.
+      setSyncError(error instanceof Error ? error.message : "同步账单失败。");
+      throw error;
+    }
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -71,7 +89,7 @@ export function Dashboard() {
           setSyncError(meta?.last_error ?? null);
         }
       } catch {
-        // Local sync metadata is only advisory in phase 1.
+        // Local sync metadata is only advisory.
       }
 
       if (!isOnline) {
@@ -87,7 +105,7 @@ export function Dashboard() {
           setCacheVersion((value) => value + 1);
         }
       } catch (error) {
-        // Phase 1 keeps the last local cache visible if remote sync fails.
+        // Keep the last local cache visible if remote sync fails.
         if (isMounted) {
           setSyncError(error instanceof Error ? error.message : "同步账单失败。");
         }
@@ -173,12 +191,20 @@ export function Dashboard() {
           refreshKey={cacheVersion}
           userId={userId}
           onChanged={handleTransactionSaved}
+          onRefresh={isOnline ? refreshRemoteTransactions : undefined}
         />
       );
     }
 
     if (activeView === "stats") {
-      return <StatsPanel refreshKey={cacheVersion} userId={userId} onDrilldown={handleStatsDrilldown} />;
+      return (
+        <StatsPanel
+          refreshKey={cacheVersion}
+          userId={userId}
+          onDrilldown={handleStatsDrilldown}
+          onRefresh={isOnline ? refreshRemoteTransactions : undefined}
+        />
+      );
     }
 
     return (

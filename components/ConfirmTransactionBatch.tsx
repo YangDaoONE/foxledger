@@ -33,6 +33,7 @@ type CandidateState = {
 
 type ConfirmTransactionBatchProps = {
   batch: ParsedTransactionBatch;
+  isOnline: boolean;
   onSaved: (savedCount: number) => void;
 };
 
@@ -61,7 +62,7 @@ function canSaveCandidate(candidate: CandidateState) {
   return candidate.selected && getCandidateMessages(candidate).length === 0;
 }
 
-export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBatchProps) {
+export function ConfirmTransactionBatch({ batch, isOnline, onSaved }: ConfirmTransactionBatchProps) {
   const [candidates, setCandidates] = useState<CandidateState[]>(() =>
     createCandidateStates(batch.transactions),
   );
@@ -78,7 +79,7 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
     [candidates],
   );
   const blockedSelectedCount = Math.max(selectedCount - saveableCandidates.length, 0);
-  const canSave = saveableCandidates.length > 0 && !isSaving;
+  const canSave = isOnline && saveableCandidates.length > 0 && !isSaving;
 
   function updateCandidateDraft(id: string, updates: Partial<ConfirmTransactionDraft>) {
     setCandidates((current) =>
@@ -106,6 +107,9 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
 
   async function handleSave() {
     if (!canSave) {
+      if (!isOnline) {
+        setErrorMessage("联网后才能保存 AI 候选账单。");
+      }
       return;
     }
 
@@ -163,6 +167,7 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
       {blockedSelectedCount > 0 ? (
         <p className="form-message error">有 {blockedSelectedCount} 条已选择候选仍需补充，暂不会保存。</p>
       ) : null}
+      {!isOnline ? <p className="form-message error">联网后才能保存 AI 候选账单。</p> : null}
       {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
       {successMessage ? <p className="form-message success">{successMessage}</p> : null}
 
@@ -347,7 +352,7 @@ export function ConfirmTransactionBatch({ batch, onSaved }: ConfirmTransactionBa
         onClick={handleSave}
       >
         <Save size={18} aria-hidden="true" />
-        {isSaving ? "保存中" : `确认保存 ${saveableCandidates.length} 笔`}
+        {isSaving ? "保存中" : isOnline ? `确认保存 ${saveableCandidates.length} 笔` : "联网后可保存"}
       </button>
     </div>
   );

@@ -309,50 +309,277 @@ ALLOWED_EMAILS
 - 没有预算、AI 分析、自动建议或预测。
 - 没有 service worker、离线记账、离线同步、push notification。
 - 没有 Capacitor App 封装。
-- 首页仍显示最近账单模块；下一阶段用户倾向删除该模块，以减少首页长度和重复信息。
-- 手动记账表单字段较多，移动端滑动距离偏长；下一阶段可考虑分步或折叠可选字段。
-- 统计页的分类排行和趋势目前是静态条形展示，没有点击查看对应账单或切换图表类型。
+- 首页最近账单模块已在 v2.1b 删除；首页手动记账改为加号入口，点击后在首页状态内展开表单。
+- 手动记账表单已在 v2.1b 将商家、支付方式、备注折叠到可选信息区。
+- 统计页已在 v2.1b 支持从概览指标、分类排行和每日趋势点击跳转到账单页筛选；当前没有切换图表类型。
 - 当前没有单元测试或 E2E 测试脚本。
 - 文档提交前如果工作区存在用户或上一阶段留下的未提交业务代码，不能擅自回滚；先确认用户是否要提交。
 
-## 10. 下一版本推荐开发路线
+## 10. v2.1 正式版推荐拆分
 
-- 移动端导航和页面密度优化。
-- 首页瘦身：删除首页最近账单模块，保留本月概览、手动记账和 AI 快速记账入口；完整账单浏览继续放到账单页。
-- 手动记账表单移动端优化：将字段拆成分步流程，或默认折叠商家、支付方式、备注等可选字段，减少一次性纵向滚动。
+v2.1 正式版目标是把 FoxLedger 从“在线 PWA 雏形”推进到“可离线查看的 PWA”。本阶段仍不做离线正式记账、不做离线队列同步、不缓存 Supabase 登录响应或 API 响应。
 
-统计页 drilldown 与交互增强
+推荐拆成 3 个小阶段，每个阶段独立提交。当前本地工作进展：阶段 1 和阶段 2 已实施但尚未提交；阶段 3 待实施。
 
-- 当前 `StatsPanel` 的分类排行和每日趋势只是静态条形展示。
-- 下一阶段目标：统计页点击某个统计项后，自动切到账单页并应用对应筛选，让用户查看组成该统计项的账单。
-- 推荐数据流：
+### 阶段 1：本地缓存与同步
+
+目标：
+- Supabase 拉取成功后，将已经同步的真实账单写入 IndexedDB。
+- 下次启动先显示本地缓存，再后台拉取云端最新数据。
+- 统计页和首页概览基于本地账单缓存计算。
+- 云端同步成功后，覆盖本地缓存并重新计算统计。
+
+边界：
+- 不改 Supabase schema。
+- 不新增数据库表。
+- 不做离线新增、编辑、删除。
+- 不做增量同步；先做按当前用户的全量拉取和本地替换，确保云端删除能反映到本地。
+- 本地缓存必须按 Supabase `user_id` 隔离。
+
+当前实施状态：
+- 已新增 IndexedDB 本地账单缓存、同步元信息、全量远端同步和本地统计计算。
+- 首页概览、账单页、统计页已改为基于本地缓存读取和计算。
+- 云端保存、编辑、删除成功后会触发后台全量同步并刷新本地缓存视图。
+
+### 阶段 2：离线 UI 与草稿
+
+目标：
+- 断网时只允许查看上次同步数据。
+- 明确显示“当前为离线数据”和上次同步时间。
+- 禁用正式写操作：手动保存、AI 解析/保存、CSV 导入、编辑、删除和批量删除。
+- 手动记账入口在离线时提示“联网后可保存”。
+- 可以保留简单手动表单草稿，草稿仅保存在本设备，不进入正式账单，不参与统计。
+
+边界：
+- 不自动上传草稿。
+- 不把草稿显示成真实账单。
+- 登录退出时谨慎处理本地缓存和草稿。
+
+当前实施状态：
+- 已新增在线/离线状态检测和同步状态提示条。
+- 离线时手动保存、AI 解析/保存、CSV 导入、编辑、删除和批量删除禁用或隐藏。
+- 手动记账已支持本设备草稿，草稿不进入正式账单、不参与统计。
+- 在线退出成功后会清理当前用户本设备缓存和草稿；离线时提示退出需要联网。
+
+### 阶段 3：Service Worker 外壳缓存
+
+目标：
+- 缓存应用外壳：页面壳、JS、CSS、manifest、图标和离线提示页。
+- 断网刷新时，App 外壳仍能打开，并显示本地缓存账单或离线提示。
+
+边界：
+- 不缓存 `/api/*`。
+- 不缓存 Supabase 请求、登录响应、AI API 响应或任何包含用户敏感数据的网络响应。
+- 只缓存静态应用资源和离线提示页。
+- 对 POST/PUT/PATCH/DELETE 请求使用 network-only，不做缓存。
+
+当前实施状态：
+- 尚未实施。
+- 当前断网后如果 App 已打开，可以查看本地缓存；但断网强刷新或重新打开 App 外壳仍需阶段 3 支持。
+
+## 11. v2.1 阶段 1 详细计划：本地缓存与同步
+
+### 目标结果
+
+完成后应满足：
+- 登录后先从 IndexedDB 读取当前用户已同步账单。
+- 本地缓存存在时，首页概览、账单页、统计页可以先显示缓存数据。
+- 后台再从 Supabase 拉取当前用户完整账单列表。
+- Supabase 拉取成功后，用云端结果替换当前用户本地缓存。
+- 本地缓存刷新后，首页概览、账单页、统计页重新计算并更新。
+- 统计计算使用本地缓存账单，不直接依赖 AI，也不读取其他用户数据。
+
+### 建议新增文件
 
 ```text
-StatsPanel 点击统计项
-↓
-Dashboard 保存 drilldown 条件
-↓
-切换 activeView = "transactions"
-↓
-TransactionManager 覆盖并应用筛选
+lib/localDb.ts
+lib/localTransactions.ts
+lib/transactionSync.ts
+lib/statsCalculator.ts
 ```
 
-- 建议筛选映射：
-  - 点击分类排行：带入当前统计范围的 `startDate`、`endDate`、对应 `category`，并筛选 `expense`。
-  - 点击每日趋势：带入对应单日作为 `startDate` 和 `endDate`，并筛选 `expense`。
-  - 点击总支出/总收入/交易笔数等概览指标时，可以按当前统计日期范围和对应类型跳到账单页。
-- 代码设计建议：
-  - 在 `Dashboard` 中新增一个轻量 drilldown state。
-  - `StatsPanel` 通过回调向 `Dashboard` 传出筛选条件，不直接操作账单页内部状态。
-  - `TransactionManager` 接收可选初始/覆盖筛选条件，并在条件变化时清空选择状态、应用筛选。
-  - 继续复用当前账单页筛选模型，避免新建第二套查询逻辑。
-- 安全和边界：
-  - 统计仍必须由代码和数据库查询计算，不调用 AI。
-  - 只读取当前用户自己的 `transactions`。
-  - 不新增数据库表，不修改 schema，除非用户另行确认。
-  - 不实现预算、预测、AI 建议或自动分析。
+用途：
+- `localDb.ts`：封装 IndexedDB 打开、升级、事务和基础读写。
+- `localTransactions.ts`：从 IndexedDB 查询当前用户账单，支持筛选、排序、分页和汇总。
+- `transactionSync.ts`：从 Supabase 全量拉取当前用户账单，并替换本地缓存。
+- `statsCalculator.ts`：从 `lib/stats.ts` 抽出纯统计计算函数，让统计既可基于远端数据，也可基于本地缓存数据。
 
+### IndexedDB 设计
 
+DB 名称：
+
+```text
+foxledger
+```
+
+版本：
+
+```text
+1
+```
+
+Store 1：`transactions`
+
+建议字段：
+
+```text
+cache_key        // `${user_id}:${id}`，作为 keyPath
+id
+user_id
+type
+amount
+currency
+category
+tag
+merchant
+payment_method
+account
+date
+note
+raw_text
+source
+ai_confidence
+created_at
+updated_at
+cached_at
+```
+
+建议索引：
+- `user_id`
+- `user_id_date`
+- `user_id_updated_at`
+
+Store 2：`sync_meta`
+
+建议字段：
+
+```text
+user_id          // keyPath
+last_attempt_at
+last_successful_sync_at
+transaction_count
+last_error
+```
+
+阶段 1 暂不需要 `manual_drafts` store；草稿放到阶段 2。
+
+### 同步策略
+
+使用全量同步覆盖，不做增量同步。
+
+原因：
+- 当前 `transactions` 表有 `updated_at`，但删除是真删除，没有 tombstone。
+- 如果只拉 `updated_at > lastSync`，本地无法知道云端已经删除的账单。
+- 全量拉取后替换当前用户缓存，简单且准确。
+
+流程：
+
+```text
+AuthGate 获取 session
+↓
+Dashboard 接收当前 userId
+↓
+先 readCachedTransactions(userId)
+↓
+用本地缓存渲染首页概览、账单页和统计页
+↓
+后台 syncTransactionsFromRemote(userId)
+↓
+分页读取 Supabase 当前用户全部 transactions
+↓
+replaceCachedTransactions(userId, remoteRows)
+↓
+更新 sync_meta
+↓
+通知 Dashboard 提升 cacheVersion
+↓
+各页面重新从本地缓存读取并计算
+```
+
+### 需要调整的现有代码
+
+`components/AuthGate.tsx`
+- 将当前 `session.user.id` 和 `session.user.email` 传给 `children`，或引入轻量 `AuthContext`。
+- 阶段 1 推荐用显式 props，避免引入复杂状态管理。
+
+`app/page.tsx`
+- 允许 `AuthGate` render prop，把用户信息传给 `Dashboard`。
+
+`components/Dashboard.tsx`
+- 接收 `userId`。
+- 增加本地缓存状态，例如：
+  - `cacheVersion`
+  - `syncStatus`
+  - `lastSuccessfulSyncAt`
+- 启动时先读本地缓存，再触发后台同步。
+- `handleTransactionSaved()`、AI 保存成功、CSV 导入成功、编辑/删除成功后，触发云端同步并刷新本地缓存。
+
+`lib/transactions.ts`
+- 保留现有 Supabase 读写函数。
+- 增加一个专门的远端全量拉取函数，例如 `listAllRemoteTransactionsForCurrentUser()`。
+- 继续显式 `.eq("user_id", userData.user.id)`，不绕过 RLS。
+
+`lib/localTransactions.ts`
+- 实现本地版 `listTransactionsPage` 等价能力：
+  - search：商户、备注、分类。
+  - type。
+  - category。
+  - startDate/endDate。
+  - sort。
+  - limit/offset。
+  - summary：总支出、总收入、笔数。
+- 返回结构尽量复用 `TransactionPageResult`。
+
+`components/TransactionManager.tsx`
+- 从 `listTransactionsPage()` 改为调用本地缓存查询函数。
+- 仍保留在线编辑、删除逻辑；阶段 1 尚未禁用离线写操作，离线 UI 放到阶段 2。
+- `refreshKey/cacheVersion` 变化时重新读本地缓存。
+
+`lib/stats.ts` / `lib/statsCalculator.ts`
+- 将统计计算抽为纯函数：
+
+```text
+calculateStatsForTransactions(transactions, range): MonthlyStats
+```
+
+- `getStatsForDateRange()` 改为从本地缓存读取当前用户范围内账单后计算。
+- 首页 `getMonthlyStats()` 同样基于本地缓存。
+
+`components/StatsPanel.tsx`
+- 接收 `userId` 或通过上层传入本地统计函数需要的上下文。
+- 继续保持现有日期范围 UI 和 drilldown 行为。
+
+### 数据安全规则
+
+- IndexedDB 中所有账单必须写入 `user_id`。
+- 所有本地读取必须先按当前 `userId` 过滤。
+- 未登录时不显示任何本地账单缓存。
+- 不缓存 Supabase access token、refresh token、登录响应或 AI API 响应。
+- 不把 IndexedDB 数据传给 AI。
+- AI 仍只能解析当前输入文本，不能读取本地历史账单。
+
+### 第一阶段不做的事
+
+- 不实现 Service Worker。
+- 不实现离线正式记账。
+- 不实现离线新增/编辑/删除队列。
+- 不实现草稿。
+- 不实现离线 UI 禁用态。
+- 不改 Supabase migration。
+- 不新增环境变量。
+
+### 验证清单
+
+- 在线登录后，Supabase 账单能写入 IndexedDB。
+- 刷新页面后，先显示 IndexedDB 缓存数据。
+- 后台同步成功后，缓存被云端数据覆盖。
+- 云端删除一笔账单后，下次全量同步能从 IndexedDB 移除该账单。
+- 账单页筛选、排序、加载更多基于本地缓存仍正常。
+- 首页本月概览基于本地缓存正确显示。
+- 统计页各日期范围基于本地缓存正确计算。
+- 统计 drilldown 到账单页筛选仍正常。
+- `npm run lint` 通过。
+- `npm run build` 通过。
 
 ## 12. 开发前检查清单
 

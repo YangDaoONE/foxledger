@@ -265,6 +265,41 @@ button:disabled {
   margin: 10px 16px 0;
 }
 
+.sync-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.sync-status-banner span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sync-status-banner.online {
+  border-color: #cfe0da;
+  background: #edf8f1;
+  color: #1f6f45;
+}
+
+.sync-status-banner.neutral {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.sync-status-banner.warning,
+.sync-status-banner.offline {
+  border-color: #f2b9a9;
+  background: #fff8f5;
+  color: #9b341c;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);
@@ -529,6 +564,26 @@ progress::-moz-progress-bar {
 .manual-form {
   display: grid;
   gap: 12px;
+}
+
+.local-draft-note {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #cfe0da;
+  border-radius: 8px;
+  background: #fbfdfb;
+  padding: 10px;
+}
+
+.local-draft-note p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.local-draft-note .text-button {
+  justify-self: start;
 }
 
 .chat-form {
@@ -818,6 +873,20 @@ textarea::placeholder {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
+}
+
+.offline-toolbar-note {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #f2b9a9;
+  border-radius: 8px;
+  background: #fff8f5;
+  color: #9b341c;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .batch-delete-panel {

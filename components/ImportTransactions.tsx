@@ -6,6 +6,7 @@ import { parseTransactionsCsv, type CsvImportResult } from "@/lib/csvImport";
 import { supabase } from "@/lib/supabase";
 
 type ImportTransactionsProps = {
+  isOnline: boolean;
   onImported?: () => void;
 };
 
@@ -15,7 +16,7 @@ function resetFileInput(input: HTMLInputElement | null) {
   }
 }
 
-export function ImportTransactions({ onImported }: ImportTransactionsProps) {
+export function ImportTransactions({ isOnline, onImported }: ImportTransactionsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<CsvImportResult | null>(null);
@@ -64,6 +65,11 @@ export function ImportTransactions({ onImported }: ImportTransactionsProps) {
       return;
     }
 
+    if (!isOnline) {
+      setErrorMessage("联网后才能导入 CSV。");
+      return;
+    }
+
     setIsImporting(true);
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -109,7 +115,7 @@ export function ImportTransactions({ onImported }: ImportTransactionsProps) {
     onImported?.();
   }
 
-  const canImport = Boolean(parseResult && parseResult.validRows.length > 0 && !isImporting);
+  const canImport = Boolean(parseResult && parseResult.validRows.length > 0 && !isImporting && isOnline);
   const previewRows = parseResult?.validRows.slice(0, 5) ?? [];
   const displayedErrorRows = parseResult?.errorRows.slice(0, 12) ?? [];
   const hiddenErrorCount = parseResult
@@ -130,7 +136,7 @@ export function ImportTransactions({ onImported }: ImportTransactionsProps) {
           accept=".csv,text/csv"
           type="file"
           onChange={handleFileChange}
-          disabled={isImporting}
+          disabled={isImporting || !isOnline}
         />
       </label>
 
@@ -145,6 +151,7 @@ export function ImportTransactions({ onImported }: ImportTransactionsProps) {
       </div>
 
       {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
+      {!isOnline ? <p className="form-message error">联网后才能导入 CSV。</p> : null}
       {successMessage ? <p className="form-message success">{successMessage}</p> : null}
 
       {fileName ? (

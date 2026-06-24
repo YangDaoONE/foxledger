@@ -1,15 +1,33 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { LoaderCircle, LogOut } from "lucide-react";
 import { AuthForm } from "@/components/AuthForm";
+import { clearUserLocalData } from "@/lib/localDb";
 import { supabase } from "@/lib/supabase";
 
 type AuthGateProps = {
   children: ReactNode;
 };
+
+type AuthUserContextValue = {
+  id: string;
+  email: string | null;
+};
+
+const AuthUserContext = createContext<AuthUserContextValue | null>(null);
+
+export function useAuthUser() {
+  const user = useContext(AuthUserContext);
+
+  if (!user) {
+    throw new Error("useAuthUser must be used within AuthGate.");
+  }
+
+  return user;
+}
 
 export function AuthGate({ children }: AuthGateProps) {
   const [session, setSession] = useState<Session | null>(null);
@@ -69,10 +87,28 @@ export function AuthGate({ children }: AuthGateProps) {
 
   async function handleSignOut() {
     setSignOutError(null);
+
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setSignOutError("退出需要联网。当前离线时请先继续查看本设备数据。");
+      return;
+    }
+
+    const userId = session?.user.id;
     const { error } = await supabase.auth.signOut();
 
     if (error) {
       setSignOutError(error.message);
+      return;
+    }
+
+    if (userId) {
+      try {
+        await clearUserLocalData(userId);
+      } catch (clearError) {
+        setSignOutError(
+          clearError instanceof Error ? clearError.message : "已退出，但清理本设备数据失败。",
+        );
+      }
     }
   }
 
@@ -97,19 +133,21 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   return (
-    <main className="app-root" id="home">
-      <div className="account-strip">
-        <div>
-          <span>当前用户</span>
-          <strong>{session.user.email}</strong>
+    <AuthUserContext.Provider value={{ id: session.user.id, email: session.user.email ?? null }}>
+      <main className="app-root" id="home">
+        <div className="account-strip">
+          <div>
+            <span>当前用户</span>
+            <strong>{session.user.email}</strong>
+          </div>
+          <button className="sign-out-button" type="button" onClick={handleSignOut}>
+            <LogOut size={17} aria-hidden="true" />
+            退出
+          </button>
         </div>
-        <button className="sign-out-button" type="button" onClick={handleSignOut}>
-          <LogOut size={17} aria-hidden="true" />
-          退出
-        </button>
-      </div>
-      {signOutError ? <p className="form-message error account-error">{signOutError}</p> : null}
-      {children}
-    </main>
+        {signOutError ? <p className="form-message error account-error">{signOutError}</p> : null}
+        {children}
+      </main>
+    </AuthUserContext.Provider>
   );
 }

@@ -1,8 +1,15 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { ChevronDown, Plus, Save, X } from "lucide-react";
 import { getLocalDateInputValue } from "@/lib/date";
+import {
+  clearManualDraft,
+  hasManualTransactionDraftContent,
+  readManualDraft,
+  saveManualDraft,
+  type ManualTransactionDraftValues,
+} from "@/lib/manualDraft";
 import { supabase } from "@/lib/supabase";
 import {
   DEFAULT_CURRENCY,
@@ -15,11 +22,18 @@ import {
 import type { TransactionType } from "@/types/transaction";
 
 type ManualTransactionFormProps = {
+  isOnline: boolean;
   onCancel?: () => void;
   onSaved?: () => void;
+  userId: string;
 };
 
-export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFormProps) {
+export function ManualTransactionForm({
+  isOnline,
+  onCancel,
+  onSaved,
+  userId,
+}: ManualTransactionFormProps) {
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("其他");
@@ -28,9 +42,109 @@ export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFo
   const [paymentMethod, setPaymentMethod] = useState("");
   const [note, setNote] = useState("");
   const [isOptionalOpen, setIsOptionalOpen] = useState(false);
+  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+  const [draftMessage, setDraftMessage] = useState<string | null>(null);
+  const [draftErrorMessage, setDraftErrorMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function getCurrentDraft(): ManualTransactionDraftValues {
+    return {
+      type,
+      amount,
+      category,
+      date,
+      merchant,
+      payment_method: paymentMethod,
+      note,
+    };
+  }
+
+  function applyDraft(draft: ManualTransactionDraftValues) {
+    setType(draft.type);
+    setAmount(draft.amount);
+    setCategory(draft.category);
+    setDate(draft.date);
+    setMerchant(draft.merchant);
+    setPaymentMethod(draft.payment_method);
+    setNote(draft.note);
+    setIsOptionalOpen(Boolean(draft.merchant || draft.payment_method || draft.note));
+  }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDraft() {
+      try {
+        const draft = await readManualDraft(userId);
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (draft && hasManualTransactionDraftContent(draft)) {
+          applyDraft(draft);
+          setDraftMessage("已恢复本设备草稿。");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setDraftErrorMessage(error instanceof Error ? error.message : "读取本设备草稿失败。");
+        }
+      } finally {
+        if (isMounted) {
+          setHasLoadedDraft(true);
+        }
+      }
+    }
+
+    loadDraft();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!hasLoadedDraft || isSubmitting) {
+      return;
+    }
+
+    const draft: ManualTransactionDraftValues = {
+      type,
+      amount,
+      category,
+      date,
+      merchant,
+      payment_method: paymentMethod,
+      note,
+    };
+    const timeoutId = window.setTimeout(() => {
+      if (hasManualTransactionDraftContent(draft)) {
+        saveManualDraft(userId, draft).catch((error: unknown) => {
+          setDraftErrorMessage(error instanceof Error ? error.message : "保存本设备草稿失败。");
+        });
+        return;
+      }
+
+      clearManualDraft(userId).catch(() => null);
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    amount,
+    category,
+    date,
+    hasLoadedDraft,
+    isSubmitting,
+    merchant,
+    note,
+    paymentMethod,
+    type,
+    userId,
+  ]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -71,6 +185,12 @@ export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFo
       return;
     }
 
+    if (!isOnline) {
+      await saveManualDraft(userId, getCurrentDraft()).catch(() => null);
+      setErrorMessage("当前离线，账单未保存。已保留为本设备草稿，联网后可正式保存。");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const { data: userData, error: userError } = await supabase.auth.getUser();
@@ -106,7 +226,24 @@ export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFo
     setMerchant("");
     setPaymentMethod("");
     setNote("");
+    setDraftMessage(null);
+    await clearManualDraft(userId).catch(() => null);
     onSaved?.();
+  }
+
+  async function handleClearDraft() {
+    setType("expense");
+    setAmount("");
+    setCategory("其他");
+    setDate(getLocalDateInputValue());
+    setMerchant("");
+    setPaymentMethod("");
+    setNote("");
+    setDraftMessage(null);
+    setDraftErrorMessage(null);
+    await clearManualDraft(userId).catch((error: unknown) => {
+      setDraftErrorMessage(error instanceof Error ? error.message : "删除本设备草稿失败。");
+    });
   }
 
   return (
@@ -124,6 +261,13 @@ export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFo
       </div>
 
       <form className="manual-form" onSubmit={handleSubmit}>
+        <div className="local-draft-note">
+          <p>草稿仅保存在本设备，不是正式账单，不参与统计。</p>
+          <button className="text-button" type="button" onClick={handleClearDraft}>
+            清空草稿
+          </button>
+        </div>
+
         <div className="manual-grid two-columns">
           <label className="manual-field">
             <span>类型</span>
@@ -229,10 +373,12 @@ export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFo
 
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
         {successMessage ? <p className="form-message success">{successMessage}</p> : null}
+        {draftMessage ? <p className="form-message success">{draftMessage}</p> : null}
+        {draftErrorMessage ? <p className="form-message error">{draftErrorMessage}</p> : null}
 
-        <button className="primary-button manual-submit" type="submit" disabled={isSubmitting}>
+        <button className="primary-button manual-submit" type="submit" disabled={isSubmitting || !isOnline}>
           <Save size={18} aria-hidden="true" />
-          {isSubmitting ? "保存中" : "保存账单"}
+          {isSubmitting ? "保存中" : isOnline ? "保存账单" : "联网后可保存"}
         </button>
       </form>
     </section>

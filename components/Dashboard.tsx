@@ -2,20 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
+import { useAuthUser } from "@/components/AuthGate";
 import { BottomNav, type DashboardView } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
 import { ImportTransactions } from "@/components/ImportTransactions";
 import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
 import { StatsPanel, type StatsDrilldownTarget } from "@/components/StatsPanel";
+import { SyncStatusBanner } from "@/components/SyncStatusBanner";
 import { TransactionManager, type TransactionFilterOverride } from "@/components/TransactionManager";
+import type { SyncMeta } from "@/lib/localDb";
+import { useNetworkStatus } from "@/lib/networkStatus";
 import { getMonthlyStats } from "@/lib/stats";
+import { getCachedSyncMeta, syncTransactionsFromRemote } from "@/lib/transactionSync";
 import type { MonthlySummaryData } from "@/types/transaction";
 
 export function Dashboard() {
+  const authUser = useAuthUser();
+  const userId = authUser.id;
+  const isOnline = useNetworkStatus();
   const [activeView, setActiveView] = useState<DashboardView>("home");
   const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [transactionRefreshKey, setTransactionRefreshKey] = useState(0);
+  const [cacheVersion, setCacheVersion] = useState(0);
+  const [syncMeta, setSyncMeta] = useState<SyncMeta | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [transactionFilterOverride, setTransactionFilterOverride] =
     useState<TransactionFilterOverride | null>(null);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummaryData>({
@@ -31,7 +42,7 @@ export function Dashboard() {
 
     async function loadMonthlySummary() {
       try {
-        const stats = await getMonthlyStats();
+        const stats = await getMonthlyStats(userId);
 
         if (isMounted) {
           setMonthlySummary(stats.summary);
@@ -46,7 +57,49 @@ export function Dashboard() {
     return () => {
       isMounted = false;
     };
-  }, [transactionRefreshKey]);
+  }, [cacheVersion, userId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function syncTransactions() {
+      try {
+        const meta = await getCachedSyncMeta(userId);
+
+        if (isMounted) {
+          setSyncMeta(meta);
+          setSyncError(meta?.last_error ?? null);
+        }
+      } catch {
+        // Local sync metadata is only advisory in phase 1.
+      }
+
+      if (!isOnline) {
+        return;
+      }
+
+      try {
+        const result = await syncTransactionsFromRemote(userId);
+
+        if (isMounted) {
+          setSyncMeta(result.meta);
+          setSyncError(null);
+          setCacheVersion((value) => value + 1);
+        }
+      } catch (error) {
+        // Phase 1 keeps the last local cache visible if remote sync fails.
+        if (isMounted) {
+          setSyncError(error instanceof Error ? error.message : "同步账单失败。");
+        }
+      }
+    }
+
+    syncTransactions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOnline, transactionRefreshKey, userId]);
 
   function handleTransactionSaved() {
     setTransactionRefreshKey((value) => value + 1);
@@ -90,8 +143,10 @@ export function Dashboard() {
           <MonthlySummary summary={monthlySummary} />
           {isManualFormOpen ? (
             <ManualTransactionForm
+              isOnline={isOnline}
               onCancel={() => setIsManualFormOpen(false)}
               onSaved={handleManualTransactionSaved}
+              userId={userId}
             />
           ) : (
             <button className="manual-entry-button" type="button" onClick={() => setIsManualFormOpen(true)}>
@@ -100,11 +155,11 @@ export function Dashboard() {
               </span>
               <span>
                 <strong>手动记账</strong>
-                <small>新增一笔账单</small>
+                <small>{isOnline ? "新增一笔账单" : "联网后可保存"}</small>
               </span>
             </button>
           )}
-          <ChatInput onSaved={handleTransactionSaved} />
+          <ChatInput isOnline={isOnline} onSaved={handleTransactionSaved} />
         </>
       );
     }
@@ -114,14 +169,16 @@ export function Dashboard() {
         <TransactionManager
           key={transactionFilterOverride?.id ?? "transactions-default"}
           filterOverride={transactionFilterOverride}
-          refreshKey={transactionRefreshKey}
+          isOnline={isOnline}
+          refreshKey={cacheVersion}
+          userId={userId}
           onChanged={handleTransactionSaved}
         />
       );
     }
 
     if (activeView === "stats") {
-      return <StatsPanel refreshKey={transactionRefreshKey} onDrilldown={handleStatsDrilldown} />;
+      return <StatsPanel refreshKey={cacheVersion} userId={userId} onDrilldown={handleStatsDrilldown} />;
     }
 
     return (
@@ -130,7 +187,7 @@ export function Dashboard() {
           <p>设置</p>
           <h2>数据和偏好</h2>
         </div>
-        <ImportTransactions onImported={handleTransactionSaved} />
+        <ImportTransactions isOnline={isOnline} onImported={handleTransactionSaved} />
       </>
     );
   }
@@ -144,6 +201,12 @@ export function Dashboard() {
             <h1>狐狐记账</h1>
           </div>
         </header>
+
+        <SyncStatusBanner
+          isOnline={isOnline}
+          lastSuccessfulSyncAt={syncMeta?.last_successful_sync_at ?? null}
+          syncError={syncError}
+        />
 
         {renderActiveView()}
       </div>

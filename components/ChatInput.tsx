@@ -15,22 +15,28 @@ type ApiErrorResponse = {
 };
 
 type ChatInputProps = {
+  isOnline: boolean;
   onSaved?: () => void;
 };
 
-export function ChatInput({ onSaved }: ChatInputProps) {
+export function ChatInput({ isOnline, onSaved }: ChatInputProps) {
   const [text, setText] = useState("");
   const [parsedBatch, setParsedBatch] = useState<ParsedTransactionBatch | null>(null);
   const [resultVersion, setResultVersion] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const canParse =
-    text.trim().length > 0 && text.length <= MAX_PARSE_INPUT_CHARS && !isParsing;
+    isOnline && text.trim().length > 0 && text.length <= MAX_PARSE_INPUT_CHARS && !isParsing;
 
   async function handleParse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!text.trim() || isParsing) {
+      return;
+    }
+
+    if (!isOnline) {
+      setErrorMessage("AI 解析需要联网。");
       return;
     }
 
@@ -119,6 +125,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
         <p className="confirm-note">
           最多 {MAX_PARSE_INPUT_CHARS} 字，单次最多解析 {MAX_PARSED_TRANSACTIONS} 笔候选账单。
         </p>
+        {!isOnline ? <p className="form-message error">AI 解析需要联网。</p> : null}
 
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
 
@@ -138,6 +145,7 @@ export function ChatInput({ onSaved }: ChatInputProps) {
         <ConfirmTransactionBatch
           key={`${resultVersion}-${parsedBatch.transactions.length}`}
           batch={parsedBatch}
+          isOnline={isOnline}
           onSaved={handleSaved}
         />
       ) : null}

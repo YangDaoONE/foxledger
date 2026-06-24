@@ -15,6 +15,7 @@ import type { TransactionType } from "@/types/transaction";
 type StatsPanelProps = {
   onDrilldown?: (target: StatsDrilldownTarget) => void;
   refreshKey: number;
+  userId: string;
 };
 
 export type StatsDrilldownTarget = {
@@ -40,7 +41,7 @@ function formatRangeLabel(range: StatsDateRange) {
   return `${range.startDate} 至 ${range.endDate}`;
 }
 
-export function StatsPanel({ onDrilldown, refreshKey }: StatsPanelProps) {
+export function StatsPanel({ onDrilldown, refreshKey, userId }: StatsPanelProps) {
   const [stats, setStats] = useState<MonthlyStats | null>(null);
   const [rangeMode, setRangeMode] = useState<StatsRangeMode>("this-month");
   const [activeRange, setActiveRange] = useState<StatsDateRange>(initialRange);
@@ -60,6 +61,7 @@ export function StatsPanel({ onDrilldown, refreshKey }: StatsPanelProps) {
 
       try {
         const nextStats = await getStatsForDateRange(
+          userId,
           activeRange.startDate,
           activeRange.endDate,
           activeRange.label,
@@ -86,7 +88,7 @@ export function StatsPanel({ onDrilldown, refreshKey }: StatsPanelProps) {
     return () => {
       isMounted = false;
     };
-  }, [refreshKey, manualReloadKey, activeRange]);
+  }, [refreshKey, manualReloadKey, activeRange, userId]);
 
   function handlePresetChange(preset: StatsRangePreset) {
     const nextRange = getPresetStatsDateRange(preset);

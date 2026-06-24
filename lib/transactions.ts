@@ -62,6 +62,7 @@ export type TransactionPageResult = {
 const noEditableTransactionMessage = "未找到可编辑的账单，或你没有权限修改这条记录。";
 const noDeletableTransactionMessage = "未找到可删除的账单，或你没有权限删除这条记录。";
 const summaryPageSize = 1000;
+const remoteSyncPageSize = 1000;
 
 const transactionSelectColumns = [
   "id",
@@ -276,6 +277,46 @@ export async function listTransactionsPage(
     hasMore: offset + transactions.length < totalCount,
     totalCount,
   };
+}
+
+export async function listAllRemoteTransactionsForCurrentUser(): Promise<Transaction[]> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError) {
+    throw new Error(userError.message);
+  }
+
+  if (!userData.user) {
+    throw new Error("请先登录后同步账单。");
+  }
+
+  const rows: Transaction[] = [];
+  let offset = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("transactions")
+      .select(transactionSelectColumns)
+      .eq("user_id", userData.user.id)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + remoteSyncPageSize - 1);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    const currentRows = ((data ?? []) as unknown as TransactionRow[]).map(normalizeTransaction);
+    rows.push(...currentRows);
+
+    if (currentRows.length < remoteSyncPageSize) {
+      break;
+    }
+
+    offset += remoteSyncPageSize;
+  }
+
+  return rows;
 }
 
 export async function updateTransaction(

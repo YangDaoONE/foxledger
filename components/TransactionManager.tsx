@@ -4,11 +4,11 @@ import { FormEvent, useEffect, useState } from "react";
 import { CheckSquare, ListFilter, RefreshCw, RotateCcw, Search, Square, Trash2 } from "lucide-react";
 import { EditTransactionForm } from "@/components/EditTransactionForm";
 import { TransactionCard } from "@/components/TransactionCard";
+import { listCachedTransactionsPage } from "@/lib/localTransactions";
 import { defaultCategories } from "@/lib/transactionRules";
 import {
   deleteTransaction,
   deleteTransactionsByIds,
-  listTransactionsPage,
   type TransactionFilterSummary,
   type TransactionSortOption,
 } from "@/lib/transactions";
@@ -17,7 +17,9 @@ import type { Transaction, TransactionType } from "@/types/transaction";
 
 type TransactionManagerProps = {
   filterOverride?: TransactionFilterOverride | null;
+  isOnline: boolean;
   refreshKey: number;
+  userId: string;
   onChanged?: () => void;
 };
 
@@ -175,7 +177,9 @@ function validateDateFilters(filters: FilterValues) {
 
 export function TransactionManager({
   filterOverride,
+  isOnline,
   refreshKey,
+  userId,
   onChanged,
 }: TransactionManagerProps) {
   const initialFilterState = getInitialFilters(filterOverride);
@@ -210,7 +214,7 @@ export function TransactionManager({
       setErrorMessage(null);
 
       try {
-        const result = await listTransactionsPage({
+        const result = await listCachedTransactionsPage(userId, {
           search: appliedFilters.search,
           type: appliedFilters.type === "all" ? null : appliedFilters.type,
           category: appliedFilters.category || null,
@@ -247,7 +251,7 @@ export function TransactionManager({
     return () => {
       isMounted = false;
     };
-  }, [appliedFilters, refreshKey, manualReloadKey]);
+  }, [appliedFilters, refreshKey, manualReloadKey, userId]);
 
   function handleApplyFilters(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
@@ -298,7 +302,7 @@ export function TransactionManager({
     setActionErrorMessage(null);
 
     try {
-      const result = await listTransactionsPage({
+      const result = await listCachedTransactionsPage(userId, {
         search: appliedFilters.search,
         type: appliedFilters.type === "all" ? null : appliedFilters.type,
         category: appliedFilters.category || null,
@@ -457,8 +461,8 @@ export function TransactionManager({
             isEditing={editingTransactionId === transaction.id}
             isConfirmingDelete={confirmDeleteId === transaction.id}
             isDeleting={deletingId === transaction.id}
-            onEdit={isManageMode ? undefined : handleEdit}
-            onDelete={isManageMode ? undefined : handleDelete}
+            onEdit={isManageMode || !isOnline ? undefined : handleEdit}
+            onDelete={isManageMode || !isOnline ? undefined : handleDelete}
           />
         </div>
         {deletingId === transaction.id ? <p className="delete-confirm-note">删除中</p> : null}
@@ -620,15 +624,31 @@ export function TransactionManager({
       </div>
 
       <div className="manager-toolbar" aria-label="账单管理操作">
-        <button className="secondary-button" type="button" onClick={handleToggleManageMode}>
+        <button
+          className="secondary-button"
+          disabled={!isOnline && !isManageMode}
+          type="button"
+          onClick={handleToggleManageMode}
+        >
           {isManageMode ? "退出管理" : "管理"}
         </button>
+        {!isOnline ? <span className="offline-toolbar-note">离线只读</span> : null}
         {isManageMode ? (
           <>
-            <button className="secondary-button" type="button" onClick={handleSelectVisibleTransactions}>
+            <button
+              className="secondary-button"
+              disabled={!isOnline}
+              type="button"
+              onClick={handleSelectVisibleTransactions}
+            >
               全选当前
             </button>
-            <button className="secondary-button" type="button" onClick={handleClearSelection}>
+            <button
+              className="secondary-button"
+              disabled={!isOnline}
+              type="button"
+              onClick={handleClearSelection}
+            >
               取消全选
             </button>
           </>
@@ -643,7 +663,7 @@ export function TransactionManager({
           </div>
           <button
             className="secondary-button danger-action"
-            disabled={selectedTransactionIds.length === 0 || isBatchDeleting}
+            disabled={selectedTransactionIds.length === 0 || isBatchDeleting || !isOnline}
             type="button"
             onClick={handleBatchDelete}
           >
@@ -660,6 +680,12 @@ export function TransactionManager({
             </p>
           ) : null}
         </div>
+      ) : null}
+
+      {!isOnline ? (
+        <p className="form-message error transaction-list-message">
+          当前为离线数据，只能查看，联网后可编辑或删除。
+        </p>
       ) : null}
 
       {isLoading ? <p className="list-state">正在读取账单</p> : null}

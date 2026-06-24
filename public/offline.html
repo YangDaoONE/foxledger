@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2f6f5e" />
+    <title>FoxLedger 离线</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --background: #eef2ed;
+        --surface: #ffffff;
+        --foreground: #17211c;
+        --muted: #66736b;
+        --border: #dfe5dc;
+        --accent: #2f6f5e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: Arial, "Microsoft YaHei", sans-serif;
+      }
+
+      main {
+        width: min(100% - 32px, 430px);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+        padding: 22px;
+      }
+
+      p,
+      h1 {
+        margin: 0;
+      }
+
+      p {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .brand {
+        color: var(--accent);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+
+      h1 {
+        margin-top: 4px;
+        font-size: 1.5rem;
+        line-height: 1.2;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="brand">FoxLedger</p>
+      <h1>当前离线</h1>
+      <p>无法连接网络。若你此前已登录并同步过账单，请返回应用查看本设备缓存数据。</p>
+    </main>
+  </body>
+</html>

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Save } from "lucide-react";
+import { ChevronDown, Plus, Save, X } from "lucide-react";
 import { getLocalDateInputValue } from "@/lib/date";
 import { supabase } from "@/lib/supabase";
 import {
@@ -15,10 +15,11 @@ import {
 import type { TransactionType } from "@/types/transaction";
 
 type ManualTransactionFormProps = {
+  onCancel?: () => void;
   onSaved?: () => void;
 };
 
-export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
+export function ManualTransactionForm({ onCancel, onSaved }: ManualTransactionFormProps) {
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("其他");
@@ -26,6 +27,7 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [note, setNote] = useState("");
+  const [isOptionalOpen, setIsOptionalOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -109,9 +111,16 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
 
   return (
     <section className="manual-panel" aria-labelledby="manual-transaction-title">
-      <div className="section-heading">
-        <p>手动记账</p>
-        <h2 id="manual-transaction-title">新增一笔账单</h2>
+      <div className="section-heading horizontal">
+        <div>
+          <p>手动记账</p>
+          <h2 id="manual-transaction-title">新增一笔账单</h2>
+        </div>
+        {onCancel ? (
+          <button className="small-icon-button" type="button" aria-label="收起手动记账" onClick={onCancel}>
+            <X size={17} aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
 
       <form className="manual-form" onSubmit={handleSubmit}>
@@ -168,35 +177,55 @@ export function ManualTransactionForm({ onSaved }: ManualTransactionFormProps) {
           </label>
         </div>
 
-        <label className="manual-field">
-          <span>商家</span>
-          <input
-            placeholder="例如：麦当劳"
-            type="text"
-            value={merchant}
-            onChange={(event) => setMerchant(event.target.value)}
-          />
-        </label>
+        <div className="manual-optional-block">
+          <button
+            className="manual-optional-toggle"
+            type="button"
+            aria-expanded={isOptionalOpen}
+            onClick={() => setIsOptionalOpen((current) => !current)}
+          >
+            {isOptionalOpen ? (
+              <ChevronDown size={17} aria-hidden="true" />
+            ) : (
+              <Plus size={17} aria-hidden="true" />
+            )}
+            可选信息
+          </button>
 
-        <label className="manual-field">
-          <span>支付方式</span>
-          <input
-            placeholder="例如：支付宝、微信、银行卡"
-            type="text"
-            value={paymentMethod}
-            onChange={(event) => setPaymentMethod(event.target.value)}
-          />
-        </label>
+          {isOptionalOpen ? (
+            <div className="manual-optional-fields">
+              <label className="manual-field">
+                <span>商家</span>
+                <input
+                  placeholder="例如：麦当劳"
+                  type="text"
+                  value={merchant}
+                  onChange={(event) => setMerchant(event.target.value)}
+                />
+              </label>
 
-        <label className="manual-field">
-          <span>备注</span>
-          <textarea
-            placeholder="可选"
-            rows={2}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        </label>
+              <label className="manual-field">
+                <span>支付方式</span>
+                <input
+                  placeholder="例如：支付宝、微信、银行卡"
+                  type="text"
+                  value={paymentMethod}
+                  onChange={(event) => setPaymentMethod(event.target.value)}
+                />
+              </label>
+
+              <label className="manual-field">
+                <span>备注</span>
+                <textarea
+                  placeholder="可选"
+                  rows={2}
+                  value={note}
+                  onChange={(event) => setNote(event.target.value)}
+                />
+              </label>
+            </div>
+          ) : null}
+        </div>
 
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}
         {successMessage ? <p className="form-message success">{successMessage}</p> : null}

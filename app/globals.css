@@ -482,6 +482,50 @@ progress::-moz-progress-bar {
   padding: 16px;
 }
 
+.manual-entry-button {
+  display: flex;
+  width: 100%;
+  min-height: 76px;
+  align-items: center;
+  gap: 12px;
+  border: 1px dashed #c9d7ce;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--foreground);
+  padding: 14px 16px;
+  text-align: left;
+  box-shadow: var(--shadow);
+}
+
+.manual-entry-button strong,
+.manual-entry-button small {
+  display: block;
+}
+
+.manual-entry-button strong {
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.manual-entry-button small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.manual-entry-icon {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #eef5f2;
+  color: var(--accent);
+}
+
 .manual-form {
   display: grid;
   gap: 12px;
@@ -531,6 +575,31 @@ progress::-moz-progress-bar {
 
 .manual-submit {
   width: 100%;
+}
+
+.manual-optional-block,
+.manual-optional-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.manual-optional-toggle {
+  display: inline-flex;
+  min-height: 40px;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.manual-optional-toggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
 }
 
 .import-actions {
@@ -832,22 +901,32 @@ textarea::placeholder {
   gap: 8px;
 }
 
-.stats-metric-grid div {
+.stats-metric-card {
   display: grid;
   gap: 5px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
   padding: 10px;
+  text-align: left;
 }
 
-.stats-metric-grid span {
+button.stats-metric-card {
+  color: inherit;
+}
+
+.stats-metric-card.interactive:not(:disabled) {
+  border-color: #cfe0da;
+  background: #f7fbf8;
+}
+
+.stats-metric-card span {
   color: var(--muted);
   font-size: 0.74rem;
   font-weight: 700;
 }
 
-.stats-metric-grid strong {
+.stats-metric-card strong {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--foreground);
@@ -1110,6 +1189,19 @@ textarea::placeholder {
 .daily-row {
   display: grid;
   gap: 8px;
+}
+
+.drilldown-row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  text-align: left;
+}
+
+.drilldown-row:disabled {
+  opacity: 0.72;
 }
 
 .category-row-top,

@@ -1,20 +1,23 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { BottomNav, type DashboardView } from "@/components/BottomNav";
 import { ChatInput } from "@/components/ChatInput";
 import { ImportTransactions } from "@/components/ImportTransactions";
 import { ManualTransactionForm } from "@/components/ManualTransactionForm";
 import { MonthlySummary } from "@/components/MonthlySummary";
-import { StatsPanel } from "@/components/StatsPanel";
-import { TransactionList } from "@/components/TransactionList";
-import { TransactionManager } from "@/components/TransactionManager";
+import { StatsPanel, type StatsDrilldownTarget } from "@/components/StatsPanel";
+import { TransactionManager, type TransactionFilterOverride } from "@/components/TransactionManager";
 import { getMonthlyStats } from "@/lib/stats";
 import type { MonthlySummaryData } from "@/types/transaction";
 
 export function Dashboard() {
   const [activeView, setActiveView] = useState<DashboardView>("home");
+  const [isManualFormOpen, setIsManualFormOpen] = useState(false);
   const [transactionRefreshKey, setTransactionRefreshKey] = useState(0);
+  const [transactionFilterOverride, setTransactionFilterOverride] =
+    useState<TransactionFilterOverride | null>(null);
   const [monthlySummary, setMonthlySummary] = useState<MonthlySummaryData>({
     month: "本月",
     expense: 0,
@@ -49,31 +52,76 @@ export function Dashboard() {
     setTransactionRefreshKey((value) => value + 1);
   }
 
+  function handleManualTransactionSaved() {
+    handleTransactionSaved();
+    setIsManualFormOpen(false);
+  }
+
+  function handleStatsDrilldown(target: StatsDrilldownTarget) {
+    setTransactionFilterOverride((current) => ({
+      id: (current?.id ?? 0) + 1,
+      label: target.label,
+      search: "",
+      type: target.type,
+      category: target.category ?? "",
+      startDate: target.startDate,
+      endDate: target.endDate,
+      sort: "date-desc",
+    }));
+    setActiveView("transactions");
+  }
+
+  function handleViewChange(nextView: DashboardView) {
+    if (nextView !== "transactions" || activeView === "transactions") {
+      setTransactionFilterOverride(null);
+    }
+
+    if (nextView !== "home") {
+      setIsManualFormOpen(false);
+    }
+
+    setActiveView(nextView);
+  }
+
   function renderActiveView() {
     if (activeView === "home") {
       return (
         <>
           <MonthlySummary summary={monthlySummary} />
-          <ManualTransactionForm onSaved={handleTransactionSaved} />
+          {isManualFormOpen ? (
+            <ManualTransactionForm
+              onCancel={() => setIsManualFormOpen(false)}
+              onSaved={handleManualTransactionSaved}
+            />
+          ) : (
+            <button className="manual-entry-button" type="button" onClick={() => setIsManualFormOpen(true)}>
+              <span className="manual-entry-icon" aria-hidden="true">
+                <Plus size={24} />
+              </span>
+              <span>
+                <strong>手动记账</strong>
+                <small>新增一笔账单</small>
+              </span>
+            </button>
+          )}
           <ChatInput onSaved={handleTransactionSaved} />
-          <TransactionList
-            eyebrow="最近账单"
-            title="最近 5 笔"
-            limit={5}
-            refreshKey={transactionRefreshKey}
-            emptyMessage="还没有账单。先用手动记账或 AI 记账新增一笔。"
-            onChanged={handleTransactionSaved}
-          />
         </>
       );
     }
 
     if (activeView === "transactions") {
-      return <TransactionManager refreshKey={transactionRefreshKey} onChanged={handleTransactionSaved} />;
+      return (
+        <TransactionManager
+          key={transactionFilterOverride?.id ?? "transactions-default"}
+          filterOverride={transactionFilterOverride}
+          refreshKey={transactionRefreshKey}
+          onChanged={handleTransactionSaved}
+        />
+      );
     }
 
     if (activeView === "stats") {
-      return <StatsPanel refreshKey={transactionRefreshKey} />;
+      return <StatsPanel refreshKey={transactionRefreshKey} onDrilldown={handleStatsDrilldown} />;
     }
 
     return (
@@ -100,7 +148,7 @@ export function Dashboard() {
         {renderActiveView()}
       </div>
 
-      <BottomNav activeView={activeView} onViewChange={setActiveView} />
+      <BottomNav activeView={activeView} onViewChange={handleViewChange} />
     </>
   );
 }

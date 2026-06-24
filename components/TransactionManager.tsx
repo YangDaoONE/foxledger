@@ -16,11 +16,12 @@ import { formatCny } from "@/lib/format";
 import type { Transaction, TransactionType } from "@/types/transaction";
 
 type TransactionManagerProps = {
+  filterOverride?: TransactionFilterOverride | null;
   refreshKey: number;
   onChanged?: () => void;
 };
 
-type TransactionTypeFilter = TransactionType | "all";
+export type TransactionTypeFilter = TransactionType | "all";
 
 type FilterValues = {
   search: string;
@@ -29,6 +30,17 @@ type FilterValues = {
   startDate: string;
   endDate: string;
   sort: TransactionSortOption;
+};
+
+export type TransactionFilterOverride = {
+  id: number;
+  label: string;
+  search?: string;
+  type?: TransactionTypeFilter;
+  category?: string;
+  startDate?: string;
+  endDate?: string;
+  sort?: TransactionSortOption;
 };
 
 type DateGroup = {
@@ -56,6 +68,22 @@ const initialFilters: FilterValues = {
   endDate: "",
   sort: "date-desc",
 };
+
+function getInitialFilters(filterOverride?: TransactionFilterOverride | null): FilterValues {
+  if (!filterOverride) {
+    return initialFilters;
+  }
+
+  return {
+    ...initialFilters,
+    search: filterOverride.search?.trim() ?? "",
+    type: filterOverride.type ?? "all",
+    category: filterOverride.category ?? "",
+    startDate: filterOverride.startDate ?? "",
+    endDate: filterOverride.endDate ?? "",
+    sort: filterOverride.sort ?? "date-desc",
+  };
+}
 
 const emptySummary: TransactionFilterSummary = {
   expense: 0,
@@ -145,9 +173,14 @@ function validateDateFilters(filters: FilterValues) {
   return null;
 }
 
-export function TransactionManager({ refreshKey, onChanged }: TransactionManagerProps) {
-  const [filters, setFilters] = useState<FilterValues>(initialFilters);
-  const [appliedFilters, setAppliedFilters] = useState<FilterValues>(initialFilters);
+export function TransactionManager({
+  filterOverride,
+  refreshKey,
+  onChanged,
+}: TransactionManagerProps) {
+  const initialFilterState = getInitialFilters(filterOverride);
+  const [filters, setFilters] = useState<FilterValues>(initialFilterState);
+  const [appliedFilters, setAppliedFilters] = useState<FilterValues>(initialFilterState);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [summary, setSummary] = useState<TransactionFilterSummary>(emptySummary);
   const [totalCount, setTotalCount] = useState(0);
@@ -157,7 +190,9 @@ export function TransactionManager({ refreshKey, onChanged }: TransactionManager
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [filterErrorMessage, setFilterErrorMessage] = useState<string | null>(null);
   const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(
+    filterOverride ? `已应用筛选：${filterOverride.label}` : null,
+  );
   const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

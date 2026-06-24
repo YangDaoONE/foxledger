@@ -10,9 +10,19 @@ import {
   type StatsDateRange,
   type StatsRangePreset,
 } from "@/lib/stats";
+import type { TransactionType } from "@/types/transaction";
 
 type StatsPanelProps = {
+  onDrilldown?: (target: StatsDrilldownTarget) => void;
   refreshKey: number;
+};
+
+export type StatsDrilldownTarget = {
+  label: string;
+  type: TransactionType | "all";
+  category?: string;
+  startDate: string;
+  endDate: string;
 };
 
 type StatsRangeMode = StatsRangePreset | "custom";
@@ -30,7 +40,7 @@ function formatRangeLabel(range: StatsDateRange) {
   return `${range.startDate} 至 ${range.endDate}`;
 }
 
-export function StatsPanel({ refreshKey }: StatsPanelProps) {
+export function StatsPanel({ onDrilldown, refreshKey }: StatsPanelProps) {
   const [stats, setStats] = useState<MonthlyStats | null>(null);
   const [rangeMode, setRangeMode] = useState<StatsRangeMode>("this-month");
   const [activeRange, setActiveRange] = useState<StatsDateRange>(initialRange);
@@ -109,6 +119,23 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
 
   function handleReload() {
     setManualReloadKey((value) => value + 1);
+  }
+
+  function handleDrilldown(target: Omit<StatsDrilldownTarget, "startDate" | "endDate">) {
+    onDrilldown?.({
+      ...target,
+      startDate: activeRange.startDate,
+      endDate: activeRange.endDate,
+    });
+  }
+
+  function handleDailyDrilldown(date: string) {
+    onDrilldown?.({
+      label: `${date} 支出账单`,
+      type: "expense",
+      startDate: date,
+      endDate: date,
+    });
   }
 
   return (
@@ -192,27 +219,42 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
 
       {!isLoading && !errorMessage && stats ? (
         <div className="stats-metric-grid" aria-label="统计概览">
-          <div>
+          <button
+            className="stats-metric-card interactive"
+            type="button"
+            disabled={!onDrilldown || stats.summary.expense <= 0}
+            onClick={() => handleDrilldown({ label: `${activeRange.label}支出账单`, type: "expense" })}
+          >
             <span>总支出</span>
             <strong>{formatCny(stats.summary.expense)}</strong>
-          </div>
-          <div>
+          </button>
+          <button
+            className="stats-metric-card interactive"
+            type="button"
+            disabled={!onDrilldown || stats.summary.income <= 0}
+            onClick={() => handleDrilldown({ label: `${activeRange.label}收入账单`, type: "income" })}
+          >
             <span>总收入</span>
             <strong>{formatCny(stats.summary.income)}</strong>
-          </div>
-          <div>
+          </button>
+          <div className="stats-metric-card">
             <span>结余</span>
             <strong>{formatCny(stats.summary.balance)}</strong>
           </div>
-          <div>
+          <button
+            className="stats-metric-card interactive"
+            type="button"
+            disabled={!onDrilldown || stats.transactionCount <= 0}
+            onClick={() => handleDrilldown({ label: `${activeRange.label}全部账单`, type: "all" })}
+          >
             <span>交易笔数</span>
             <strong>{stats.transactionCount}</strong>
-          </div>
-          <div>
+          </button>
+          <div className="stats-metric-card">
             <span>日均支出</span>
             <strong>{formatCny(stats.averageDailyExpense)}</strong>
           </div>
-          <div>
+          <div className="stats-metric-card">
             <span>最大单笔支出</span>
             <strong>{formatCny(stats.maxExpenseAmount)}</strong>
           </div>
@@ -233,7 +275,19 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
             {stats.categorySpend.length > 0 ? (
               <div className="category-list">
                 {stats.categorySpend.map((item) => (
-                  <div className="category-row" key={item.category}>
+                  <button
+                    className="category-row drilldown-row"
+                    key={item.category}
+                    type="button"
+                    disabled={!onDrilldown}
+                    onClick={() =>
+                      handleDrilldown({
+                        label: `${activeRange.label}${item.category}支出`,
+                        type: "expense",
+                        category: item.category,
+                      })
+                    }
+                  >
                     <div className="category-row-top">
                       <span>{item.category}</span>
                       <strong>{formatCny(item.amount)}</strong>
@@ -241,7 +295,7 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
                     <div className="category-meter" aria-label={`${item.category} 占比 ${item.percent}%`}>
                       <span style={{ width: `${item.percent}%` }} />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -257,7 +311,13 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
             {stats.dailySpend.length > 0 ? (
               <div className="daily-list">
                 {stats.dailySpend.map((item) => (
-                  <div className="daily-row" key={item.date}>
+                  <button
+                    className="daily-row drilldown-row"
+                    key={item.date}
+                    type="button"
+                    disabled={!onDrilldown}
+                    onClick={() => handleDailyDrilldown(item.date)}
+                  >
                     <div className="daily-row-top">
                       <span>{item.date}</span>
                       <strong>{formatCny(item.amount)}</strong>
@@ -265,7 +325,7 @@ export function StatsPanel({ refreshKey }: StatsPanelProps) {
                     <div className="category-meter" aria-label={`${item.date} 支出 ${formatCny(item.amount)}`}>
                       <span style={{ width: `${item.percent}%` }} />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (

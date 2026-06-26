@@ -12,7 +12,7 @@ App v1.0：在迁移稳定后再做新功能
 
 Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App v0.x 不应一开始就重写后端、改 schema 或新增复杂功能。
 
-当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.5。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；统计页、CSV、SQLite、离线写入、AI 查账和 Edge Function 迁移尚未完成。
+当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.6。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；CSV、SQLite、离线统计、离线写入、AI 查账和 Edge Function 迁移尚未完成。
 
 ## 2. 推荐目录策略
 
@@ -21,7 +21,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.5
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.6
 ```
 
 原因：
@@ -255,9 +255,11 @@ Authorization: Bearer <supabase_access_token>
 - AI 不直接写数据库。
 - 不发送统计数据或本地缓存给 AI。
 - 不改 Supabase schema，不迁移 AI 后端。
-- App 当前还未做统计页、CSV、SQLite、离线写入、AI 查账、Edge Function 迁移。
+- App 当前还未做 CSV、SQLite、离线统计、离线写入、AI 查账、Edge Function 迁移。
 
 ### v0.6 统计页与 drilldown
+
+状态：已完成。
 
 目标：
 
@@ -266,11 +268,16 @@ Authorization: Bearer <supabase_access_token>
 - 分类排行。
 - 每日趋势。
 - 点击统计项跳到账单页并应用筛选。
+- 统计 query key 独立为 `['stats', userId, rangeKey]`，交易写入变更后同时刷新 transactions 和 stats。
+- 日期范围使用 App 本地日期生成 `YYYY-MM-DD`，自定义日期使用和账单页一致的日历选择控件，并校验非空、格式和开始日期不晚于结束日期。
+- 统计读取只选必要字段，固定分页大小、稳定排序，并设置最大读取保护。
+- drilldown 到账单页时重置账单页多选状态和旧分页状态。
 
 边界：
 
 - 统计由代码计算。
 - 不调用 AI。
+- 不做离线统计。
 
 ### v0.7 可爱风基础设计系统
 
@@ -352,7 +359,7 @@ D:\fox\foxledger
 - PROJECT_HANDOFF.md
 - AGENTS.md
 
-当前 FoxLedger App 已完成 v0.5：
+当前 FoxLedger App 已完成 v0.6：
 - Expo React Native + TypeScript 技术骨架
 - Supabase Auth
 - 当前用户账单读取
@@ -360,6 +367,8 @@ D:\fox\foxledger
 - 搜索筛选排序
 - 调用现有 Web/Next AI API 进行文本账单解析
 - AI 候选确认后批量写入 Supabase
+- 日期范围统计页、分类排行、每日趋势
+- 统计项 drilldown 到账单页筛选
 
 请严格遵守：
 - 不提交 .env 或任何密钥
@@ -371,5 +380,5 @@ D:\fox\foxledger
 - 不改 Supabase schema，除非我明确要求
 - npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-下一阶段我想做 App v0.6。请先根据当前代码和文档，给出最合适的 v0.6 计划，不要直接实现。
+下一阶段我想做 App v0.7。请先根据当前代码和文档，给出最合适的 v0.7 计划，不要直接实现。
 ```

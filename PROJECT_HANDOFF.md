@@ -1,10 +1,10 @@
 # PROJECT_HANDOFF.md
 
-本文件用于把 FoxLedger v2.1 完成态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md` 和本文件。
+本文件用于把 FoxLedger Web/PWA v2.1 收口状态交接给下一轮 ChatGPT / Codex 对话，并为后续 iOS + Android App v0.x 迁移做上下文准备。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`。
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA 雏形，当前 v2.1 已完成从登录、手动/AI/CSV 记账、账单管理、统计 drilldown，到本地缓存、离线只读查看和 Service Worker 外壳缓存的核心闭环。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，后续 Web 主线进入稳定维护，新增 iOS + Android App v0.x 测试版作为下一阶段迁移方向。
 
 ## 2. 当前线上地址
 
@@ -139,14 +139,6 @@ types/
 - 在线保存成功后清空草稿，并触发远端同步刷新本地缓存。
 - 离线提交不会写数据库，会提示“当前离线，账单未保存”，并保留为本设备草稿。
 
-### 手动草稿
-
-- `lib/localDb.ts` 的 `manual_drafts` store 保存手动表单草稿。
-- `lib/manualDraft.ts` 封装读取、保存、清空和是否有内容判断。
-- 草稿按当前 `user_id` 保存。
-- 草稿仅保存在本设备，不是正式账单，不参与统计。
-- 用户可在表单中清空草稿。
-
 ### AI 解析和确认入库
 
 - API：`app/api/parse-transaction/route.ts`。
@@ -168,11 +160,8 @@ types/
 
 - 输入长度限制：`MAX_PARSE_INPUT_CHARS = 3000`。
 - 候选数量限制：`MAX_PARSED_TRANSACTIONS = 50`。
-- 服务端不只依赖 AI 遵守数量限制，会 slice 到最大候选数量。
 - 服务端检测疑似银行卡号、身份证号等长敏感数字并拒绝解析。
-- AI prompt 要求分类只能来自默认分类。
-- 服务端仍兜底校验分类，非默认分类归一为 `其他`。
-- 如果没有可靠金额，或金额不来自原文片段，候选标记 `needs_clarification: true`，不能直接保存。
+- 服务端校验分类、日期、金额来源和 `raw_text`。
 - 用户可在确认页编辑候选、取消选择、删除候选、补全必要字段后保存。
 - 批量保存使用一次 insert 多条。
 - AI 不直接写数据库。
@@ -185,7 +174,6 @@ types/
 - 必须登录且在线才能导入。
 - 只追加新增，不覆盖、不合并、不自动去重。
 - 必需表头：`date`、`amount`、`type`。
-- 支持可选表头：`category`、`note`、`currency`、`tag`、`merchant`、`payment_method`、`account`、`raw_text`、`source`。
 - 合法行可以单独导入，错误行不入库。
 - 当前固定写入 `CNY`。
 - 非默认分类归一为 `其他`。
@@ -195,11 +183,8 @@ types/
 - 当前主账单页由 `TransactionManager` 提供。
 - 数据读取来自 IndexedDB 本地缓存：`listCachedTransactionsPage(userId, filters)`。
 - 支持搜索商户、备注、分类。
-- 支持类型筛选：全部、支出、收入、转账。
-- 支持默认分类筛选。
-- 支持开始日期、结束日期筛选，范围包含开始和结束当天。
+- 支持类型、分类、开始日期、结束日期筛选。
 - 支持日期倒序、日期正序、金额倒序、金额正序。
-- 支持一键清空筛选。
 - 支持加载更多，当前 page size 为 30。
 - 显示筛选后的总支出、总收入和笔数。
 - 支持按日期分组展示。
@@ -218,21 +203,8 @@ types/
 ### 统计页
 
 - 文件：`lib/stats.ts`、`lib/statsCalculator.ts`、`components/StatsPanel.tsx`。
-- 支持：
-  - 本周
-  - 本月
-  - 上月
-  - 今年
-  - 自定义日期范围
-- 展示：
-  - 总支出
-  - 总收入
-  - 结余
-  - 交易笔数
-  - 日均支出
-  - 最大单笔支出
-  - 分类支出排行
-  - 每日支出趋势
+- 支持本周、本月、上月、今年、自定义日期范围。
+- 展示总支出、总收入、结余、交易笔数、日均支出、最大单笔支出、分类支出排行和每日支出趋势。
 - 统计基于当前用户本地缓存账单计算。
 - `expense` 计入支出。
 - `income` 计入收入。
@@ -253,45 +225,24 @@ types/
   - `sync_meta`
   - `manual_drafts`
 - `transactions` store 使用 `cache_key = ${user_id}:${id}`。
-- `transactions` store 索引：
-  - `user_id`
-  - `user_id_date`
-  - `user_id_updated_at`
-- `sync_meta` 以 `user_id` 为 keyPath。
 - 同步策略是当前用户全量拉取并替换本地缓存。
 - 全量同步原因：当前云端删除是真删除，没有 tombstone，仅用 `updated_at` 增量无法反映删除。
 - `transactionSync.ts` 会检查远端拉取结果是否包含非当前用户账单，如果有会停止写入本地缓存。
-- 云端保存、编辑、删除、CSV 导入、AI 保存成功后会触发同步刷新。
 
 ### v2.1 离线 UI
 
 - `useNetworkStatus()` 监听浏览器 online/offline。
 - `SyncStatusBanner` 显示在线、离线、同步失败和上次同步时间。
 - 离线时只能查看上次同步数据。
-- 离线时禁用正式写操作：
-  - 手动保存。
-  - AI 解析。
-  - AI 候选保存。
-  - CSV 导入。
-  - 编辑账单。
-  - 删除账单。
-  - 批量删除。
+- 离线时禁用正式写操作：手动保存、AI 解析/保存、CSV 导入、编辑、删除和批量删除。
 - 手动记账按钮离线时提示“联网后可保存”。
 - 草稿明确提示“仅保存在本设备，不是正式账单，不参与统计”。
 
 ### v2.1 Service Worker 外壳缓存
 
 - `components/ServiceWorkerRegistration.tsx` 只在生产环境注册 `/sw.js`。
-- `public/sw.js` 缓存：
-  - `/`
-  - `/offline.html`
-  - `/manifest.webmanifest`
-  - `/icons/icon-192`
-  - `/icons/icon-512`
-  - `/icons/apple-touch-icon`
-  - `/_next/static/*`
+- `public/sw.js` 缓存应用外壳、manifest、图标、离线页和 `/_next/static/*`。
 - 导航请求使用 network-first，失败后 fallback 到缓存的 `/`，再 fallback 到 `/offline.html`。
-- 静态资源使用 cache-first。
 - 明确 network-only：
   - 非 GET 请求。
   - `/api/*`。
@@ -372,16 +323,6 @@ OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-说明：
-
-- `NEXT_PUBLIC_SUPABASE_URL`：Supabase 项目 URL。
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`：Supabase publishable key。
-- `AI_PROVIDER`：当前只支持 `openai`。
-- `OPENAI_API_KEY`：OpenAI-compatible provider API key，仅服务端使用。
-- `OPENAI_BASE_URL`：OpenAI-compatible API base URL，可为空。
-- `OPENAI_MODEL`：账单解析模型。
-- `ALLOWED_EMAILS`：允许调用 AI 解析 API 的邮箱白名单，逗号分隔。
-
 ## 8. 当前安全边界
 
 必须继续保持：
@@ -406,111 +347,104 @@ ALLOWED_EMAILS
 
 ## 9. 当前已知问题和限制
 
-- 当前是个人使用的 Web App / PWA 雏形，不是完整商业产品。
+- 当前是 Web/PWA，不是真正原生 iOS / Android App。
+- 当前仓库尚未创建 Expo App。
+- 当前 AI 后端仍在 Web/Next API。
 - 没有自定义分类、账户、支付方式管理。
 - 默认分类是固定集合，非默认分类归一为 `其他`。
 - 固定货币 `CNY`，没有多币种和汇率。
 - CSV 导入只做追加新增，不做覆盖、合并或自动去重。
-- 账单删除支持单条删除和当前已加载账单的多选删除，不支持按日期范围删除或删除全部账单。
-- 没有预算、AI 分析、自动建议或预测。
+- 账单删除支持单条删除和当前已加载账单的多选删除，不支持恢复、按日期范围删除或删除全部账单。
 - 有本地缓存和离线只读查看，但没有离线正式记账、离线同步队列或冲突合并。
+- Web 版使用 IndexedDB，没有 App 侧 SQLite。
 - 有基础 Service Worker 外壳缓存，但不缓存 Supabase/API 用户响应。
-- 没有 push notification。
-- 没有 Capacitor App 封装。
+- 没有原生推送、Capacitor 封装或后台定时同步。
 - `components/TransactionList.tsx` 是旧最近账单列表组件，当前主界面未引用，后续可清理。
 - 当前没有单元测试或 E2E 测试脚本。
-- 自有域名在 Vercel 平台侧管理，仓库中不记录具体私有域名。
-- 文档提交前如果工作区存在用户或上一阶段留下的未提交业务代码，不能擅自回滚；先确认用户是否要提交。
 
-## 10. 下一版本推荐开发路线
+## 10. Web 版收口结论
 
-下一版本建议从 v2.2 开始。不要直接实现，除非用户明确确认阶段目标。
+Web/PWA v2.1 可视为正式收口版本。后续 Web 主线建议只做：
 
-### v2.2 推荐方向 A：质量保障
+- bug 修复。
+- 安全边界维护。
+- 数据准确性修复。
+- 文档更新。
+- 必要的小优化。
 
-目标：降低后续改动风险。
+不建议继续在 Web 主线投入：
 
-建议范围：
+- 完整可爱风 UI 重绘。
+- 复杂 AI 对话式记账。
+- App 级动画和手势。
+- 原生推送。
+- 离线正式写入队列。
+- 大规模设置系统。
 
-- 为 `lib/transactionRules.ts` 补日期、分类、类型校验测试。
-- 为 `lib/validators.ts` 补 AI 输入和 sanitizer 测试。
-- 为 `lib/csvImport.ts` 补 CSV parser 测试。
-- 为 `lib/statsCalculator.ts` 补统计计算测试。
-- 为 `lib/localTransactions.ts` 补本地筛选、排序、分页、汇总测试。
-- 必要时补最小 E2E 或手动测试清单。
+这些应转入 App v0.x / v1.0 路线。
 
-边界：
+## 11. App v0.x 迁移路线摘要
 
-- 不改 schema。
-- 不改业务交互。
-- 不新增外部监控或付费平台。
+建议另建平级仓库：
 
-### v2.2 推荐方向 B：PWA 安装与更新体验
+```text
+D:\fox\
+  foxledger\        # 当前 Web/PWA v2.1
+  foxledger-app\    # 未来 Expo React Native App v0.x
+```
 
-目标：让 PWA 更像可安装应用。
+推荐技术栈：
 
-建议范围：
+```text
+Expo React Native + TypeScript
+Expo Router
+Supabase JS
+TanStack Query
+SQLite
+FlashList
+lucide-react-native 或同类图标库
+现有 Next.js AI API 过渡
+```
 
-- 安装引导。
-- Service Worker 更新提示。
-- 离线页和离线状态验证流程优化。
-- 弱网/断网文案完善。
+App v0.x 目标：
 
-边界：
-
-- 不缓存 Supabase/API 用户响应。
-- 不做 push notification。
-- 不做离线写入队列。
-
-### v2.2 推荐方向 C：数据导出
-
-目标：增强自用数据可控性。
-
-建议范围：
-
-- 导出当前用户账单为 CSV。
-- 支持按当前筛选条件导出。
-- 导出字段与 `public.transactions` 现有字段对应。
-
-边界：
-
-- 只读当前用户数据。
+- 完整迁移 Web/PWA v2.1 已有功能。
+- 优化 iOS + Android 移动端体验。
+- 不新增大功能。
+- 不改 Supabase schema。
 - 不绕过 RLS。
-- 不做覆盖、恢复或导入合并。
-- 不改数据库 schema。
+- 不把 AI key 放进 App。
+- 不在 v0.x 阶段实现 AI 对话式查账、离线正式记账、自定义分类等 v1.0 后功能。
 
-### 更大版本候选
+详见 `APP_MIGRATION_PLAN.md`。
 
-- 自定义分类、账户、支付方式、常用商户映射：需要先给 migration、RLS 和回滚方案。
-- 离线正式记账：需要先设计本地队列、冲突策略、同步状态和失败恢复。
-- 更强删除能力：按日期范围删除或删除全部账单需要更严谨确认流程。
-- AI 解析增强：可以改善中文日期、金额、多笔拆分，但必须保持 AI 不读历史账单、不写数据库、不做统计。
-
-## 11. 新对话启动 Prompt
+## 12. 新对话启动 Prompt
 
 可以在下一轮 ChatGPT / Codex 对话开头使用：
 
 ```text
-请先阅读当前仓库中的 AGENTS.md、README.md 和 PROJECT_HANDOFF.md。
+请先阅读当前仓库中的 AGENTS.md、README.md、PROJECT_HANDOFF.md 和 APP_MIGRATION_PLAN.md。
 
-这是 FoxLedger / 狐狐记账，一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA 雏形。当前 v2.1 已完成 Auth、transactions 表/RLS、手动记账、AI 批量解析和确认入库、CSV 导入、账单搜索筛选排序、多选删除、统计页 drilldown、本地 IndexedDB 缓存、离线只读 UI、手动草稿、Service Worker 外壳缓存、Vercel 部署和 AI 邮箱白名单。
+这是 FoxLedger / 狐狐记账，一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成 Auth、transactions 表/RLS、手动记账、AI 批量解析和确认入库、CSV 导入、账单搜索筛选排序、多选删除、统计页 drilldown、本地 IndexedDB 缓存、离线只读 UI、手动草稿、Service Worker 外壳缓存、Vercel 部署和 AI 邮箱白名单。
+
+当前战略：Web/PWA v2.1 保持稳定维护，不再承接大规模 App 级功能；下一阶段准备另建平级 foxledger-app，开发 iOS + Android App v0.x 测试版。App v0.x 目标是完整迁移 Web/PWA v2.1 功能并优化移动端体验，不新增大功能。
 
 请严格遵守：
 - 不提交 .env.local 或任何密钥。
 - 不使用 Supabase service_role key。
 - 不绕过 RLS。
 - 不让 AI 直接写数据库。
-- AI 只能解析当前输入文本，不能读取历史账单或 IndexedDB 缓存。
+- AI 只能解析当前输入文本，不能读取历史账单或 IndexedDB/SQLite 缓存。
 - 统计必须由代码基于数据库查询结果或本地缓存计算，不调用 AI。
 - Service Worker 不缓存 Supabase/API 用户响应。
 - 每次只做一个小阶段。
 - 不主动实现超出本阶段的功能。
 - 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等我确认后再实施。
 
-接下来我要开启 v2.2 开发。请先根据当前代码和文档审计项目状态，并给出下一阶段计划，等我确认后再实施。
+接下来我要开启 App v0.x 技术验证。请先根据当前 Web 仓库和文档审计项目状态，并给出第一阶段计划，等我确认后再实施。
 ```
 
-## 12. 开发前检查清单
+## 13. 开发前检查清单
 
 每次开始前：
 

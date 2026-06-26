@@ -19,7 +19,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.2
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.3
 ```
 
 原因：
@@ -187,6 +187,8 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.3 手动记账与编辑删除
 
+状态：已完成。
+
 目标：
 
 - 新增手动账单。
@@ -194,6 +196,11 @@ Supabase Edge Functions 替代 Next AI API
 - 单条删除。
 - 当前已加载账单多选删除。
 - 类型、金额、日期、分类校验与 Web 一致。
+- 新增时固定写入 `currency = CNY`、`source = manual` 和当前 `user.id`。
+- Hook 内部从 Auth 上下文读取当前 `user.id`，UI 不允许传入任意 `user_id`。
+- 更新和删除继续显式 `.eq("user_id", user.id)`，同时依赖 RLS。
+- 不读取或写入 `raw_text`，不接 AI provider key。
+- 不做离线新增、编辑、删除队列。
 
 ### v0.4 搜索筛选排序
 

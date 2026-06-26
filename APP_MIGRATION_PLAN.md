@@ -19,7 +19,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.3
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.4
 ```
 
 原因：
@@ -204,14 +204,21 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.4 搜索筛选排序
 
+状态：已完成。
+
 目标：
 
 - 搜索商户、备注、分类。
+- 搜索关键词查询前统一 `trim`，空字符串视为无搜索条件。
 - 类型筛选。
 - 分类筛选。
 - 日期范围筛选。
 - 日期/金额排序。
 - 筛选结果汇总。
+- 查询继续显式 `.eq("user_id", user.id)`，同时依赖 RLS。
+- select 字段继续收窄，v0.4 不读取 `raw_text`。
+- 使用 TanStack Query queryKey 纳入筛选和排序条件，筛选变化后重置分页。
+- 继续使用 FlatList，不引入 FlashList。
 
 ### v0.5 AI 解析迁移
 

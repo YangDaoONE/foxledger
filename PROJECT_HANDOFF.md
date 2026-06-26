@@ -1,10 +1,10 @@
 # PROJECT_HANDOFF.md
 
-本文件用于把 FoxLedger Web/PWA v2.1 收口状态交接给下一轮 ChatGPT / Codex 对话，并为后续 iOS + Android App v0.x 迁移做上下文准备。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`。
+本文件用于把 FoxLedger Web/PWA v2.1 收口状态和 App v0.5 迁移状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`，以及 App 仓库 `D:\fox\foxledger-app` 中的 `README.md`、`AGENTS.md` 和 `PROJECT_HANDOFF.md`。
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，后续 Web 主线进入稳定维护，新增 iOS + Android App v0.x 测试版作为下一阶段迁移方向。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，Web 主线进入稳定维护；平级 App 仓库 `D:\fox\foxledger-app` 已完成到 v0.5 AI 解析迁移。
 
 ## 2. 当前线上地址
 
@@ -348,8 +348,8 @@ ALLOWED_EMAILS
 ## 9. 当前已知问题和限制
 
 - 当前是 Web/PWA，不是真正原生 iOS / Android App。
-- 当前仓库尚未创建 Expo App。
-- 当前 AI 后端仍在 Web/Next API。
+- Expo App 已在平级仓库 `D:\fox\foxledger-app` 创建，当前完成到 v0.5。
+- Web/PWA 仍作为稳定线上版本和 App AI API 过渡后端。
 - 没有自定义分类、账户、支付方式管理。
 - 默认分类是固定集合，非默认分类归一为 `其他`。
 - 固定货币 `CNY`，没有多币种和汇率。
@@ -385,12 +385,12 @@ Web/PWA v2.1 可视为正式收口版本。后续 Web 主线建议只做：
 
 ## 11. App v0.x 迁移路线摘要
 
-建议另建平级仓库：
+App 已在平级仓库创建：
 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1
-  foxledger-app\    # 未来 Expo React Native App v0.x
+  foxledger-app\    # Expo React Native App v0.x，当前至 v0.5
 ```
 
 推荐技术栈：
@@ -406,15 +406,25 @@ lucide-react-native 或同类图标库
 现有 Next.js AI API 过渡
 ```
 
-App v0.x 目标：
+App 当前状态：
 
-- 完整迁移 Web/PWA v2.1 已有功能。
-- 优化 iOS + Android 移动端体验。
-- 不新增大功能。
+- v0.0 技术骨架已完成。
+- v0.1 Auth 已完成。
+- v0.2 当前用户账单读取和分页已完成。
+- v0.3 手动记账、编辑、删除和多选删除已完成。
+- v0.4 搜索、筛选、排序已完成。
+- v0.5 AI 解析迁移已完成：App 调用现有 Web/Next AI API，AI 只解析当前输入文本，候选经用户确认后批量写入 Supabase。
+
+App 后续仍必须保持：
+
+- 不新增大功能，优先迁移 Web/PWA v2.1 已有能力。
 - 不改 Supabase schema。
 - 不绕过 RLS。
 - 不把 AI key 放进 App。
+- 不把历史账单、统计数据或本地缓存发给 AI。
 - 不在 v0.x 阶段实现 AI 对话式查账、离线正式记账、自定义分类等 v1.0 后功能。
+
+下一轮建议进入 App v0.6，优先评估统计页迁移。
 
 详见 `APP_MIGRATION_PLAN.md`。
 
@@ -423,25 +433,40 @@ App v0.x 目标：
 可以在下一轮 ChatGPT / Codex 对话开头使用：
 
 ```text
-请先阅读当前仓库中的 AGENTS.md、README.md、PROJECT_HANDOFF.md 和 APP_MIGRATION_PLAN.md。
+请先阅读以下文档：
 
-这是 FoxLedger / 狐狐记账，一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成 Auth、transactions 表/RLS、手动记账、AI 批量解析和确认入库、CSV 导入、账单搜索筛选排序、多选删除、统计页 drilldown、本地 IndexedDB 缓存、离线只读 UI、手动草稿、Service Worker 外壳缓存、Vercel 部署和 AI 邮箱白名单。
+App 仓库：
+D:\fox\foxledger-app
+- README.md
+- AGENTS.md
+- PROJECT_HANDOFF.md
 
-当前战略：Web/PWA v2.1 保持稳定维护，不再承接大规模 App 级功能；下一阶段准备另建平级 foxledger-app，开发 iOS + Android App v0.x 测试版。App v0.x 目标是完整迁移 Web/PWA v2.1 功能并优化移动端体验，不新增大功能。
+Web 仓库：
+D:\fox\foxledger
+- APP_MIGRATION_PLAN.md
+- PROJECT_HANDOFF.md
+- AGENTS.md
+
+当前 FoxLedger App 已完成 v0.5：
+- Expo React Native + TypeScript 技术骨架
+- Supabase Auth
+- 当前用户账单读取
+- 手动新增、编辑、删除、多选删除
+- 搜索筛选排序
+- 调用现有 Web/Next AI API 进行文本账单解析
+- AI 候选确认后批量写入 Supabase
 
 请严格遵守：
-- 不提交 .env.local 或任何密钥。
-- 不使用 Supabase service_role key。
-- 不绕过 RLS。
-- 不让 AI 直接写数据库。
-- AI 只能解析当前输入文本，不能读取历史账单或 IndexedDB/SQLite 缓存。
-- 统计必须由代码基于数据库查询结果或本地缓存计算，不调用 AI。
-- Service Worker 不缓存 Supabase/API 用户响应。
-- 每次只做一个小阶段。
-- 不主动实现超出本阶段的功能。
-- 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等我确认后再实施。
+- 不提交 .env 或任何密钥
+- 不使用 service_role key
+- 不绕过 RLS
+- 不把 AI key 放入 App
+- 不把历史账单、统计数据、本地缓存发给 AI
+- AI 结果必须用户确认后才入库
+- 不改 Supabase schema，除非我明确要求
+- npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-接下来我要开启 App v0.x 技术验证。请先根据当前 Web 仓库和文档审计项目状态，并给出第一阶段计划，等我确认后再实施。
+下一阶段我想做 App v0.6。请先根据当前代码和文档，给出最合适的 v0.6 计划，不要直接实现。
 ```
 
 ## 13. 开发前检查清单

@@ -2,7 +2,7 @@
 
 FoxLedger 是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。它面向个人日常记账场景，解决“快速记录、确认入库、查看真实账单、统计分析、弱网或离线时查看上次同步数据”的闭环问题。
 
-当前 Web/PWA 版基线为 v2.1 正式版：登录、手动记账、AI 批量解析、CSV 导入、账单管理、统计 drilldown、本地缓存、离线只读 UI、手动草稿和 Service Worker 外壳缓存已经完成。后续规划是保持 Web/PWA v2.1 稳定维护，并另行启动 iOS + Android App v0.x 测试版，用 Expo React Native 迁移和优化现有功能。
+当前 Web/PWA 版基线为 v2.1 正式版：登录、手动记账、AI 批量解析、CSV 导入、账单管理、统计 drilldown、本地缓存、离线只读 UI、手动草稿和 Service Worker 外壳缓存已经完成。后续规划是保持 Web/PWA v2.1 稳定维护；平级 iOS + Android App v0.x 测试版已在 `D:\fox\foxledger-app` 启动，当前完成到 v0.5 AI 解析迁移。
 
 Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
@@ -200,7 +200,7 @@ Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 ## 当前限制
 
 - 当前是 Web/PWA，不是真正原生 iOS / Android App。
-- 未来 iOS / Android App 需要单独开发，当前仓库尚未创建 Expo 项目。
+- iOS / Android App 在平级仓库 `D:\fox\foxledger-app` 开发，当前完成到 v0.5；本仓库仍是 Web/PWA 稳定维护线。
 - 当前 AI 后端仍在 Web/Next API：`app/api/parse-transaction/route.ts`。
 - 当前没有完整离线正式记账、离线新增/编辑/删除队列或冲突合并。
 - 当前 Web 版使用 IndexedDB 本地缓存，没有本地 SQLite 缓存。
@@ -217,15 +217,15 @@ Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
 
 ## App v0.x 方向
 
-Web/PWA v2.1 将作为稳定维护版保留。后续建议在当前仓库平级新建独立 App 仓库：
+Web/PWA v2.1 将作为稳定维护版保留。独立 App 仓库已经在当前仓库平级创建：
 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，稳定维护
-  foxledger-app\    # 未来 Expo React Native App v0.x 测试版
+  foxledger-app\    # Expo React Native App v0.x，当前至 v0.5
 ```
 
-App v0.x 目标不是新增大功能，而是完整迁移 Web/PWA v2.1 已有功能，并针对 iOS + Android 做体验和性能优化。推荐技术路线：
+App v0.x 目标不是新增大功能，而是迁移 Web/PWA v2.1 已有核心能力，并针对 iOS + Android 做体验和性能优化。当前 App v0.5 已接入现有 Web/Next AI API 完成文本解析、候选确认和用户保存到 Supabase 的最小闭环。推荐技术路线：
 
 ```text
 Expo React Native + TypeScript

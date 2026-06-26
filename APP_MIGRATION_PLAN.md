@@ -12,6 +12,8 @@ App v1.0：在迁移稳定后再做新功能
 
 Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App v0.x 不应一开始就重写后端、改 schema 或新增复杂功能。
 
+当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.5。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；统计页、CSV、SQLite、离线写入、AI 查账和 Edge Function 迁移尚未完成。
+
 ## 2. 推荐目录策略
 
 建议新建平级仓库，而不是把 Expo 项目放进当前 Next.js 仓库：
@@ -19,7 +21,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.4
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.5
 ```
 
 原因：
@@ -222,6 +224,8 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.5 AI 解析迁移
 
+状态：已完成。
+
 目标：
 
 - App 调用现有 Web/Next API：
@@ -234,12 +238,24 @@ Authorization: Bearer <supabase_access_token>
 - 复刻 AI 候选确认流程。
 - 支持候选编辑、选择、删除。
 - 用户确认后写入 Supabase。
+- AI API base URL 使用 `EXPO_PUBLIC_AI_API_BASE_URL` 配置，App 不硬编码多处 URL。
+- App 调用 AI API 时从当前 Supabase session 获取 `access_token`。
+- AI API 返回 `401` 时 refresh session 后重试一次，再失败则提示重新登录。
+- Web/Next API 的 AI JSON 解析先严格 `JSON.parse`，失败后只兼容提取 fenced JSON 或第一个完整 JSON object，随后仍走服务端清洗。
+- 候选保存前再次经过本地交易规则校验和归一。
+- `insert` payload 白名单构造，`user_id` 固定当前用户，`currency = CNY`，`source = ai`。
+- `needs_clarification` 或字段非法的候选必须先编辑修正后才能保存。
+- `raw_text` 优先保存候选片段，没有则 fallback 为完整输入文本。
+- 保存成功后清空 AI 输入和候选列表，并刷新 transactions query。
 
 边界：
 
 - App 不接触 AI provider key。
 - AI 不读取历史账单。
 - AI 不直接写数据库。
+- 不发送统计数据或本地缓存给 AI。
+- 不改 Supabase schema，不迁移 AI 后端。
+- App 当前还未做统计页、CSV、SQLite、离线写入、AI 查账、Edge Function 迁移。
 
 ### v0.6 统计页与 drilldown
 
@@ -256,7 +272,20 @@ Authorization: Bearer <supabase_access_token>
 - 统计由代码计算。
 - 不调用 AI。
 
-### v0.7 本地缓存与离线只读
+### v0.7 可爱风基础设计系统
+
+目标：
+
+- 统一 App 基础颜色、间距、字体层级、按钮、输入框、列表项、空状态和错误态。
+- 保持移动端可用性，不改变 Supabase schema。
+- 为后续统计页、SQLite 和测试版收口提供稳定视觉基础。
+
+边界：
+
+- 不做大规模业务扩张。
+- 不接入 AI 查账。
+
+### v0.8 SQLite 本地缓存与离线只读评估
 
 目标：
 
@@ -274,7 +303,7 @@ Authorization: Bearer <supabase_access_token>
 - 不做离线写入队列。
 - 不做冲突合并。
 
-### v0.8 测试版收口
+### v0.9 测试版收口
 
 目标：
 
@@ -282,7 +311,6 @@ Authorization: Bearer <supabase_access_token>
 - 长列表优化。
 - 弱网体验。
 - 错误提示。
-- 基础可爱风设计系统。
 - Android APK 内测包。
 - iOS 如需要，走 TestFlight 或开发安装。
 
@@ -307,12 +335,41 @@ Authorization: Bearer <supabase_access_token>
 - 自定义分类、账户、支付方式。
 - 导出、备份和重复账单检测。
 
-## 10. 第一阶段建议启动 Prompt
+## 10. 下一轮建议启动 Prompt
 
 ```text
-请先阅读 D:\fox\foxledger 中的 AGENTS.md、README.md、PROJECT_HANDOFF.md 和 APP_MIGRATION_PLAN.md。
+请先阅读以下文档：
 
-当前 Web/PWA v2.1 已收口，接下来要新建平级 Expo React Native App 项目 foxledger-app，目标是 App v0.x 测试版。第一阶段只做技术骨架，不迁移全部业务、不改 Supabase schema、不提交任何密钥。
+App 仓库：
+D:\fox\foxledger-app
+- README.md
+- AGENTS.md
+- PROJECT_HANDOFF.md
 
-请先给出 App v0.0 技术骨架计划，等我确认后再实施。
+Web 仓库：
+D:\fox\foxledger
+- APP_MIGRATION_PLAN.md
+- PROJECT_HANDOFF.md
+- AGENTS.md
+
+当前 FoxLedger App 已完成 v0.5：
+- Expo React Native + TypeScript 技术骨架
+- Supabase Auth
+- 当前用户账单读取
+- 手动新增、编辑、删除、多选删除
+- 搜索筛选排序
+- 调用现有 Web/Next AI API 进行文本账单解析
+- AI 候选确认后批量写入 Supabase
+
+请严格遵守：
+- 不提交 .env 或任何密钥
+- 不使用 service_role key
+- 不绕过 RLS
+- 不把 AI key 放入 App
+- 不把历史账单、统计数据、本地缓存发给 AI
+- AI 结果必须用户确认后才入库
+- 不改 Supabase schema，除非我明确要求
+- npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
+
+下一阶段我想做 App v0.6。请先根据当前代码和文档，给出最合适的 v0.6 计划，不要直接实现。
 ```

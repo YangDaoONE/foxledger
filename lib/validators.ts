@@ -216,11 +216,67 @@ export function validateParseRequestBody(body: unknown) {
 }
 
 export function parseAiJson(content: string) {
-  try {
-    return JSON.parse(content) as unknown;
-  } catch {
-    throw new Error("AI 返回内容不是有效 JSON。");
+  const candidates = [
+    content.trim(),
+    extractJsonCodeBlock(content),
+    extractFirstJsonObject(content),
+  ].filter((candidate): candidate is string => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate) as unknown;
+    } catch {
+      // Try the next candidate. The final error stays intentionally generic.
+    }
   }
+
+  throw new Error("AI 返回内容不是有效 JSON。");
+}
+
+function extractJsonCodeBlock(content: string) {
+  const match = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractFirstJsonObject(content: string) {
+  const start = content.indexOf("{");
+
+  if (start < 0) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let isEscaped = false;
+
+  for (let index = start; index < content.length; index += 1) {
+    const char = content[index];
+
+    if (inString) {
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (char === "\\") {
+        isEscaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return content.slice(start, index + 1).trim();
+      }
+    }
+  }
+
+  return null;
 }
 
 function getCandidateRawText(aiValue: Record<string, unknown>, rawText: string) {

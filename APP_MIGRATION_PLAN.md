@@ -1,12 +1,12 @@
 # APP_MIGRATION_PLAN.md
 
-本文件专门记录 FoxLedger 从 Web/PWA v2.1 收口版迁移到 iOS + Android App v0.x 测试版的技术路线和边界。当前仓库尚未创建 App 项目，本文件中的 App 内容都是计划，不是已实现功能。
+本文件专门记录 FoxLedger 从 Web/PWA v2.1 收口版迁移到 iOS + Android App v0.x 测试版的技术路线、边界和当前进度。App 项目已在平级目录 `D:\fox\foxledger-app` 创建；除明确标注已完成的阶段外，后续 App 内容仍是计划，不是已实现功能。
 
 ## 1. 当前决策
 
 ```text
 Web/PWA v2.1：稳定维护版
-App v0.x：未来测试版，完整迁移 Web/PWA v2.1 功能并做移动端优化
+App v0.x：测试版，完整迁移 Web/PWA v2.1 功能并做移动端优化
 App v1.0：在迁移稳定后再做新功能
 ```
 
@@ -19,7 +19,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # 未来 Expo React Native App v0.x，尚未创建
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.2
 ```
 
 原因：
@@ -140,6 +140,8 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.0 技术骨架
 
+状态：已完成。
+
 目标：
 
 - 新建 Expo React Native + TypeScript 项目。
@@ -156,6 +158,8 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.1 Auth
 
+状态：已完成。
+
 目标：
 
 - 邮箱密码登录/注册。
@@ -166,13 +170,20 @@ Supabase Edge Functions 替代 Next AI API
 
 ### v0.2 账单列表
 
+状态：已完成。
+
 目标：
 
 - 读取当前用户 `transactions`。
-- 用 FlashList 展示账单。
+- 使用 TanStack Query `useInfiniteQuery` 做分页读取，Hook 内部从 Auth 上下文获取当前 `user.id`，不允许外部传入任意 `user_id`。
+- Supabase 查询继续显式 `.eq("user_id", user.id)`，同时依赖 RLS。
+- select 字段收窄到列表 UI 需要字段，v0.2 不读取 `raw_text`。
+- 排序使用 `date desc`、`created_at desc`、`id desc`。
+- v0.2 先用 FlatList 展示账单，FlashList 后续在长列表阶段再引入。
 - 支持加载态、错误态、空状态。
 - 支持基础分页或加载更多。
 - 初步按日期分组。
+- 退出登录或切换账号时清理 transactions query cache，避免短暂显示上一个账号数据。
 
 ### v0.3 手动记账与编辑删除
 
@@ -216,21 +227,7 @@ Authorization: Bearer <supabase_access_token>
 - AI 不读取历史账单。
 - AI 不直接写数据库。
 
-### v0.6 CSV 导入
-
-目标：
-
-- 选择 CSV 文件。
-- 复用 CSV 解析规则。
-- 展示合法行预览和错误行。
-- 确认后写入当前用户账单。
-
-边界：
-
-- 只追加。
-- 不覆盖、不合并、不自动去重。
-
-### v0.7 统计页与 drilldown
+### v0.6 统计页与 drilldown
 
 目标：
 
@@ -245,7 +242,7 @@ Authorization: Bearer <supabase_access_token>
 - 统计由代码计算。
 - 不调用 AI。
 
-### v0.8 本地缓存与离线只读
+### v0.7 本地缓存与离线只读
 
 目标：
 
@@ -263,7 +260,7 @@ Authorization: Bearer <supabase_access_token>
 - 不做离线写入队列。
 - 不做冲突合并。
 
-### v0.9 测试版收口
+### v0.8 测试版收口
 
 目标：
 

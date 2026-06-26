@@ -6,20 +6,26 @@
 
 FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA 雏形。
 
-当前 v1 阶段已经完成：
+当前基线为 v2.1，已经完成：
 
 - Supabase Auth 邮箱密码登录。
-- `public.transactions` 表、约束、索引和 RLS。
+- `public.transactions` 表、约束、索引、RLS policy 和 authenticated 权限授权。
 - 手动记账。
-- 首页本月概览、快速记账入口和最近账单。
-- 真实账单列表。
-- 账单编辑和单条删除。
-- 账单搜索、筛选、排序、加载更多和当前已加载账单的多选删除。
+- 首页本月概览。
+- 首页手动记账加号入口，点击后在首页展开表单。
+- 手动记账可选信息折叠区。
+- 本设备手动记账草稿。
+- 账单搜索、筛选、排序、加载更多。
+- 账单编辑、单条删除和当前已加载账单多选删除。
 - AI 单条/批量文本账单解析。
 - AI 候选确认后入库。
 - CSV 导入。
 - 日期范围统计页。
-- 基础 PWA metadata、manifest 和图标。
+- 统计项 drilldown 到账单页筛选。
+- IndexedDB 本地账单缓存和同步元信息。
+- 断网只读 UI 和上次同步提示。
+- 基础 PWA metadata、manifest、动态图标路由。
+- Service Worker 应用外壳缓存和离线提示页。
 - Vercel 部署。
 - AI API 邮箱白名单。
 
@@ -28,8 +34,9 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 1. 数据安全。
 2. Supabase RLS 和用户隔离。
 3. 记账准确性。
-4. 代码简单可维护。
-5. 手机端可用性。
+4. 离线缓存边界清晰。
+5. 代码简单可维护。
+6. 手机端可用性。
 
 ## 2. 开发原则
 
@@ -37,15 +44,16 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 不要主动实现用户没有要求的功能。
 - 不要大规模重构项目结构。
 - 不要修改与当前任务无关的文件。
-- 不要删除已有功能。
+- 不要删除已有功能，除非用户明确要求。
+- 不要把未实现功能写成已完成。
 - 不要提交 `.env.local`。
 - 不要提交任何 API key、Supabase key、数据库密码或其他密钥。
 - 不要引入 Supabase `service_role` key。
 - 不要绕过 Supabase RLS。
 - 不要让 AI 直接写数据库。
-- AI 只能解析当前输入文本，不能读取历史账单。
-- 统计必须由代码和数据库查询计算，不能调用 AI。
-- 不要把未实现功能写成已完成。
+- AI 只能解析当前输入文本，不能读取历史账单、本地缓存或统计数据。
+- 统计必须由代码基于数据库查询结果或本地缓存数据计算，不能调用 AI。
+- 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等用户确认后再实施。
 - 修改完成后用中文说明改了什么、改了哪些文件、如何运行、如何测试、是否需要环境变量。
 - 明确修改完成后，按用户要求提交和推送。
 
@@ -94,7 +102,8 @@ updated_at
 - `category` 限制为默认分类，非默认分类归一为 `其他`。
 - `source` 只能是 `manual` 或 `ai`。
 - `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
-- 不要新增表或改 schema，除非用户明确要求。
+- `transfer` 暂不计入收入、支出和结余。
+- 不要新增表或改 schema，除非用户明确要求并确认方案。
 
 默认分类：
 
@@ -123,7 +132,34 @@ lib/transactionRules.ts
 
 不要在新组件里重新复制默认分类、交易类型、CNY 常量或基础校验函数。
 
-## 4. Supabase / Auth / RLS 规则
+## 4. 本地缓存规则
+
+IndexedDB 由 `lib/localDb.ts` 封装。
+
+当前 DB：
+
+```text
+name: foxledger
+version: 2
+stores:
+  transactions
+  sync_meta
+  manual_drafts
+```
+
+必须保持：
+
+- 本地正式账单缓存必须按 `user_id` 隔离。
+- 读取本地账单时必须传入当前登录用户 `userId`。
+- Supabase 全量同步成功后，替换当前用户本地缓存。
+- 全量同步用于正确反映云端删除，不要擅自改成只增量同步。
+- 手动草稿只保存在 `manual_drafts`，不是正式账单，不参与统计。
+- 在线退出成功后清理当前用户本设备缓存和草稿。
+- 未登录时不要显示任何本地账单缓存。
+- 不要把 Supabase access token、refresh token、登录响应、AI API 响应写入 IndexedDB。
+- 不要把 IndexedDB 历史账单传给 AI。
+
+## 5. Supabase / Auth / RLS 规则
 
 必须保持：
 
@@ -133,6 +169,7 @@ lib/transactionRules.ts
 - 前端只使用 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
 - 不要使用 `service_role` key。
 - 不要把 Supabase 密钥写入前端代码。
+- 不要允许前端传入任意 `user_id` 决定操作对象。
 
 当前 migration：
 
@@ -143,7 +180,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 
 如果出现 `permission denied for table transactions`，优先检查 `002_grant_transactions_permissions.sql` 是否已经在 Supabase SQL Editor 执行。
 
-## 5. AI 解析规则
+## 6. AI 解析规则
 
 AI API：
 
@@ -178,16 +215,17 @@ frontend ChatInput
 - AI 返回结果必须先 `JSON.parse`。
 - AI 返回结果必须服务端二次校验和清洗。
 - API 返回格式保持批量格式，不要一会儿返回单条、一会儿返回数组。
-- AI 返回每条候选的 `raw_text` 应是对应原文片段；无法切分才 fallback 为完整输入。
+- AI 返回每条候选的 `raw_text` 应是对应原文片段，无法切分才 fallback 为完整输入。
 - 日期必须是 `YYYY-MM-DD`。
 - 文本里有日期，用文本日期。
 - 只有“今天/昨天/前天”，用服务端日期推算。
 - 完全没有日期，才用服务端今天。
 - 不要让 AI 猜跨年日期。
 - 如果没有可靠金额，返回 `needs_clarification: true`，不能保存。
-- AI 只能把分类归到默认分类；服务端仍要兜底归一非默认分类为 `其他`。
+- AI 只能把分类归到默认分类，服务端仍要兜底归一非默认分类为 `其他`。
 - AI 不允许直接写数据库。
 - AI 不允许计算统计。
+- 离线时不允许 AI 解析或保存 AI 候选。
 
 当前限制常量：
 
@@ -200,10 +238,10 @@ lib/parseTransactionLimits.ts
 
 安全注意：
 
-- 不要发送历史账单、统计数据、银行卡号、身份证号、完整地址等敏感信息给 AI。
+- 不要发送历史账单、统计数据、IndexedDB 缓存、银行卡号、身份证号、完整地址等敏感信息给 AI。
 - `OPENAI_API_KEY` 等只允许在服务端环境变量中。
 
-## 6. CSV 导入规则
+## 7. CSV 导入规则
 
 当前 CSV 导入是前端解析、预览、确认后写入 Supabase。
 
@@ -216,7 +254,7 @@ lib/csvImport.ts
 
 规则：
 
-- 必须已登录才能导入。
+- 必须已登录且在线才能导入。
 - 导入数据只能写入当前用户。
 - 只做追加新增，不做覆盖、合并、自动去重。
 - 只强制要求 `date`、`amount`、`type` 三个表头。
@@ -230,12 +268,13 @@ lib/csvImport.ts
 - `source` 为空或非法默认 `manual`。
 - 不接 AI，不改数据库结构，不使用 `service_role` key。
 
-## 7. 统计规则
+## 8. 统计规则
 
 文件：
 
 ```text
 lib/stats.ts
+lib/statsCalculator.ts
 components/StatsPanel.tsx
 ```
 
@@ -260,15 +299,17 @@ components/StatsPanel.tsx
 
 规则：
 
-- 只读取当前用户自己的 `transactions`。
+- 统计基于当前用户本地缓存账单计算。
+- 本地缓存来自 Supabase 当前用户全量同步结果。
 - `expense` 计入支出。
 - `income` 计入收入。
 - `balance = income - expense`。
 - `transfer` 暂不计入收入、支出、结余。
 - `amount` 按正数处理。
 - 统计不调用 AI。
+- 统计 drilldown 只切换到账单页并应用筛选，不新增数据库表。
 
-## 8. UI/UX 规则
+## 9. UI/UX 规则
 
 当前 UI 是移动端优先的单页应用，底部导航切换子界面：
 
@@ -287,10 +328,12 @@ components/StatsPanel.tsx
 - 当前已使用 `lucide-react` 图标，新增图标优先继续用它。
 - 不要把卡片嵌套成复杂层级。
 - 新功能尽量复用现有样式类，例如 `section-block`、`manual-field`、`primary-button`、`secondary-button`、`form-message`。
+- 首页不要重新加入最近账单模块，除非用户明确要求。
+- 离线状态必须清楚标记，不要让用户误以为离线草稿是正式账单。
 
-## 9. PWA 规则
+## 10. PWA / Service Worker 规则
 
-当前 PWA 只做基础 metadata、manifest 和图标路由：
+当前 PWA 文件：
 
 ```text
 app/manifest.ts
@@ -298,18 +341,22 @@ app/icons/icon-192/route.tsx
 app/icons/icon-512/route.tsx
 app/icons/apple-touch-icon/route.tsx
 lib/pwaIcon.tsx
+components/ServiceWorkerRegistration.tsx
+public/sw.js
+public/offline.html
 ```
 
-当前没有：
+必须保持：
 
-- service worker。
-- 离线记账。
-- 离线同步。
-- push notification。
+- Service Worker 只在生产环境注册。
+- 可以缓存应用外壳、`/_next/static/*`、manifest、图标和离线提示页。
+- 不缓存 `/api/*`。
+- 不缓存 Supabase 请求。
+- 不缓存登录响应、AI API 响应或任何用户敏感数据响应。
+- 非 GET 请求必须 network-only。
+- 当前没有离线正式记账、离线同步队列、push notification。
 
-不要在没有明确需求时加入离线缓存，尤其不要缓存 Supabase 用户数据。
-
-## 10. 部署规则
+## 11. 部署规则
 
 生产地址：
 
@@ -329,6 +376,8 @@ Vercel
 - 排查环境变量问题时，redeploy 建议不要勾选 `Use existing Build Cache`。
 - 不要把 `.env.local` 提交到 GitHub。
 - Supabase Auth URL Configuration 要包含生产地址和 preview redirect URLs。
+- 如果 Vercel 绑定了自有域名，也要把自有域名加入 Supabase Auth Site URL / Redirect URLs。
+- 不要在仓库文档里写真实密钥或不必要的私有域名配置细节。
 
 Vercel 环境变量名：
 
@@ -344,7 +393,7 @@ ALLOWED_EMAILS
 
 不要在文档或代码中写真实值。
 
-## 11. 提交前检查
+## 12. 提交前检查
 
 修改前：
 
@@ -375,46 +424,41 @@ git push
 
 如果只是文档修改但 lint/build 失败，需要如实说明失败原因，不要隐瞒。
 
-## 12. 下一版本开发建议
+## 13. 下一版本开发建议
 
 不要直接开始实现，除非用户明确要求。
 
-适合优先讨论的方向：
+适合 v2.2 优先讨论的方向：
 
-1. V2 移动端和 PWA 体验增强。
+1. 质量保障。
+   - 为 `lib/transactionRules.ts`、`lib/validators.ts`、`lib/csvImport.ts`、`lib/statsCalculator.ts`、`lib/localTransactions.ts` 补单元测试。
+   - 为核心登录后记账、同步、离线只读流程补最小 E2E 或手动验证脚本。
+
+2. PWA 体验增强。
    - 安装引导。
-   - 更细的移动端布局和交互打磨。
-   - 手动记账表单字段较多，移动端滑动距离长；优先考虑分步表单，或折叠商家、支付方式、备注等可选字段。
-   - 首页当前仍有最近账单模块；下一阶段可考虑删除，保留本月概览、手动/AI 快速记账入口，把完整账单浏览集中到账单页。
-   - 本地草稿。
-   - 离线能力方案评估。注意不要默认缓存 Supabase 用户数据。
+   - Service Worker 更新提示。
+   - 离线页面和离线状态验证流程完善。
+   - 继续保持不缓存 Supabase/API 用户响应。
 
-2. 统计页 drilldown 与交互增强。
-   - 当前分类排行和每日趋势是静态条形展示；下一阶段可让统计项点击后跳转到账单页并自动应用筛选。
-   - 推荐交互流：`StatsPanel` 点击统计项 -> `Dashboard` 保存 drilldown 条件 -> 切换 `activeView = "transactions"` -> `TransactionManager` 覆盖并应用筛选。
-   - 分类排行点击可带入当前统计日期范围、分类和支出类型筛选。
-   - 每日趋势点击可带入对应日期范围和支出类型筛选。
-   - 统计仍必须由代码和数据库查询计算，不调用 AI。
-   - 不要为此新增数据库表，除非用户另行确认。
-
-3. 自定义配置能力。
-   - 自定义分类。
-   - 自定义账户。
-   - 自定义支付方式。
-   - 常用商户到分类的映射。
-   - 如需新增表，必须先提出 migration、RLS 和回滚方案。
+3. 数据导出和备份。
+   - CSV 导出当前用户账单。
+   - 导出应基于当前用户数据，不绕过 RLS。
+   - 不做云端覆盖、合并或自动同步。
 
 4. 账单管理增强。
    - 更强的删除确认体验。
-   - 按日期范围删除或删除全部账单。
-   - 导出数据。
    - 重复账单检测。
+   - 按日期范围删除或删除全部账单需要谨慎设计确认流程。
 
-5. 质量保障。
-   - 为 CSV parser、AI sanitizer、stats 计算补单元测试。
-   - 为核心账单流程补最小 E2E 测试。
-
-6. AI 解析增强。
+5. AI 解析增强。
    - 更稳的中文日期和金额解析。
    - 更好的不明确候选提示。
    - 继续保持 AI 不读历史账单、不写数据库、不做统计。
+
+6. 自定义配置能力。
+   - 自定义分类、账户、支付方式、常用商户映射。
+   - 如需新增表，必须先提出 migration、RLS 和回滚方案。
+
+7. 离线正式记账。
+   - 这是较大阶段，必须先设计本地队列、冲突策略、同步状态和失败恢复。
+   - 未确认方案前不要实现。

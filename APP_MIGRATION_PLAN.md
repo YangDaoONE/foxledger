@@ -12,7 +12,7 @@ App v1.0：在迁移稳定后再做新功能
 
 Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App v0.x 不应一开始就重写后端、改 schema 或新增复杂功能。
 
-当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.6。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；CSV、SQLite、离线统计、离线写入、AI 查账和 Edge Function 迁移尚未完成。
+当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.7。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；v0.7 已完成基础 UI 组件和核心页面移动端体验收口；CSV、SQLite、离线统计、离线写入、AI 查账和 Edge Function 迁移尚未完成。
 
 ## 2. 推荐目录策略
 
@@ -21,7 +21,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.6
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.7
 ```
 
 原因：
@@ -281,11 +281,15 @@ Authorization: Bearer <supabase_access_token>
 
 ### v0.7 可爱风基础设计系统
 
+状态：已完成。
+
 目标：
 
 - 统一 App 基础颜色、间距、字体层级、按钮、输入框、列表项、空状态和错误态。
 - 保持移动端可用性，不改变 Supabase schema。
-- 为后续统计页、SQLite 和测试版收口提供稳定视觉基础。
+- 为后续 SQLite 和测试版收口提供稳定视觉基础。
+- 新增通用按钮、Chip、输入框、Section、状态块组件。
+- 收口 Auth、首页 AI/RLS 面板、账单页、手动表单、统计页和设置页核心控件。
 
 边界：
 
@@ -359,7 +363,7 @@ D:\fox\foxledger
 - PROJECT_HANDOFF.md
 - AGENTS.md
 
-当前 FoxLedger App 已完成 v0.6：
+当前 FoxLedger App 已完成 v0.7：
 - Expo React Native + TypeScript 技术骨架
 - Supabase Auth
 - 当前用户账单读取
@@ -369,6 +373,7 @@ D:\fox\foxledger
 - AI 候选确认后批量写入 Supabase
 - 日期范围统计页、分类排行、每日趋势
 - 统计项 drilldown 到账单页筛选
+- 基础 UI 组件和核心页面体验收口
 
 请严格遵守：
 - 不提交 .env 或任何密钥
@@ -380,5 +385,5 @@ D:\fox\foxledger
 - 不改 Supabase schema，除非我明确要求
 - npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-下一阶段我想做 App v0.7。请先根据当前代码和文档，给出最合适的 v0.7 计划，不要直接实现。
+下一阶段我想做 App v0.8。请先根据当前代码和文档，给出最合适的 v0.8 计划，不要直接实现。
 ```

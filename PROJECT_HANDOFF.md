@@ -1,10 +1,10 @@
 # PROJECT_HANDOFF.md
 
-本文件用于把 FoxLedger Web/PWA v2.1 收口状态和 App v0.6 迁移状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`，以及 App 仓库 `D:\fox\foxledger-app` 中的 `README.md`、`AGENTS.md` 和 `PROJECT_HANDOFF.md`。
+本文件用于把 FoxLedger Web/PWA v2.1 收口状态和 App v0.7 迁移状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`，以及 App 仓库 `D:\fox\foxledger-app` 中的 `README.md`、`AGENTS.md` 和 `PROJECT_HANDOFF.md`。
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，Web 主线进入稳定维护；平级 App 仓库 `D:\fox\foxledger-app` 已完成到 v0.6 统计页迁移。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，Web 主线进入稳定维护；平级 App 仓库 `D:\fox\foxledger-app` 已完成到 v0.7 基础 UI 和移动端体验收口。
 
 ## 2. 当前线上地址
 
@@ -348,7 +348,7 @@ ALLOWED_EMAILS
 ## 9. 当前已知问题和限制
 
 - 当前是 Web/PWA，不是真正原生 iOS / Android App。
-- Expo App 已在平级仓库 `D:\fox\foxledger-app` 创建，当前完成到 v0.6。
+- Expo App 已在平级仓库 `D:\fox\foxledger-app` 创建，当前完成到 v0.7。
 - Web/PWA 仍作为稳定线上版本和 App AI API 过渡后端。
 - 没有自定义分类、账户、支付方式管理。
 - 默认分类是固定集合，非默认分类归一为 `其他`。
@@ -390,7 +390,7 @@ App 已在平级仓库创建：
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1
-  foxledger-app\    # Expo React Native App v0.x，当前至 v0.6
+  foxledger-app\    # Expo React Native App v0.x，当前至 v0.7
 ```
 
 推荐技术栈：
@@ -415,6 +415,7 @@ App 当前状态：
 - v0.4 搜索、筛选、排序已完成。
 - v0.5 AI 解析迁移已完成：App 调用现有 Web/Next AI API，AI 只解析当前输入文本，候选经用户确认后批量写入 Supabase。
 - v0.6 统计页迁移已完成：App 用代码基于当前用户 `transactions` 日期范围查询结果计算统计，支持分类排行、每日趋势和 drilldown 到账单筛选。
+- v0.7 基础 UI 与移动端体验收口已完成：新增通用按钮、Chip、输入框、Section、状态块组件，并应用到核心页面控件。
 
 App 后续仍必须保持：
 
@@ -425,7 +426,7 @@ App 后续仍必须保持：
 - 不把历史账单、统计数据或本地缓存发给 AI。
 - 不在 v0.x 阶段实现 AI 对话式查账、离线正式记账、自定义分类等 v1.0 后功能。
 
-下一轮建议进入 App v0.7，优先评估基础设计系统收口。
+下一轮建议进入 App v0.8，优先评估 SQLite 本地缓存与离线只读。
 
 详见 `APP_MIGRATION_PLAN.md`。
 
@@ -448,7 +449,7 @@ D:\fox\foxledger
 - PROJECT_HANDOFF.md
 - AGENTS.md
 
-当前 FoxLedger App 已完成 v0.6：
+当前 FoxLedger App 已完成 v0.7：
 - Expo React Native + TypeScript 技术骨架
 - Supabase Auth
 - 当前用户账单读取
@@ -458,6 +459,7 @@ D:\fox\foxledger
 - AI 候选确认后批量写入 Supabase
 - 日期范围统计页、分类排行、每日趋势
 - 统计项 drilldown 到账单页筛选
+- 基础 UI 组件和核心页面体验收口
 
 请严格遵守：
 - 不提交 .env 或任何密钥
@@ -469,7 +471,7 @@ D:\fox\foxledger
 - 不改 Supabase schema，除非我明确要求
 - npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-下一阶段我想做 App v0.7。请先根据当前代码和文档，给出最合适的 v0.7 计划，不要直接实现。
+下一阶段我想做 App v0.8。请先根据当前代码和文档，给出最合适的 v0.8 计划，不要直接实现。
 ```
 
 ## 13. 开发前检查清单

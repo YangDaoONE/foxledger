@@ -2,32 +2,29 @@
 
 本文件面向后续 Codex / AI 开发助手。修改 FoxLedger Web/PWA 仓库前，必须先阅读本文件、`README.md` 和 `PROJECT_HANDOFF.md`。
 
-本仓库只描述和维护 Web/PWA 代码。不要把其他仓库的 App 进度、安装包计划或原生端路线写成本仓库已实现功能。
+本仓库只描述和维护 `D:\fox\foxledger` Web/PWA 代码、Supabase migrations 和 Supabase Edge Function。不要把 App 仓库进度、安装包计划或原生端路线写成本仓库已实现功能。
 
 ## 1. 项目角色
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。
+FoxLedger / 狐狐记账当前 Web/PWA 基线为 **v2.3 Vite PWA + Supabase Edge AI API 版**。
 
-当前 Web/PWA 基线为 v2.1b UI/UX 收口版，已经完成：
+当前已完成：
 
-- Supabase Auth 邮箱密码登录和注册。
-- `public.transactions` 表、约束、索引、RLS policy 和 authenticated 权限授权。
-- 首页本月概览。
-- 手动记账和本设备手动草稿。
-- 账单搜索、筛选、排序、加载更多。
-- 账单编辑、单条删除和当前已加载账单多选删除。
-- AI 单条/批量文本账单解析。
-- AI 候选确认后入库。
+- React + Vite + TypeScript 前端。
+- TanStack Router 页面路由和底部导航。
+- TanStack Query 查询、同步和刷新。
+- Supabase Auth 邮箱密码登录、注册、会话恢复和退出。
+- 当前用户 `transactions` 读写，继续依赖 Supabase RLS 并显式约束当前用户。
+- Dexie / IndexedDB 本地缓存和同步元信息。
+- 远端全量分页同步，完整校验后替换当前用户缓存。
+- 离线只读查看已同步缓存。
+- 手动新增、编辑、删除、当前已加载账单多选删除。
+- 搜索、类型筛选、分类筛选、日期范围筛选、排序和加载更多。
+- 账单搜索点击“搜索”或回车后才应用，不逐字刷新。
+- AI 文本解析由 Supabase Edge Function `parse-transaction` 完成，候选确认后批量入库。
 - CSV 导入。
-- 日期范围统计页。
-- 统计项 drilldown 到账单页筛选。
-- IndexedDB 本地账单缓存和同步元信息。
-- 断网只读 UI 和上次同步提示。
-- v2.1b 移动端 UI/UX 收口：统一按钮、输入框、卡片、底部导航、同步状态、筛选标签、账单卡片和统计卡片视觉状态。
-- 基础 PWA metadata、manifest、动态图标路由。
-- Service Worker 应用外壳缓存和离线提示页。
-- Vercel 部署。
-- AI API 邮箱白名单。
+- 日期范围统计和 drilldown 到账单页筛选。
+- vite-plugin-pwa / Workbox 应用外壳缓存。
 
 当前生产地址：
 
@@ -47,24 +44,18 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 每次只做一个阶段。
 - 小步提交。
 - 不要主动实现用户没有要求的功能。
-- 不要做超出当前阶段范围的功能。
-- 不要主动进行技术栈迁移。
-- 不要大规模重构项目结构。
 - 不要修改与当前任务无关的文件。
 - 不要修改平级 App 仓库，除非用户明确要求。
-- 不要删除已有 Web/PWA 功能，除非用户明确要求。
-- 不要把尚未实现的功能写成已完成。
-- 文档必须反映当前真实代码状态。
-- 不要提交 `.env.local`。
-- 不要提交任何 API key、Supabase key、OpenAI key、service_role key、CPA key、数据库密码或其他密钥。
+- 不要提交 `.env`、`.env.local` 或任何真实密钥。
 - 不要引入 Supabase `service_role` key。
 - 不要绕过 Supabase RLS。
 - 不要让 AI 直接写数据库。
-- AI 只能解析当前输入文本，不能读取历史账单、本地缓存或统计数据。
-- 统计必须由代码基于数据库查询结果或本地缓存数据计算，不能调用 AI。
-- 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等用户确认后再实施。
-- 修改完成后用中文说明改了什么、改了哪些文件、如何运行、如何测试、是否需要环境变量。
-- 明确修改完成后，按用户要求提交和推送。
+- 不要把历史账单、统计数据或本地缓存发给 AI。
+- AI 结果必须用户确认后才入库。
+- 统计必须由代码基于当前用户数据计算，不能调用 AI。
+- 不要修改 Supabase schema，除非用户明确要求并先确认方案。
+- 文档必须反映当前真实代码状态。
+- 修改完成后用中文说明改了什么、如何运行、如何测试、是否需要环境变量。
 
 代码命名规则：
 
@@ -108,7 +99,7 @@ updated_at
 - `amount` 入库必须大于 0。
 - 支出和收入方向由 `type` 表示，不用负数入库。
 - 当前固定货币为 `CNY`。
-- `category` 限制为默认分类，非默认分类归一为 `其他`。
+- 非默认分类归一为 `其他`。
 - `source` 只能是 `manual` 或 `ai`。
 - `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
 - `transfer` 暂不计入收入、支出和结余。
@@ -133,13 +124,13 @@ updated_at
 其他
 ```
 
-共享交易规则优先使用：
+PWA 前端共享交易规则在：
 
 ```text
-lib/transactionRules.ts
+src/features/transactions/transactionRules.ts
 ```
 
-不要在新组件里重新复制默认分类、交易类型、CNY 常量或基础校验函数。
+Edge Function 内也保留同一套默认分类和交易规则；如果未来调整分类，必须同步更新前端和 `supabase/functions/parse-transaction/index.ts`。
 
 ## 4. Supabase / Auth / RLS 规则
 
@@ -148,9 +139,8 @@ lib/transactionRules.ts
 - Supabase RLS 必须开启。
 - 用户只能读写自己的 `transactions`。
 - 查询、更新、删除除了依赖 RLS，也应显式约束当前用户。
-- 任何新增数据访问都必须考虑当前用户隔离。
-- 前端只能使用 publishable key：`NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`。
-- 不要使用 `service_role` key。
+- 前端只能使用 publishable key。
+- Edge Function 只能使用 publishable/anon key 校验用户 token，不使用 `service_role` key。
 - 不要把 Supabase 密钥写入前端代码。
 - 不要允许前端传入任意 `user_id` 决定操作对象。
 
@@ -165,93 +155,94 @@ supabase/migrations/002_grant_transactions_permissions.sql
 
 ## 5. 本地缓存规则
 
-Web/PWA 当前使用 IndexedDB，由 `lib/localDb.ts` 封装。
+当前 PWA 使用 Dexie / IndexedDB，由 `src/lib/localDb.ts` 封装。
 
 当前 DB：
 
 ```text
 name: foxledger
-version: 2
+version: 3
 stores:
-  transactions
+  transactions_cache
   sync_meta
-  manual_drafts
+```
+
+`transactions_cache` 只缓存：
+
+```text
+cache_key
+id
+user_id
+type
+amount
+currency
+category
+merchant
+payment_method
+date
+note
+source
+created_at
+updated_at
 ```
 
 必须保持：
 
 - 本地正式账单缓存必须按 `user_id` 隔离。
-- 读取本地账单时必须传入当前登录用户 `userId`。
+- 未登录时不要显示任何本地账单缓存。
 - Supabase 全量同步成功后，替换当前用户本地缓存。
 - 全量同步用于正确反映云端删除，不要擅自改成只增量同步。
-- 手动草稿只保存在 `manual_drafts`，不是正式账单，不参与统计。
-- 在线退出成功后清理当前用户本设备缓存和草稿。
-- 未登录时不要显示任何本地账单缓存。
-- 不要把 Supabase access token、refresh token、登录响应、AI API 响应写入 IndexedDB。
+- 全量同步必须分页、稳定排序，并设置最大页数或最大读取条数保护。
+- 任一远端页失败，则统计和账单同步应整体报错，不替换上次缓存。
+- 全部远端分页完整拉取并校验通过后，才在 Dexie transaction 中替换当前用户缓存。
+- 不要把 `raw_text`、AI 原始响应、Supabase token、登录响应、`tag`、`account` 或 `ai_confidence` 写入本地缓存。
 - 不要把 IndexedDB 历史账单传给 AI。
+- 在线写操作成功后必须重新同步 Dexie，并刷新账单页和统计页。
+
+缓存状态文案使用：
+
+```text
+已同步缓存
+离线缓存
+同步中
+同步失败，显示上次缓存
+```
 
 ## 6. AI 解析规则
 
-AI API：
+当前 AI 业务 API：
 
 ```text
-app/api/parse-transaction/route.ts
+supabase/functions/parse-transaction/index.ts
 ```
 
-当前链路：
+PWA 前端调用：
 
 ```text
-frontend ChatInput
--> /api/parse-transaction
--> validate Supabase access token
--> assert ALLOWED_EMAILS
--> OpenAI-compatible API
--> server-side JSON parse and sanitize
--> ConfirmTransactionBatch
--> user confirms candidates
--> batch insert transactions
+POST <SUPABASE_URL>/functions/v1/parse-transaction
+Authorization: Bearer <supabase_access_token>
+apikey: <supabase_publishable_key>
+Content-Type: application/json
 ```
 
 必须保持：
 
-- `/api/parse-transaction` 必须要求登录。
-- AI API 必须验证 Supabase access token。
-- 当前邮箱白名单机制 `ALLOWED_EMAILS` 必须保留。
-- 前端请求必须携带 `Authorization: Bearer <supabase_access_token>`。
+- Edge Function 必须要求登录。
+- Edge Function 必须验证 Supabase access token。
+- 邮箱白名单 `ALLOWED_EMAILS` 必须保留。
+- Edge Function 不使用 `service_role` key。
+- `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 只存在于 Supabase Edge Function secrets。
 - 服务端只验证 token，不读取历史账单。
-- 未登录返回 `401`。
-- 已登录但邮箱不在白名单返回 `403`。
-- 输入错误返回 `400`。
-- AI 或服务端错误返回 `500`。
+- AI 只能解析当前输入文本。
+- 不把历史账单、统计数据、本地缓存、银行卡号、身份证号、完整地址等敏感信息给 AI。
 - AI 返回结果必须先 `JSON.parse`。
 - AI 返回结果必须服务端二次校验和清洗。
-- API 返回格式保持批量格式。
-- AI 返回每条候选的 `raw_text` 应是对应原文片段，无法切分才 fallback 为完整输入。
-- 日期必须是 `YYYY-MM-DD`。
-- 文本里有日期，用文本日期。
-- 只有“今天/昨天/前天”，用服务端日期推算。
-- 完全没有日期，才用服务端今天。
-- 不要让 AI 猜跨年日期。
-- 如果没有可靠金额，返回 `needs_clarification: true`，不能保存。
-- AI 只能把分类归到默认分类，服务端仍要兜底归一非默认分类为 `其他`。
 - AI 不允许直接写数据库。
 - AI 不允许计算统计。
 - 用户确认后才写入 Supabase。
 - 离线时不允许 AI 解析或保存 AI 候选。
 
-当前限制常量：
-
-```text
-lib/parseTransactionLimits.ts
-```
-
-- `MAX_PARSE_INPUT_CHARS = 3000`
-- `MAX_PARSED_TRANSACTIONS = 50`
-
-安全注意：
-
-- 不要发送历史账单、统计数据、IndexedDB 缓存、银行卡号、身份证号、完整地址等敏感信息给 AI。
-- `OPENAI_API_KEY` 等只允许在服务端环境变量中。
+`supabase/config.toml` 中 `parse-transaction` 设置了 `verify_jwt = false`，用于让函数自己处理 CORS preflight 和中文错误响应；这不代表放弃登录校验，函数内部必须继续用 Supabase access token 验证用户。
 
 ## 7. CSV 导入规则
 
@@ -260,8 +251,8 @@ lib/parseTransactionLimits.ts
 文件：
 
 ```text
-components/ImportTransactions.tsx
-lib/csvImport.ts
+src/features/import/ImportTransactions.tsx
+src/features/import/csvImport.ts
 ```
 
 规则：
@@ -275,9 +266,8 @@ lib/csvImport.ts
 - `amount` 必须大于 0。
 - `date` 必须是 `YYYY-MM-DD`。
 - `type` 只能是 `expense`、`income`、`transfer`。
-- 当前固定写入 `CNY`，不支持多币种。
+- 当前固定写入 `CNY`。
 - 非默认分类归一为 `其他`。
-- `source` 为空或非法默认 `manual`。
 - 不接 AI，不改数据库结构，不使用 `service_role` key。
 
 ## 8. 统计规则
@@ -285,9 +275,10 @@ lib/csvImport.ts
 文件：
 
 ```text
-lib/stats.ts
-lib/statsCalculator.ts
-components/StatsPanel.tsx
+src/features/stats/statsApi.ts
+src/features/stats/statsCalculator.ts
+src/features/stats/statsRanges.ts
+src/routes/StatsPage.tsx
 ```
 
 当前支持范围：
@@ -298,32 +289,23 @@ components/StatsPanel.tsx
 - 今年。
 - 自定义开始日期和结束日期。
 
-展示指标：
-
-- 总支出。
-- 总收入。
-- 结余。
-- 交易笔数。
-- 日均支出。
-- 最大单笔支出。
-- 分类支出排行。
-- 每日支出趋势。
-
 规则：
 
-- 统计只读取当前用户自己的 transactions 或当前用户本地缓存。
-- 统计基于当前用户本地缓存账单计算，本地缓存来自 Supabase 当前用户全量同步结果。
+- 统计基于当前用户 Dexie 本地缓存账单计算。
 - `expense` 计入支出。
 - `income` 计入收入。
 - `balance = income - expense`。
 - `transfer` 暂不计入收入、支出、结余。
 - `amount` 按正数处理。
+- 所有日期范围使用浏览器本地日期生成 `YYYY-MM-DD`，不要直接用 `toISOString()` 切日期。
+- 自定义日期必须校验 `YYYY-MM-DD`、开始日期和结束日期不能为空、开始日期不能晚于结束日期。
 - 统计不调用 AI。
+- 统计 query key 独立于 transactions，使用 `["stats", userId, rangeKey...]`。
 - 统计 drilldown 只切换到账单页并应用筛选，不新增数据库表。
 
 ## 9. UI/UX 规则
 
-当前 Web/PWA 是移动端优先的单页应用，底部导航切换子界面：
+当前 PWA 是移动端优先应用，底部导航切换：
 
 - 首页。
 - 账单。
@@ -332,43 +314,28 @@ components/StatsPanel.tsx
 
 请保持：
 
-- Web/PWA 主线优先做 bug 修复、规则收口、安全和数据准确性维护。
-- v2.1b 只改 UI/UX，不改变业务数据流、AI 边界、统计口径、IndexedDB 同步策略或 Service Worker 安全边界。
+- 优先移动端可用性。
+- UI 参考 App v0.9 的信息架构、页面流程、基础控件和缓存状态文案。
+- 不引入大型 UI 框架，除非用户明确要求。
+- 当前使用 `lucide-react` 图标，新增图标优先继续用它。
 - 表单简单、清晰、可用。
 - 按钮有明确禁用态和加载态。
 - 错误信息要能指导用户下一步。
 - 移动端宽度和文本不要溢出。
-- 不引入大型 UI 框架，除非用户明确要求。
-- 当前已使用 `lucide-react` 图标，新增图标优先继续用它。
 - 不要把卡片嵌套成复杂层级。
-- 新功能尽量复用现有样式类，例如 `section-block`、`manual-field`、`primary-button`、`secondary-button`、`form-message`。
-- 首页不要重新加入最近账单模块，除非用户明确要求。
-- 离线状态必须清楚标记，不要让用户误以为离线草稿是正式账单。
+- 离线状态必须清楚标记，不要让用户误以为离线草稿或离线缓存是正式新写入。
 
 ## 10. PWA / Service Worker 规则
 
-当前 PWA 文件：
-
-```text
-app/manifest.ts
-app/icons/icon-192/route.tsx
-app/icons/icon-512/route.tsx
-app/icons/apple-touch-icon/route.tsx
-lib/pwaIcon.tsx
-components/ServiceWorkerRegistration.tsx
-public/sw.js
-public/offline.html
-```
+当前 PWA 由 `vite-plugin-pwa` 生成 Service Worker。
 
 必须保持：
 
-- Service Worker 只在生产环境注册。
-- 可以缓存应用外壳、`/_next/static/*`、manifest、图标和离线提示页。
-- 不缓存 `/api/*`。
+- 可以缓存应用外壳和静态资源。
 - 不缓存 Supabase 请求。
 - 不缓存登录响应、AI API 响应或任何用户敏感数据响应。
-- 非 GET 请求必须 network-only。
-- 当前没有离线正式记账、离线同步队列、push notification。
+- 非 GET 用户数据请求必须 network-only。
+- 当前没有离线正式记账、离线同步队列或 push notification。
 
 ## 11. 部署规则
 
@@ -376,28 +343,34 @@ public/offline.html
 
 [https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
-部署平台：
-
-```text
-Vercel
-```
-
 规则：
 
-- Vercel 连接 GitHub `main` 分支。
-- 环境变量在 Vercel Project Settings 配置。
-- 修改环境变量后需要 redeploy。
-- 排查环境变量问题时，redeploy 建议不要勾选 `Use existing Build Cache`。
+- Vite PWA 可部署为静态前端。
+- AI API 部署到 Supabase Edge Function `parse-transaction`。
+- 线上 PWA 不需要旧 Next `/api/parse-transaction` rewrite。
+- 修改 Supabase Edge Function secrets 后，需要重新部署或确认函数使用最新 secrets。
 - 不要把 `.env.local` 提交到 GitHub。
 - Supabase Auth URL Configuration 要包含生产地址和 preview redirect URLs。
-- 如果 Vercel 绑定域名发生变化，也要同步更新 Supabase Auth Site URL / Redirect URLs。
+- 如果域名变更，也要同步更新 Supabase Auth Site URL / Redirect URLs。
 - 不要在仓库文档里写真实密钥。
 
-Vercel 环境变量名：
+PWA 前端环境变量名：
+
+```text
+VITE_SUPABASE_URL
+VITE_SUPABASE_PUBLISHABLE_KEY
+```
+
+兼容旧公开变量：
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+```
+
+Edge Function secrets：
+
+```text
 AI_PROVIDER
 OPENAI_API_KEY
 OPENAI_BASE_URL
@@ -405,7 +378,7 @@ OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-不要在文档或代码中写真实值。
+`OPENAI_BASE_URL` 可以继续使用个人 VPS 的 OpenAI-compatible 转发地址。
 
 ## 12. 提交前检查
 
@@ -419,13 +392,8 @@ git status
 
 ```bash
 npm run lint
+npm run typecheck
 npm run build
-```
-
-必要时执行：
-
-```bash
-npm audit --audit-level=moderate
 ```
 
 提交：
@@ -436,4 +404,4 @@ git commit -m "<clear message>"
 git push
 ```
 
-如果只是文档修改但 lint/build 失败，需要如实说明失败原因，不要隐瞒。
+如果检查失败，需要如实说明失败原因，不要隐瞒。

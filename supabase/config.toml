@@ -1,0 +1,4 @@
+project_id = "foxledger"
+
+[functions.parse-transaction]
+verify_jwt = false

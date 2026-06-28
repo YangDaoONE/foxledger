@@ -1,3 +1,0 @@
-export const MAX_PARSE_INPUT_CHARS = 3000;
-
-export const MAX_PARSED_TRANSACTIONS = 50;

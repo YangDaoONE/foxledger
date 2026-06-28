@@ -8,11 +8,15 @@ out/
 
 # production
 build/
+dist/
+.vite/
+tsconfig.tsbuildinfo
 
 # local env files
 .env
 .env.local
 .env.*.local
+supabase/.temp/
 
 # logs
 npm-debug.log*

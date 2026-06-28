@@ -24,13 +24,13 @@ type SyncContextValue = {
 };
 
 const SyncContext = createContext<SyncContextValue | null>(null);
+const autoSyncedUsers = new Set<string>();
 
 export function SyncProvider({ children }: { children: ReactNode }) {
   const user = useAuthUser();
   const userId = user.id;
   const isOnline = useNetworkStatus();
   const queryClient = useQueryClient();
-  const autoSyncedUserRef = useRef<string | null>(null);
 
   const syncMetaQuery = useQuery({
     queryFn: () => getCachedSyncMeta(userId),
@@ -66,15 +66,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isOnline) {
-      autoSyncedUserRef.current = null;
       return;
     }
 
-    if (autoSyncedUserRef.current === userId) {
+    if (autoSyncedUsers.has(userId)) {
       return;
     }
 
-    autoSyncedUserRef.current = userId;
+    autoSyncedUsers.add(userId);
     syncMutationRef.current.mutate();
   }, [isOnline, userId]);
 

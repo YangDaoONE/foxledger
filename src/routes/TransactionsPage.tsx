@@ -113,7 +113,12 @@ export function TransactionsPage() {
   });
 
   const data = transactionsQuery.data;
+  const shouldGroupByDate = filters.sort === "date-desc" || filters.sort === "date-asc";
   const groupedTransactions = useMemo(() => {
+    if (!shouldGroupByDate) {
+      return [];
+    }
+
     const groups = new Map<string, CachedTransaction[]>();
 
     for (const transaction of data?.transactions ?? []) {
@@ -123,7 +128,7 @@ export function TransactionsPage() {
     }
 
     return Array.from(groups.entries());
-  }, [data?.transactions]);
+  }, [data?.transactions, shouldGroupByDate]);
 
   function updateFilter<Key extends keyof TransactionFilters>(
     key: Key,
@@ -314,10 +319,25 @@ export function TransactionsPage() {
           <StateBlock title="暂无账单">当前筛选条件下没有账单。</StateBlock>
         ) : null}
 
-        {groupedTransactions.map(([date, transactions]) => (
-          <section className="date-group" key={date}>
-            <h3>{date}</h3>
-            {transactions.map((transaction) => (
+        {shouldGroupByDate
+          ? groupedTransactions.map(([date, transactions]) => (
+              <section className="date-group" key={date}>
+                <h3>{date}</h3>
+                {transactions.map((transaction) => (
+                  <TransactionCard
+                    isOnline={isOnline}
+                    isSelected={selectedIds.has(transaction.id)}
+                    key={transaction.id}
+                    manageMode={manageMode}
+                    onDelete={() => deleteMutation.mutate(transaction.id)}
+                    onEdit={() => setEditingTransaction(transaction)}
+                    onToggleSelected={() => toggleSelected(transaction.id)}
+                    transaction={transaction}
+                  />
+                ))}
+              </section>
+            ))
+          : data?.transactions.map((transaction) => (
               <TransactionCard
                 isOnline={isOnline}
                 isSelected={selectedIds.has(transaction.id)}
@@ -329,8 +349,6 @@ export function TransactionsPage() {
                 transaction={transaction}
               />
             ))}
-          </section>
-        ))}
       </div>
 
       {data?.hasMore ? (

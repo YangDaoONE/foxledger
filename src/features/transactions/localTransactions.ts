@@ -47,7 +47,7 @@ export async function markSyncFailed(userId: string, message: string) {
 }
 
 export function getCachedSyncMeta(userId: string) {
-  return localDb.sync_meta.get(userId);
+  return localDb.sync_meta.get(userId).then((meta) => meta ?? null);
 }
 
 export async function listAllCachedTransactions(userId: string) {

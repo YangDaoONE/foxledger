@@ -41,6 +41,7 @@ const DEFAULT_CURRENCY = "CNY";
 const DEFAULT_CATEGORY = "其他";
 const MAX_PARSE_INPUT_CHARS = 3000;
 const MAX_PARSED_TRANSACTIONS = 50;
+const OPENAI_REQUEST_TIMEOUT_MS = 30000;
 const openAiDefaultBaseUrl = "https://api.openai.com/v1";
 const openAiDefaultModel = "gpt-4o-mini";
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
@@ -463,6 +464,7 @@ function sanitizeParsedTransaction(
   const candidateRawText = getCandidateRawText(aiValue, rawText);
   const amount = toFiniteNumber(aiValue.amount);
   const hasValidAmount = amount !== null && Number.isFinite(amount) && amount !== 0;
+  const normalizedAmount = amount === null ? null : Math.abs(amount);
   const amountCameFromText = hasValidAmount ? textContainsAmountToken(candidateRawText, amount) : false;
   const shouldClarify = needsClarification || !hasValidAmount || !amountCameFromText;
   const safeDate = resolveDateFromText(candidateRawText, rawText, todayIsoDate);
@@ -471,7 +473,7 @@ function sanitizeParsedTransaction(
 
   return {
     type: shouldClarify ? null : safeType,
-    amount: shouldClarify ? null : amount,
+    amount: shouldClarify ? null : normalizedAmount,
     currency: DEFAULT_CURRENCY,
     category: shouldClarify ? DEFAULT_CATEGORY : toSafeCategory(aiValue.category),
     tag: toNullableString(aiValue.tag),
@@ -567,19 +569,35 @@ function buildParserPrompt(text: string, todayIsoDate: string) {
 
 async function parseTransactionWithAi(text: string, todayIsoDate: string) {
   const config = getOpenAiConfig();
-  const response = await fetch(`${config.baseUrl}/chat/completions`, {
-    body: JSON.stringify({
-      messages: buildParserPrompt(text, todayIsoDate),
-      model: config.model,
-      response_format: { type: "json_object" },
-      temperature: 0.1,
-    }),
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    method: "POST",
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), OPENAI_REQUEST_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(`${config.baseUrl}/chat/completions`, {
+      body: JSON.stringify({
+        messages: buildParserPrompt(text, todayIsoDate),
+        model: config.model,
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+      }),
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("AI 请求超时，请稍后重试。");
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   const responseBody = (await response.json().catch(() => null)) as OpenAiChatResponse | null;
 
   if (!response.ok) {

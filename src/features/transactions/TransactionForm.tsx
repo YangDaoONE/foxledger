@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
@@ -53,6 +53,11 @@ export function TransactionForm({
   );
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setValues(initialValues);
+    setError(null);
+  }, [initialValues]);
 
   function updateValue<Key extends keyof TransactionFormValues>(
     key: Key,

@@ -176,6 +176,41 @@ function validateDateFilters(filters: FilterValues) {
   return null;
 }
 
+function getTypeFilterLabel(value: TransactionTypeFilter) {
+  return typeFilterOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+function getSortFilterLabel(value: TransactionSortOption) {
+  return sortOptions.find((option) => option.value === value)?.label ?? value;
+}
+
+function getActiveFilterLabels(filters: FilterValues) {
+  const labels: string[] = [];
+  const search = filters.search.trim();
+
+  if (search) {
+    labels.push(`搜索：${search}`);
+  }
+
+  if (filters.type !== "all") {
+    labels.push(`类型：${getTypeFilterLabel(filters.type)}`);
+  }
+
+  if (filters.category) {
+    labels.push(`分类：${filters.category}`);
+  }
+
+  if (filters.startDate || filters.endDate) {
+    labels.push(`日期：${filters.startDate || "不限"} 至 ${filters.endDate || "不限"}`);
+  }
+
+  if (filters.sort !== "date-desc") {
+    labels.push(`排序：${getSortFilterLabel(filters.sort)}`);
+  }
+
+  return labels;
+}
+
 export function TransactionManager({
   filterOverride,
   isOnline,
@@ -503,6 +538,7 @@ export function TransactionManager({
 
   const shouldGroupByDate = appliedFilters.sort === "date-desc" || appliedFilters.sort === "date-asc";
   const isFiltered = hasActiveFilters(appliedFilters);
+  const activeFilterLabels = getActiveFilterLabels(appliedFilters);
 
   return (
     <section className="section-block" aria-labelledby="transaction-manager-title">
@@ -632,6 +668,14 @@ export function TransactionManager({
           </button>
         </div>
       </form>
+
+      {activeFilterLabels.length > 0 ? (
+        <div className="active-filter-chips" aria-label="当前已应用筛选">
+          {activeFilterLabels.map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+      ) : null}
 
       <div className="filter-summary-grid" aria-label="筛选结果汇总">
         <div>

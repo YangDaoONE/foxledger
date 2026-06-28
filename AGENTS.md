@@ -8,7 +8,7 @@
 
 FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。
 
-当前 Web/PWA 基线为 v2.1 正式版，已经完成：
+当前 Web/PWA 基线为 v2.1b UI/UX 收口版，已经完成：
 
 - Supabase Auth 邮箱密码登录和注册。
 - `public.transactions` 表、约束、索引、RLS policy 和 authenticated 权限授权。
@@ -23,6 +23,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 统计项 drilldown 到账单页筛选。
 - IndexedDB 本地账单缓存和同步元信息。
 - 断网只读 UI 和上次同步提示。
+- v2.1b 移动端 UI/UX 收口：统一按钮、输入框、卡片、底部导航、同步状态、筛选标签、账单卡片和统计卡片视觉状态。
 - 基础 PWA metadata、manifest、动态图标路由。
 - Service Worker 应用外壳缓存和离线提示页。
 - Vercel 部署。
@@ -332,6 +333,7 @@ components/StatsPanel.tsx
 请保持：
 
 - Web/PWA 主线优先做 bug 修复、规则收口、安全和数据准确性维护。
+- v2.1b 只改 UI/UX，不改变业务数据流、AI 边界、统计口径、IndexedDB 同步策略或 Service Worker 安全边界。
 - 表单简单、清晰、可用。
 - 按钮有明确禁用态和加载态。
 - 错误信息要能指导用户下一步。

@@ -122,9 +122,10 @@ export function ChatInput({ isOnline, onSaved }: ChatInputProps) {
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
-        <p className="confirm-note">
-          最多 {MAX_PARSE_INPUT_CHARS} 字，单次最多解析 {MAX_PARSED_TRANSACTIONS} 笔候选账单。
-        </p>
+        <div className="chat-meta-row">
+          <p className="confirm-note">单次最多解析 {MAX_PARSED_TRANSACTIONS} 笔候选账单。</p>
+          <span>{text.length} / {MAX_PARSE_INPUT_CHARS}</span>
+        </div>
         {!isOnline ? <p className="form-message error">AI 解析需要联网。</p> : null}
 
         {errorMessage ? <p className="form-message error">{errorMessage}</p> : null}

@@ -244,7 +244,7 @@ export function StatsPanel({ onDrilldown, onRefresh, refreshKey, userId }: Stats
       {!isLoading && !errorMessage && stats ? (
         <div className="stats-metric-grid" aria-label="统计概览">
           <button
-            className="stats-metric-card interactive"
+            className="stats-metric-card interactive expense"
             type="button"
             disabled={!onDrilldown || stats.summary.expense <= 0}
             onClick={() => handleDrilldown({ label: `${activeRange.label}支出账单`, type: "expense" })}
@@ -253,7 +253,7 @@ export function StatsPanel({ onDrilldown, onRefresh, refreshKey, userId }: Stats
             <strong>{formatCny(stats.summary.expense)}</strong>
           </button>
           <button
-            className="stats-metric-card interactive"
+            className="stats-metric-card interactive income"
             type="button"
             disabled={!onDrilldown || stats.summary.income <= 0}
             onClick={() => handleDrilldown({ label: `${activeRange.label}收入账单`, type: "income" })}
@@ -261,7 +261,7 @@ export function StatsPanel({ onDrilldown, onRefresh, refreshKey, userId }: Stats
             <span>总收入</span>
             <strong>{formatCny(stats.summary.income)}</strong>
           </button>
-          <div className="stats-metric-card">
+          <div className="stats-metric-card balance">
             <span>结余</span>
             <strong>{formatCny(stats.summary.balance)}</strong>
           </div>

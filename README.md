@@ -2,7 +2,7 @@
 
 FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。本仓库只维护 Web/PWA 版本，以及 Web 侧的 AI 解析 API。
 
-当前 Web/PWA 基线：v2.1 正式版。
+当前 Web/PWA 基线：v2.1b UI/UX 收口版。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -28,6 +28,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 首页概览、账单页和统计页基于当前用户本地缓存读取和计算。
 - 断网时只允许查看上次同步数据，并显示离线状态和上次同步时间。
 - 离线时禁用正式写操作，包括手动保存、AI 解析/保存、CSV 导入、编辑、删除和批量删除。
+- v2.1b 移动端 UI/UX 收口：统一按钮、输入框、卡片、底部导航、同步状态、筛选标签、账单卡片和统计卡片视觉状态。
 - 基础 PWA metadata、manifest、动态图标路由。
 - Service Worker 缓存应用外壳、Next 静态资源、manifest、图标和离线提示页。
 - Vercel 部署。
@@ -248,6 +249,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 - 当前 AI 后端在本仓库 Next API：`app/api/parse-transaction/route.ts`。
 - 当前没有完整离线正式记账、离线新增/编辑/删除队列或冲突合并。
 - 当前 Web 版使用 IndexedDB 本地缓存，没有 SQLite。
+- v2.1b 只调整 UI/UX，不改变 Supabase schema、AI API contract、统计口径或离线写入策略。
 - 当前没有原生推送。
 - 当前没有 Capacitor 封装。
 - 当前没有自定义分类、账户、支付方式管理。

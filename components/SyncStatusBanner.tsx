@@ -34,7 +34,7 @@ export function SyncStatusBanner({
     return (
       <div className="sync-status-banner offline" role="status">
         <WifiOff size={17} aria-hidden="true" />
-        <span>当前为离线数据 · 上次同步 {formatSyncTime(lastSuccessfulSyncAt)}</span>
+        <span>离线缓存 · 上次同步 {formatSyncTime(lastSuccessfulSyncAt)}</span>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export function SyncStatusBanner({
     return (
       <div className="sync-status-banner warning" role="status">
         <Wifi size={17} aria-hidden="true" />
-        <span>同步失败，正在显示上次同步数据 · {formatSyncTime(lastSuccessfulSyncAt)}</span>
+        <span>同步失败，显示上次缓存 · {formatSyncTime(lastSuccessfulSyncAt)}</span>
       </div>
     );
   }
@@ -52,7 +52,7 @@ export function SyncStatusBanner({
     return (
       <div className="sync-status-banner neutral" role="status">
         <Wifi size={17} aria-hidden="true" />
-        <span>正在准备本地缓存</span>
+        <span>同步中 · 正在准备本地缓存</span>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export function SyncStatusBanner({
   return (
     <div className="sync-status-banner online" role="status">
       <Wifi size={17} aria-hidden="true" />
-      <span>已同步 · 上次同步 {formatSyncTime(lastSuccessfulSyncAt)}</span>
+      <span>已同步缓存 · 上次同步 {formatSyncTime(lastSuccessfulSyncAt)}</span>
     </div>
   );
 }

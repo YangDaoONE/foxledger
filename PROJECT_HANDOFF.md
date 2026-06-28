@@ -6,7 +6,7 @@
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、IndexedDB 本地缓存、离线只读查看和 Service Worker 外壳缓存。当前主入口是自有域名 `https://ledger.foxyang.com/`。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1b 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、IndexedDB 本地缓存、离线只读查看、Service Worker 外壳缓存，以及移动端 UI/UX 收口。当前主入口是自有域名 `https://ledger.foxyang.com/`。
 
 ## 2. 当前线上地址
 
@@ -219,6 +219,17 @@ types/
 - 全量同步原因：当前云端删除是真删除，没有 tombstone，仅用 `updated_at` 增量无法反映删除。
 - `transactionSync.ts` 会检查远端拉取结果是否包含非当前用户账单，如果有会停止写入本地缓存。
 
+### v2.1b UI/UX 收口
+
+- 统一按钮、输入框、卡片、状态提示和底部导航触控尺寸。
+- 底部导航固定在移动端底部，并处理 safe area。
+- 同步状态文案改为缓存语义：已同步缓存、离线缓存、同步失败显示上次缓存、同步中。
+- AI 输入增加字符计数和候选数量提示。
+- 账单页增加已应用筛选标签。
+- 账单卡片按 `expense`、`income`、`transfer` 显示不同视觉状态。
+- 统计概览卡片按支出、收入、结余显示不同视觉状态。
+- 仅调整 UI/UX，不改变 Supabase schema、AI API contract、统计口径、IndexedDB 同步策略或 Service Worker 安全边界。
+
 ### 离线 UI
 
 - `useNetworkStatus()` 监听浏览器 online/offline。
@@ -363,7 +374,7 @@ D:\fox\foxledger
 - AGENTS.md
 - PROJECT_HANDOFF.md
 
-当前 FoxLedger Web/PWA 是 v2.1 正式版，生产地址是：
+当前 FoxLedger Web/PWA 是 v2.1b UI/UX 收口版，生产地址是：
 https://ledger.foxyang.com/
 
 本仓库已完成：
@@ -375,6 +386,7 @@ https://ledger.foxyang.com/
 - 账单搜索、筛选、排序、编辑、删除、多选删除
 - 日期范围统计和 drilldown
 - IndexedDB 本地缓存和离线只读
+- v2.1b 移动端 UI/UX 收口
 - PWA manifest、动态图标和 Service Worker 外壳缓存
 
 请严格遵守：

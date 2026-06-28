@@ -40,11 +40,21 @@ export function TransactionCard({
   const Icon = categoryIcons[transaction.category] ?? CircleHelp;
   const amountText = formatAmountByType(transaction.type, transaction.amount);
   const amountClassName =
-    transaction.type === "income" ? "transaction-amount income" : "transaction-amount";
+    transaction.type === "income"
+      ? "transaction-amount income"
+      : transaction.type === "transfer"
+        ? "transaction-amount transfer"
+        : "transaction-amount";
+  const iconClassName =
+    transaction.type === "income"
+      ? "transaction-icon income"
+      : transaction.type === "transfer"
+        ? "transaction-icon transfer"
+        : "transaction-icon";
 
   return (
-    <article className="transaction-card">
-      <div className="transaction-icon" aria-hidden="true">
+    <article className={`transaction-card ${transaction.type}`}>
+      <div className={iconClassName} aria-hidden="true">
         <Icon size={20} strokeWidth={2.2} />
       </div>
 

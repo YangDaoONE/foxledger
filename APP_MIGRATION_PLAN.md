@@ -12,7 +12,7 @@ App v1.0：在迁移稳定后再做新功能
 
 Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App v0.x 不应一开始就重写后端、改 schema 或新增复杂功能。
 
-当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.7。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；v0.7 已完成基础 UI 组件和核心页面移动端体验收口；CSV、SQLite、离线统计、离线写入、AI 查账和 Edge Function 迁移尚未完成。
+当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.8。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；v0.7 已完成基础 UI 组件和核心页面移动端体验收口；v0.8 已完成 SQLite 本地缓存、全量分页同步和离线只读查看；CSV、离线写入、AI 查账和 Edge Function 迁移尚未完成。
 
 ## 2. 推荐目录策略
 
@@ -21,7 +21,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.7
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.8
 ```
 
 原因：
@@ -298,21 +298,29 @@ Authorization: Bearer <supabase_access_token>
 
 ### v0.8 SQLite 本地缓存与离线只读评估
 
+状态：已完成。
+
 目标：
 
-- 使用 SQLite 缓存当前用户已同步账单。
-- 启动先显示本地缓存。
-- 后台同步 Supabase。
-- 同步成功后覆盖本地缓存。
-- 离线只允许查看。
-- 显示“当前为离线数据”和上次同步时间。
-- 手动草稿仅保存在本设备。
+- 使用 SQLite 初始化本地 schema，并用 `user_version` 管理版本。
+- 使用 `transactions_cache` 缓存当前用户已同步账单，使用 `sync_meta` 记录同步时间和条数。
+- 缓存字段只包含展示和统计必要字段：`id`、`user_id`、`type`、`amount`、`currency`、`category`、`merchant`、`payment_method`、`date`、`note`、`source`、`created_at`、`updated_at`。
+- 不缓存 `raw_text`、AI 原始响应、Supabase token、登录响应、`tag`、`account` 或 `ai_confidence`。
+- 远端全量同步分页读取，设置最大页数/最大读取条数保护，并用稳定排序。
+- 全部远端分页完整拉取并校验通过后，才在 SQLite transaction 中替换当前用户缓存。
+- 账单页和统计页读取 SQLite 缓存；统计继续复用 v0.6 统计口径。
+- 缓存状态文案使用“已同步缓存 / 离线缓存 / 同步中 / 同步失败，显示上次缓存”。
+- 在线写操作成功后重新同步 SQLite，并刷新 transactions 和 stats。
+- 退出登录成功后删除当前用户 SQLite 缓存和同步元信息。
+- 离线禁用所有正式写操作，包括手动新增、编辑、删除、多选删除、AI 解析和 AI 候选保存。
 
 边界：
 
 - 不做离线正式记账。
 - 不做离线写入队列。
 - 不做冲突合并。
+- 不改 Supabase schema。
+- 不接 AI 查账。
 
 ### v0.9 测试版收口
 
@@ -363,7 +371,7 @@ D:\fox\foxledger
 - PROJECT_HANDOFF.md
 - AGENTS.md
 
-当前 FoxLedger App 已完成 v0.7：
+当前 FoxLedger App 已完成 v0.8：
 - Expo React Native + TypeScript 技术骨架
 - Supabase Auth
 - 当前用户账单读取
@@ -374,6 +382,7 @@ D:\fox\foxledger
 - 日期范围统计页、分类排行、每日趋势
 - 统计项 drilldown 到账单页筛选
 - 基础 UI 组件和核心页面体验收口
+- SQLite 本地缓存、全量分页同步和离线只读查看
 
 请严格遵守：
 - 不提交 .env 或任何密钥
@@ -385,5 +394,5 @@ D:\fox\foxledger
 - 不改 Supabase schema，除非我明确要求
 - npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-下一阶段我想做 App v0.8。请先根据当前代码和文档，给出最合适的 v0.8 计划，不要直接实现。
+下一阶段我想做 App v0.9。请先根据当前代码和文档，给出最合适的 v0.9 计划，不要直接实现。
 ```

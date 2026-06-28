@@ -32,7 +32,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 后续方向：
 
 - Web/PWA v2.1 进入稳定维护，不再承接大规模 App 级功能扩张。
-- iOS + Android App v0.x 已在平级仓库 `D:\fox\foxledger-app` 启动，当前完成到 v0.8 SQLite 本地缓存与离线只读。
+- iOS + Android App v0.x 已在平级仓库 `D:\fox\foxledger-app` 启动，当前完成到 v0.9 测试版收口。
 - 当前 Web 仓库仍是 Web/PWA v2.1 稳定维护线；除 `APP_MIGRATION_PLAN.md` 和交接说明外，不要把 App 功能写成 Web 已实现功能。
 
 最高优先级：
@@ -419,7 +419,7 @@ ALLOWED_EMAILS
 ```text
 Web/PWA v2.1 保持稳定维护。
 平级仓库 foxledger-app 开发 iOS + Android App v0.x 测试版。
-App 当前完成到 v0.8 SQLite 本地缓存与离线只读。
+App 当前完成到 v0.9 测试版收口。
 App v0.x 先迁移 Web/PWA v2.1 核心能力并优化体验。
 App v1.0 之后再做大功能创新。
 ```
@@ -429,7 +429,7 @@ App v1.0 之后再做大功能创新。
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1
-  foxledger-app\    # Expo React Native App v0.x，当前至 v0.8
+  foxledger-app\    # Expo React Native App v0.x，当前至 v0.9
 ```
 
 建议 App 技术栈：

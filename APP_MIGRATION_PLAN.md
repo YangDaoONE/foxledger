@@ -12,7 +12,7 @@ App v1.0：在迁移稳定后再做新功能
 
 Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App v0.x 不应一开始就重写后端、改 schema 或新增复杂功能。
 
-当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.8。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；v0.7 已完成基础 UI 组件和核心页面移动端体验收口；v0.8 已完成 SQLite 本地缓存、全量分页同步和离线只读查看；CSV、离线写入、AI 查账和 Edge Function 迁移尚未完成。
+当前 App 仓库 `D:\fox\foxledger-app` 已完成至 v0.9。v0.5 已接入现有 Web/Next AI API，实现文本输入、AI 解析、候选确认和用户保存到 Supabase 的最小闭环；v0.6 已迁移统计页和 drilldown 到账单筛选；v0.7 已完成基础 UI 组件和核心页面移动端体验收口；v0.8 已完成 SQLite 本地缓存、全量分页同步和离线只读查看；v0.9 已完成测试版弱网、同步、长列表基础性能和验收文档收口；CSV、离线写入、AI 查账和 Edge Function 迁移尚未完成。
 
 ## 2. 推荐目录策略
 
@@ -21,7 +21,7 @@ Web/PWA 继续保留，作为可用线上版本和后端 API 过渡载体。App 
 ```text
 D:\fox\
   foxledger\        # 当前 Web/PWA v2.1，已存在
-  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.8
+  foxledger-app\    # Expo React Native App v0.x，已创建至 v0.9
 ```
 
 原因：
@@ -324,14 +324,30 @@ Authorization: Bearer <supabase_access_token>
 
 ### v0.9 测试版收口
 
+状态：已完成。
+
 目标：
 
 - 性能优化。
 - 长列表优化。
 - 弱网体验。
 - 错误提示。
-- Android APK 内测包。
-- iOS 如需要，走 TestFlight 或开发安装。
+- 真机验收说明。
+- Android/iOS 内测准备评估。
+
+已完成重点：
+
+- 同用户全量同步单飞锁。
+- 恢复联网后账单页和统计页自动重试同步。
+- 同步失败友好提示。
+- 写操作远端成功但缓存同步失败时，避免重复提交风险，并由页面显示上次缓存。
+- FlatList 基础渲染参数和账单卡片 memo。
+
+边界：
+
+- 未生成 Android/iOS 安装包。
+- 未引入 FlashList。
+- 不改 Supabase schema。
 
 ## 8. App v0.x 不做的事
 
@@ -371,7 +387,7 @@ D:\fox\foxledger
 - PROJECT_HANDOFF.md
 - AGENTS.md
 
-当前 FoxLedger App 已完成 v0.8：
+当前 FoxLedger App 已完成 v0.9：
 - Expo React Native + TypeScript 技术骨架
 - Supabase Auth
 - 当前用户账单读取
@@ -383,6 +399,7 @@ D:\fox\foxledger
 - 统计项 drilldown 到账单页筛选
 - 基础 UI 组件和核心页面体验收口
 - SQLite 本地缓存、全量分页同步和离线只读查看
+- 弱网同步提示、恢复联网自动重试、长列表基础优化和真机验收说明
 
 请严格遵守：
 - 不提交 .env 或任何密钥
@@ -394,5 +411,5 @@ D:\fox\foxledger
 - 不改 Supabase schema，除非我明确要求
 - npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
 
-下一阶段我想做 App v0.9。请先根据当前代码和文档，给出最合适的 v0.9 计划，不要直接实现。
+下一阶段我想做 App 安装包/内测准备。请先根据当前代码和文档，给出最合适的方案，不要直接实现。
 ```

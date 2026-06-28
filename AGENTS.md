@@ -1,6 +1,8 @@
 # AGENTS.md
 
-本文件面向后续 Codex / AI 开发助手。开始修改 FoxLedger 前，必须先阅读本文件、README.md、PROJECT_HANDOFF.md 和 APP_MIGRATION_PLAN.md。
+本文件面向后续 Codex / AI 开发助手。修改 FoxLedger Web/PWA 仓库前，必须先阅读本文件、`README.md` 和 `PROJECT_HANDOFF.md`。
+
+本仓库只描述和维护 Web/PWA 代码。不要把其他仓库的 App 进度、安装包计划或原生端路线写成本仓库已实现功能。
 
 ## 1. 项目角色
 
@@ -10,11 +12,8 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 
 - Supabase Auth 邮箱密码登录和注册。
 - `public.transactions` 表、约束、索引、RLS policy 和 authenticated 权限授权。
-- 手动记账。
 - 首页本月概览。
-- 首页手动记账加号入口，点击后在首页展开表单。
-- 手动记账可选信息折叠区。
-- 本设备手动记账草稿。
+- 手动记账和本设备手动草稿。
 - 账单搜索、筛选、排序、加载更多。
 - 账单编辑、单条删除和当前已加载账单多选删除。
 - AI 单条/批量文本账单解析。
@@ -29,11 +28,9 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - Vercel 部署。
 - AI API 邮箱白名单。
 
-后续方向：
+当前生产地址：
 
-- Web/PWA v2.1 进入稳定维护，不再承接大规模 App 级功能扩张。
-- iOS + Android App v0.x 已在平级仓库 `D:\fox\foxledger-app` 启动，当前完成到 v0.9 测试版收口。
-- 当前 Web 仓库仍是 Web/PWA v2.1 稳定维护线；除 `APP_MIGRATION_PLAN.md` 和交接说明外，不要把 App 功能写成 Web 已实现功能。
+[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 最高优先级：
 
@@ -42,7 +39,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 3. 记账准确性。
 4. 离线缓存边界清晰。
 5. 代码简单可维护。
-6. 移动端可用性。
+6. 移动端 PWA 可用性。
 
 ## 2. 开发原则
 
@@ -53,6 +50,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 不要主动进行技术栈迁移。
 - 不要大规模重构项目结构。
 - 不要修改与当前任务无关的文件。
+- 不要修改平级 App 仓库，除非用户明确要求。
 - 不要删除已有 Web/PWA 功能，除非用户明确要求。
 - 不要把尚未实现的功能写成已完成。
 - 文档必须反映当前真实代码状态。
@@ -61,7 +59,7 @@ FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 W
 - 不要引入 Supabase `service_role` key。
 - 不要绕过 Supabase RLS。
 - 不要让 AI 直接写数据库。
-- AI 只能解析当前输入文本，不能读取历史账单、本地缓存或统计数据，除非用户未来明确重新设计隐私边界。
+- AI 只能解析当前输入文本，不能读取历史账单、本地缓存或统计数据。
 - 统计必须由代码基于数据库查询结果或本地缓存数据计算，不能调用 AI。
 - 如果需要新增表或修改 schema，先给 migration、RLS 和回滚方案，等用户确认后再实施。
 - 修改完成后用中文说明改了什么、改了哪些文件、如何运行、如何测试、是否需要环境变量。
@@ -191,8 +189,6 @@ stores:
 - 不要把 Supabase access token、refresh token、登录响应、AI API 响应写入 IndexedDB。
 - 不要把 IndexedDB 历史账单传给 AI。
 
-未来 App 版如果使用 SQLite，必须保留同样的用户隔离和同步边界。
-
 ## 6. AI 解析规则
 
 AI API：
@@ -255,7 +251,6 @@ lib/parseTransactionLimits.ts
 
 - 不要发送历史账单、统计数据、IndexedDB 缓存、银行卡号、身份证号、完整地址等敏感信息给 AI。
 - `OPENAI_API_KEY` 等只允许在服务端环境变量中。
-- App v0.x 初期可调用现有 Web/Next AI API；不要把 AI key 放进 App。
 
 ## 7. CSV 导入规则
 
@@ -337,8 +332,6 @@ components/StatsPanel.tsx
 请保持：
 
 - Web/PWA 主线优先做 bug 修复、规则收口、安全和数据准确性维护。
-- 不建议继续在 Web 主线做大规模可爱风 UI 重构或复杂对话式 AI 记账。
-- 可爱风、对话式 AI 记账、原生 App 级交互更适合放到未来 App v0.x / v1.0 中设计。
 - 表单简单、清晰、可用。
 - 按钮有明确禁用态和加载态。
 - 错误信息要能指导用户下一步。
@@ -379,7 +372,7 @@ public/offline.html
 
 生产地址：
 
-[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 部署平台：
 
@@ -395,8 +388,8 @@ Vercel
 - 排查环境变量问题时，redeploy 建议不要勾选 `Use existing Build Cache`。
 - 不要把 `.env.local` 提交到 GitHub。
 - Supabase Auth URL Configuration 要包含生产地址和 preview redirect URLs。
-- 如果 Vercel 绑定了自有域名，也要把自有域名加入 Supabase Auth Site URL / Redirect URLs。
-- 不要在仓库文档里写真实密钥或不必要的私有域名配置细节。
+- 如果 Vercel 绑定域名发生变化，也要同步更新 Supabase Auth Site URL / Redirect URLs。
+- 不要在仓库文档里写真实密钥。
 
 Vercel 环境变量名：
 
@@ -412,53 +405,7 @@ ALLOWED_EMAILS
 
 不要在文档或代码中写真实值。
 
-## 12. App 迁移原则
-
-当前决策：
-
-```text
-Web/PWA v2.1 保持稳定维护。
-平级仓库 foxledger-app 开发 iOS + Android App v0.x 测试版。
-App 当前完成到 v0.9 测试版收口。
-App v0.x 先迁移 Web/PWA v2.1 核心能力并优化体验。
-App v1.0 之后再做大功能创新。
-```
-
-建议目录：
-
-```text
-D:\fox\
-  foxledger\        # 当前 Web/PWA v2.1
-  foxledger-app\    # Expo React Native App v0.x，当前至 v0.9
-```
-
-建议 App 技术栈：
-
-```text
-Expo React Native + TypeScript
-Expo Router
-Supabase JS
-TanStack Query
-SQLite
-FlashList
-现有 Next.js AI API 过渡
-```
-
-原则：
-
-- 不要在当前 Web 仓库里创建 Expo 项目，除非用户明确要求。
-- 不要把 App 计划写成已完成。
-- App v0.x 初期复用同一个 Supabase Auth、`transactions` 表和 RLS。
-- App v0.x 初期可以调用现有 Web/Next AI API。
-- App 端不能保存或暴露 AI key。
-- App 端所有 Supabase 访问仍必须遵守 RLS 和当前用户隔离。
-- 可迁移模块优先是类型、交易规则、CSV parser、AI sanitizer/contract、统计计算。
-- Web/Next 专属模块包括 React DOM 组件、CSS、IndexedDB 适配、Service Worker 和 Next Route Handler。
-- 不要在 App v0.x 阶段引入 schema 变更、离线正式记账、AI 对话式查账或自定义分类，除非用户另行确认。
-
-详细迁移方案见 `APP_MIGRATION_PLAN.md`。
-
-## 13. 提交前检查
+## 12. 提交前检查
 
 修改前：
 

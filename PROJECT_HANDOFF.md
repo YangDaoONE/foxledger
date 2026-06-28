@@ -1,18 +1,20 @@
 # PROJECT_HANDOFF.md
 
-本文件用于把 FoxLedger Web/PWA v2.1 收口状态和 App v0.9 迁移状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md`、`PROJECT_HANDOFF.md` 和 `APP_MIGRATION_PLAN.md`，以及 App 仓库 `D:\fox\foxledger-app` 中的 `README.md`、`AGENTS.md` 和 `PROJECT_HANDOFF.md`。
+本文件用于把 FoxLedger Web/PWA 当前状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，请先阅读 `AGENTS.md`、`README.md` 和本文件。
+
+本文件只描述 `D:\fox\foxledger` Web/PWA 仓库。不要在这里记录 App 仓库的版本进度或安装包计划。
 
 ## 1. 一句话总结
 
-FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、本地缓存、离线只读查看和 Service Worker 外壳缓存，Web 主线进入稳定维护；平级 App 仓库 `D:\fox\foxledger-app` 已完成到 v0.9 测试版收口。
+FoxLedger / 狐狐记账是一个基于 Next.js + Supabase 的个人 AI 记账 Web App / PWA。当前 Web/PWA v2.1 已完成登录、手动/AI/CSV 记账、账单管理、统计 drilldown、IndexedDB 本地缓存、离线只读查看和 Service Worker 外壳缓存。当前主入口是自有域名 `https://ledger.foxyang.com/`。
 
 ## 2. 当前线上地址
 
-Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
+Production URL：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 部署平台：Vercel。
 
-用户已反馈在 Vercel 侧配置了自有域名并可改善中国网络访问，但仓库文档不记录未提供的具体私有域名。后续若新增或变更域名，需要同步检查 Supabase Auth Site URL / Redirect URLs。
+Vercel preview / 默认域名可以存在，但文档中的生产主入口以 `ledger.foxyang.com` 为准。变更域名时，需要同步检查 Supabase Auth Site URL / Redirect URLs。
 
 ## 3. 当前技术栈
 
@@ -91,19 +93,7 @@ types/
   transaction.ts                    交易、AI 解析、统计类型定义
 ```
 
-## 5. 当前完成阶段列表
-
-### 初始化项目
-
-- Next.js + TypeScript 项目结构。
-- ESLint 配置。
-- 基础全局样式。
-- `npm run dev`、`npm run lint`、`npm run build`、`npm run start` 脚本。
-
-### Supabase 连接
-
-- `lib/supabase.ts` 使用 `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 初始化客户端。
-- 不使用 `service_role` key。
+## 5. 当前功能状态
 
 ### Auth
 
@@ -129,7 +119,7 @@ types/
 
 ### 手动记账
 
-- 首页不默认展示完整表单，而是展示加号样式的手动记账入口。
+- 首页不默认展示完整表单，而是展示手动记账入口。
 - 点击入口后在首页状态内展开 `ManualTransactionForm`。
 - 必填字段：类型、金额、分类、日期。
 - 可选字段：商家、支付方式、备注，放在可折叠区域。
@@ -137,7 +127,7 @@ types/
 - 固定写入 `CNY`。
 - 分类使用 `lib/transactionRules.ts` 的默认分类。
 - 在线保存成功后清空草稿，并触发远端同步刷新本地缓存。
-- 离线提交不会写数据库，会提示“当前离线，账单未保存”，并保留为本设备草稿。
+- 离线提交不会写数据库，会提示未保存，并保留为本设备草稿。
 
 ### AI 解析和确认入库
 
@@ -216,7 +206,7 @@ types/
 - drilldown 会带入日期范围、类型、分类等筛选条件。
 - 在线时统计页刷新按钮会触发远端同步。
 
-### v2.1 本地缓存与同步
+### IndexedDB 本地缓存与同步
 
 - IndexedDB DB 名称：`foxledger`。
 - 当前 DB 版本：`2`。
@@ -229,7 +219,7 @@ types/
 - 全量同步原因：当前云端删除是真删除，没有 tombstone，仅用 `updated_at` 增量无法反映删除。
 - `transactionSync.ts` 会检查远端拉取结果是否包含非当前用户账单，如果有会停止写入本地缓存。
 
-### v2.1 离线 UI
+### 离线 UI
 
 - `useNetworkStatus()` 监听浏览器 online/offline。
 - `SyncStatusBanner` 显示在线、离线、同步失败和上次同步时间。
@@ -238,7 +228,7 @@ types/
 - 手动记账按钮离线时提示“联网后可保存”。
 - 草稿明确提示“仅保存在本设备，不是正式账单，不参与统计”。
 
-### v2.1 Service Worker 外壳缓存
+### Service Worker 外壳缓存
 
 - `components/ServiceWorkerRegistration.tsx` 只在生产环境注册 `/sw.js`。
 - `public/sw.js` 缓存应用外壳、manifest、图标、离线页和 `/_next/static/*`。
@@ -249,22 +239,6 @@ types/
   - Supabase 域名请求。
 - 不缓存 Supabase 登录响应、AI API 响应或任何用户数据响应。
 - 当前没有离线正式记账、离线同步队列、push notification。
-
-### PWA metadata / manifest
-
-- `app/manifest.ts` 提供基础 manifest。
-- `app/icons/*/route.tsx` 动态生成 192、512 和 apple touch icon。
-- `app/layout.tsx` 提供 metadata、viewport、manifest 和 icon 配置。
-- 图标由 `lib/pwaIcon.tsx` 使用 `ImageResponse` 动态生成。
-
-### Vercel 部署
-
-- 已部署到 Vercel。
-- Production URL：[https://foxledger.vercel.app](https://foxledger.vercel.app/)
-- Vercel 连接 GitHub `main` 分支。
-- 环境变量在 Vercel Project Settings 配置。
-- Supabase Auth URL Configuration 需要包含生产地址和 preview redirect URLs。
-- 如果 Vercel Domains 绑定自有域名，也需要把该域名加入 Supabase Auth URL Configuration。
 
 ## 6. 当前数据模型摘要
 
@@ -347,138 +321,75 @@ ALLOWED_EMAILS
 
 ## 9. 当前已知问题和限制
 
-- 当前是 Web/PWA，不是真正原生 iOS / Android App。
-- Expo App 已在平级仓库 `D:\fox\foxledger-app` 创建，当前完成到 v0.9。
-- Web/PWA 仍作为稳定线上版本和 App AI API 过渡后端。
+- 当前是 Web/PWA，不是原生 iOS / Android App。
 - 没有自定义分类、账户、支付方式管理。
 - 默认分类是固定集合，非默认分类归一为 `其他`。
 - 固定货币 `CNY`，没有多币种和汇率。
 - CSV 导入只做追加新增，不做覆盖、合并或自动去重。
-- 账单删除支持单条删除和当前已加载账单的多选删除，不支持恢复、按日期范围删除或删除全部账单。
+- 账单删除支持单条删除和当前已加载账单多选删除，不支持恢复、按日期范围删除或删除全部账单。
 - 有本地缓存和离线只读查看，但没有离线正式记账、离线同步队列或冲突合并。
-- Web 版使用 IndexedDB，没有 App 侧 SQLite。
+- Web 版使用 IndexedDB。
 - 有基础 Service Worker 外壳缓存，但不缓存 Supabase/API 用户响应。
 - 没有原生推送、Capacitor 封装或后台定时同步。
 - `components/TransactionList.tsx` 是旧最近账单列表组件，当前主界面未引用，后续可清理。
 - 当前没有单元测试或 E2E 测试脚本。
 
-## 10. Web 版收口结论
+## 10. 后续 Web/PWA 更新建议
 
-Web/PWA v2.1 可视为正式收口版本。后续 Web 主线建议只做：
+用户已明确希望重新回到 PWA 进行更新。下一阶段建议优先从 Web/PWA 自身价值出发，不把 App 路线混入本仓库文档：
 
-- bug 修复。
-- 安全边界维护。
-- 数据准确性修复。
-- 文档更新。
-- 必要的小优化。
+- 修正生产域名、PWA 安装提示和 iOS 添加到主屏幕体验。
+- 梳理 Service Worker 缓存版本和更新提示。
+- 优化弱网/离线提示与同步失败恢复。
+- 修复 Web/PWA 移动端可用性问题。
+- 补充轻量测试或关键纯函数测试。
+- 清理未使用组件前先确认没有隐藏引用。
 
-不建议继续在 Web 主线投入：
+仍不建议在未确认边界前直接做：
 
-- 完整可爱风 UI 重绘。
-- 复杂 AI 对话式记账。
-- App 级动画和手势。
-- 原生推送。
+- Supabase schema 变更。
 - 离线正式写入队列。
-- 大规模设置系统。
+- AI 读取历史账单或统计数据。
+- 自定义分类/账户/支付方式等大功能。
+- 大规模 UI 重写。
 
-这些应转入 App v0.x / v1.0 路线。
-
-## 11. App v0.x 迁移路线摘要
-
-App 已在平级仓库创建：
+## 11. 新对话启动 Prompt
 
 ```text
-D:\fox\
-  foxledger\        # 当前 Web/PWA v2.1
-  foxledger-app\    # Expo React Native App v0.x，当前至 v0.9
-```
+请先阅读 Web/PWA 仓库文档：
 
-推荐技术栈：
-
-```text
-Expo React Native + TypeScript
-Expo Router
-Supabase JS
-TanStack Query
-SQLite
-FlashList
-lucide-react-native 或同类图标库
-现有 Next.js AI API 过渡
-```
-
-App 当前状态：
-
-- v0.0 技术骨架已完成。
-- v0.1 Auth 已完成。
-- v0.2 当前用户账单读取和分页已完成。
-- v0.3 手动记账、编辑、删除和多选删除已完成。
-- v0.4 搜索、筛选、排序已完成。
-- v0.5 AI 解析迁移已完成：App 调用现有 Web/Next AI API，AI 只解析当前输入文本，候选经用户确认后批量写入 Supabase。
-- v0.6 统计页迁移已完成：App 用代码基于当前用户 `transactions` 日期范围查询结果计算统计，支持分类排行、每日趋势和 drilldown 到账单筛选。
-- v0.7 基础 UI 与移动端体验收口已完成：新增通用按钮、Chip、输入框、Section、状态块组件，并应用到核心页面控件。
-- v0.8 SQLite 本地缓存与离线只读已完成：App 使用本地 SQLite 缓存当前用户账单，全量分页同步 Supabase，账单页和统计页读取缓存，离线禁用正式写操作和 AI 候选保存。
-- v0.9 测试版收口已完成：App 已加入同步单飞锁、恢复联网自动重试、同步错误友好提示、长列表基础优化和真机验收说明。
-
-App 后续仍必须保持：
-
-- 不新增大功能，优先迁移 Web/PWA v2.1 已有能力。
-- 不改 Supabase schema。
-- 不绕过 RLS。
-- 不把 AI key 放进 App。
-- 不把历史账单、统计数据或本地缓存发给 AI。
-- 不在 v0.x 阶段实现 AI 对话式查账、离线正式记账、自定义分类等 v1.0 后功能。
-
-下一轮如继续推进 App，建议单独评估安装包和内测准备，不要顺手扩展 CSV、AI 查账或离线写入。
-
-详见 `APP_MIGRATION_PLAN.md`。
-
-## 12. 新对话启动 Prompt
-
-可以在下一轮 ChatGPT / Codex 对话开头使用：
-
-```text
-请先阅读以下文档：
-
-App 仓库：
-D:\fox\foxledger-app
+D:\fox\foxledger
 - README.md
 - AGENTS.md
 - PROJECT_HANDOFF.md
 
-Web 仓库：
-D:\fox\foxledger
-- APP_MIGRATION_PLAN.md
-- PROJECT_HANDOFF.md
-- AGENTS.md
+当前 FoxLedger Web/PWA 是 v2.1 正式版，生产地址是：
+https://ledger.foxyang.com/
 
-当前 FoxLedger App 已完成 v0.9：
-- Expo React Native + TypeScript 技术骨架
+本仓库已完成：
 - Supabase Auth
-- 当前用户账单读取
-- 手动新增、编辑、删除、多选删除
-- 搜索筛选排序
-- 调用现有 Web/Next AI API 进行文本账单解析
-- AI 候选确认后批量写入 Supabase
-- 日期范围统计页、分类排行、每日趋势
-- 统计项 drilldown 到账单页筛选
-- 基础 UI 组件和核心页面体验收口
-- SQLite 本地缓存、全量分页同步和离线只读查看
-- 弱网同步提示、恢复联网自动重试、长列表基础优化和真机验收说明
+- 当前用户 transactions 读写和 RLS
+- 手动记账和本设备草稿
+- AI 文本账单解析 API 和候选确认入库
+- CSV 导入
+- 账单搜索、筛选、排序、编辑、删除、多选删除
+- 日期范围统计和 drilldown
+- IndexedDB 本地缓存和离线只读
+- PWA manifest、动态图标和 Service Worker 外壳缓存
 
 请严格遵守：
-- 不提交 .env 或任何密钥
+- 不提交 .env.local 或任何密钥
 - 不使用 service_role key
 - 不绕过 RLS
-- 不把 AI key 放入 App
 - 不把历史账单、统计数据、本地缓存发给 AI
 - AI 结果必须用户确认后才入库
 - 不改 Supabase schema，除非我明确要求
-- npm audit 中 Expo 依赖链 uuid moderate 告警暂不强制修复
+- 本次只处理 Web/PWA 仓库，不混入 App 仓库进度
 
-下一阶段我想做 App 安装包/内测准备。请先根据当前代码和文档，给出最合适的方案，不要直接实现。
+下一阶段我想继续更新 PWA。请先根据当前代码和文档给出计划，不要直接实现。
 ```
 
-## 13. 开发前检查清单
+## 12. 开发前检查清单
 
 每次开始前：
 

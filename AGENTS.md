@@ -4,9 +4,11 @@
 
 本仓库只描述和维护 `D:\fox\foxledger` Web/PWA 代码、Supabase migrations 和 Supabase Edge Function。不要把 App 仓库进度、安装包计划或原生端路线写成本仓库已实现功能。
 
-## 1. 项目角色
+## 1. 当前项目角色
 
-FoxLedger / 狐狐记账当前 Web/PWA 基线为 **v2.3 Vite PWA + Supabase Edge AI API 版**。
+FoxLedger / 狐狐记账 Web/PWA 当前基线为 **v2.3.1 Vite PWA + Supabase Edge AI API 收口版**。
+
+生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 当前已完成：
 
@@ -25,10 +27,7 @@ FoxLedger / 狐狐记账当前 Web/PWA 基线为 **v2.3 Vite PWA + Supabase Edge
 - CSV 导入。
 - 日期范围统计和 drilldown 到账单页筛选。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
-
-当前生产地址：
-
-[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
+- Vercel 只部署 Vite 静态前端，线上不再使用旧 Next API。
 
 最高优先级：
 
@@ -193,7 +192,7 @@ updated_at
 - Supabase 全量同步成功后，替换当前用户本地缓存。
 - 全量同步用于正确反映云端删除，不要擅自改成只增量同步。
 - 全量同步必须分页、稳定排序，并设置最大页数或最大读取条数保护。
-- 任一远端页失败，则统计和账单同步应整体报错，不替换上次缓存。
+- 任一远端页失败，则同步整体报错，不替换上次缓存。
 - 全部远端分页完整拉取并校验通过后，才在 Dexie transaction 中替换当前用户缓存。
 - 不要把 `raw_text`、AI 原始响应、Supabase token、登录响应、`tag`、`account` 或 `ai_confidence` 写入本地缓存。
 - 不要把 IndexedDB 历史账单传给 AI。
@@ -323,7 +322,7 @@ src/routes/StatsPage.tsx
 - 错误信息要能指导用户下一步。
 - 移动端宽度和文本不要溢出。
 - 不要把卡片嵌套成复杂层级。
-- 离线状态必须清楚标记，不要让用户误以为离线草稿或离线缓存是正式新写入。
+- 离线状态必须清楚标记，不要让用户误以为离线缓存是正式新写入。
 
 ## 10. PWA / Service Worker 规则
 
@@ -339,13 +338,11 @@ src/routes/StatsPage.tsx
 
 ## 11. 部署规则
 
-生产地址：
-
-[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
+生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 规则：
 
-- Vite PWA 可部署为静态前端。
+- Vite PWA 部署为静态前端。
 - AI API 部署到 Supabase Edge Function `parse-transaction`。
 - 线上 PWA 不需要旧 Next `/api/parse-transaction` rewrite。
 - 修改 Supabase Edge Function secrets 后，需要重新部署或确认函数使用最新 secrets。
@@ -378,8 +375,6 @@ OPENAI_MODEL
 ALLOWED_EMAILS
 ```
 
-`OPENAI_BASE_URL` 可以继续使用个人 VPS 的 OpenAI-compatible 转发地址。
-
 ## 12. 提交前检查
 
 修改前：
@@ -396,12 +391,23 @@ npm run typecheck
 npm run build
 ```
 
-提交：
-
-```bash
-git add <changed-files>
-git commit -m "<clear message>"
-git push
-```
-
 如果检查失败，需要如实说明失败原因，不要隐瞒。
+
+## 13. 下一阶段优先级
+
+P0：
+
+- 复测本地和线上同步状态，重点排查本地是否仍长时间显示“同步中 · 正在刷新本地缓存”。
+- 做真实手机 PWA 验收：安装、离线缓存、恢复联网同步、Service Worker 更新。
+- 做 AI 端到端验收：允许邮箱、解析成功、未登录、非白名单、超时、候选确认保存。
+
+P1：
+
+- 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
+- 处理 Vite chunk size 提示，优先路由级懒加载。
+- 增强同步状态诊断文案，显示最近同步时间和失败原因。
+
+P2：
+
+- 评估前端交易规则和 Edge Function 交易规则是否值得抽共享模块；没有明显收益时保持简单重复。
+- 继续移动端 UI/UX 小修，但不要引入大型 UI 框架。

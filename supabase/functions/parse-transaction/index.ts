@@ -9,67 +9,22 @@ import {
   requestOpenAiChatContent,
   type OpenAiChatMessage,
 } from "../_shared/aiClient.ts";
+import {
+  DEFAULT_CATEGORIES,
+  InputValidationError,
+  MAX_PARSED_TRANSACTIONS,
+  getServerTodayIsoDate,
+  parseAiJson,
+  sanitizeParsedTransactionsBatch,
+  validateAiTextRequestBody,
+} from "../_shared/transactionSanitizer.ts";
 
-type TransactionType = "expense" | "income" | "transfer";
-
-type ParsedTransaction = {
-  type: TransactionType | null;
-  amount: number | null;
-  currency: "CNY";
-  category: string;
-  tag: string | null;
-  merchant: string | null;
-  payment_method: string | null;
-  account: string | null;
-  date: string;
-  note: string | null;
-  raw_text: string;
-  source: "ai";
-  ai_confidence: number | null;
-  needs_clarification: boolean;
-};
-
-type ParsedTransactionBatch = {
-  transactions: ParsedTransaction[];
-  truncated: boolean;
-  max_transactions: number;
-  max_input_chars: number;
-};
-
-const DEFAULT_CURRENCY = "CNY";
-const DEFAULT_CATEGORY = "其他";
-const MAX_PARSE_INPUT_CHARS = 3000;
-const MAX_PARSED_TRANSACTIONS = 50;
-const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
-const defaultCategories = [
-  "餐饮",
-  "交通",
-  "购物",
-  "住房",
-  "学习",
-  "医疗",
-  "娱乐",
-  "日用",
-  "旅行",
-  "订阅",
-  "人情",
-  "收入",
-  "转账",
-  DEFAULT_CATEGORY,
-] as const;
 const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Origin": "*",
   "Content-Type": "application/json; charset=utf-8",
 };
-
-class InputValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "InputValidationError";
-  }
-}
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -80,356 +35,6 @@ function jsonResponse(body: unknown, status = 200) {
 
 function errorResponse(message: string, status: number) {
   return jsonResponse({ error: message }, status);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isTransactionType(value: string): value is TransactionType {
-  return value === "expense" || value === "income" || value === "transfer";
-}
-
-function isDefaultCategory(value: string) {
-  return defaultCategories.includes(value.trim() as (typeof defaultCategories)[number]);
-}
-
-function normalizeDefaultCategory(value: string | null | undefined) {
-  const trimmed = value?.trim() ?? "";
-  return isDefaultCategory(trimmed) ? trimmed : DEFAULT_CATEGORY;
-}
-
-function isValidIsoDate(value: string) {
-  if (!isoDatePattern.test(value)) {
-    return false;
-  }
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
-
-function toNullableString(value: unknown) {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function toSafeCategory(value: unknown) {
-  return normalizeDefaultCategory(toNullableString(value));
-}
-
-function toSafeConfidence(value: unknown) {
-  if (typeof value !== "number" || !Number.isFinite(value)) {
-    return null;
-  }
-
-  if (value < 0 || value > 1) {
-    return null;
-  }
-
-  return value;
-}
-
-function toFiniteNumber(value: unknown) {
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    const parsed = Number(value.trim());
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
-}
-
-function toIsoDate(year: number, month: number, day: number) {
-  const isoDate = [
-    String(year).padStart(4, "0"),
-    String(month).padStart(2, "0"),
-    String(day).padStart(2, "0"),
-  ].join("-");
-
-  return isValidIsoDate(isoDate) ? isoDate : null;
-}
-
-function addDaysToIsoDate(isoDate: string, days: number) {
-  const date = new Date(`${isoDate}T00:00:00.000Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
-function collectDatesFromText(text: string, todayIsoDate: string) {
-  const dates: string[] = [];
-  const fullDatePattern =
-    /(?:^|[^\d])((?:19|20)\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日|号)?(?=$|[^\d])/g;
-  const explicitMonthDayPattern =
-    /(?:^|[^\d])(\d{1,2})(?:月|[./-])(\d{1,2})(?:日|号)(?=$|[^\d])/g;
-  const plainMonthDayPattern =
-    /(?:^|[\s,，.。;；:：、])(\d{1,2})(?:月|[./-])(\d{1,2})(?=$|[\s,，.。;；:：、])/g;
-
-  for (const match of text.matchAll(fullDatePattern)) {
-    const [, year, month, day] = match;
-    const isoDate = toIsoDate(Number(year), Number(month), Number(day));
-
-    if (isoDate && !dates.includes(isoDate)) {
-      dates.push(isoDate);
-    }
-  }
-
-  if (text.includes("前天")) {
-    const isoDate = addDaysToIsoDate(todayIsoDate, -2);
-    if (!dates.includes(isoDate)) {
-      dates.push(isoDate);
-    }
-  }
-
-  if (text.includes("昨天") || text.includes("昨日")) {
-    const isoDate = addDaysToIsoDate(todayIsoDate, -1);
-    if (!dates.includes(isoDate)) {
-      dates.push(isoDate);
-    }
-  }
-
-  if (text.includes("今天") || text.includes("今日")) {
-    if (!dates.includes(todayIsoDate)) {
-      dates.push(todayIsoDate);
-    }
-  }
-
-  for (const match of text.matchAll(explicitMonthDayPattern)) {
-    const [, month, day] = match;
-    const year = Number(todayIsoDate.slice(0, 4));
-    const isoDate = toIsoDate(year, Number(month), Number(day));
-
-    if (isoDate && !dates.includes(isoDate)) {
-      dates.push(isoDate);
-    }
-  }
-
-  for (const match of text.matchAll(plainMonthDayPattern)) {
-    const [, month, day] = match;
-    const year = Number(todayIsoDate.slice(0, 4));
-    const isoDate = toIsoDate(year, Number(month), Number(day));
-
-    if (isoDate && !dates.includes(isoDate)) {
-      dates.push(isoDate);
-    }
-  }
-
-  return dates;
-}
-
-function resolveDateFromText(text: string, fullText: string, todayIsoDate: string) {
-  const candidateDates = collectDatesFromText(text, todayIsoDate);
-
-  if (candidateDates.length > 0) {
-    return candidateDates[0];
-  }
-
-  const fullTextDates = collectDatesFromText(fullText, todayIsoDate);
-
-  if (fullTextDates.length === 1) {
-    return fullTextDates[0];
-  }
-
-  return todayIsoDate;
-}
-
-function getDigitLikeAmountTokens(text: string) {
-  return text.match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
-}
-
-function textContainsAmountToken(text: string, amount: number) {
-  const absoluteAmount = Math.abs(amount);
-
-  return getDigitLikeAmountTokens(text).some((token) => {
-    const parsedToken = Number(token);
-    return Number.isFinite(parsedToken) && Math.abs(Math.abs(parsedToken) - absoluteAmount) < 0.000001;
-  });
-}
-
-function hasSensitiveLongNumber(text: string) {
-  const hasChineseIdLikeText = /\d{17}[\dXx]/.test(text);
-  const longDigitGroups = text.match(/\d[\d\s-]{13,}\d/g) ?? [];
-
-  return hasChineseIdLikeText || longDigitGroups.some((group) => group.replace(/\D/g, "").length >= 15);
-}
-
-function getServerTodayIsoDate() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Shanghai",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
-
-function validateParseRequestBody(body: unknown) {
-  if (!isRecord(body)) {
-    throw new InputValidationError("请求体必须是 JSON 对象。");
-  }
-
-  if (typeof body.text !== "string") {
-    throw new InputValidationError("text 必须是字符串。");
-  }
-
-  const text = body.text;
-  const trimmedText = text.trim();
-
-  if (!trimmedText) {
-    throw new InputValidationError("text 不能为空。");
-  }
-
-  if (text.length > MAX_PARSE_INPUT_CHARS) {
-    throw new InputValidationError(`text 不能超过 ${MAX_PARSE_INPUT_CHARS} 个字符。`);
-  }
-
-  if (hasSensitiveLongNumber(text)) {
-    throw new InputValidationError("输入中包含疑似银行卡号或身份证号，请删除敏感信息后再解析。");
-  }
-
-  return text;
-}
-
-function extractJsonCodeBlock(content: string) {
-  const match = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return match?.[1]?.trim() ?? null;
-}
-
-function extractFirstJsonObject(content: string) {
-  const start = content.indexOf("{");
-
-  if (start < 0) {
-    return null;
-  }
-
-  let depth = 0;
-  let inString = false;
-  let isEscaped = false;
-
-  for (let index = start; index < content.length; index += 1) {
-    const char = content[index];
-
-    if (inString) {
-      if (isEscaped) {
-        isEscaped = false;
-      } else if (char === "\\") {
-        isEscaped = true;
-      } else if (char === "\"") {
-        inString = false;
-      }
-      continue;
-    }
-
-    if (char === "\"") {
-      inString = true;
-    } else if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-
-      if (depth === 0) {
-        return content.slice(start, index + 1).trim();
-      }
-    }
-  }
-
-  return null;
-}
-
-function parseAiJson(content: string) {
-  const candidates = [
-    content.trim(),
-    extractJsonCodeBlock(content),
-    extractFirstJsonObject(content),
-  ].filter((candidate): candidate is string => Boolean(candidate));
-
-  for (const candidate of candidates) {
-    try {
-      return JSON.parse(candidate) as unknown;
-    } catch {
-      // Try the next candidate. The final error stays intentionally generic.
-    }
-  }
-
-  throw new Error("AI 返回内容不是有效 JSON。");
-}
-
-function getCandidateRawText(aiValue: Record<string, unknown>, rawText: string) {
-  const candidateRawText = toNullableString(aiValue.raw_text);
-
-  if (candidateRawText && rawText.includes(candidateRawText)) {
-    return candidateRawText;
-  }
-
-  return rawText;
-}
-
-function sanitizeParsedTransaction(
-  aiValue: unknown,
-  rawText: string,
-  todayIsoDate: string,
-): ParsedTransaction {
-  if (!isRecord(aiValue)) {
-    throw new Error("AI 返回 JSON 必须是对象。");
-  }
-
-  const needsClarification = aiValue.needs_clarification === true;
-  const candidateRawText = getCandidateRawText(aiValue, rawText);
-  const amount = toFiniteNumber(aiValue.amount);
-  const hasValidAmount = amount !== null && Number.isFinite(amount) && amount !== 0;
-  const normalizedAmount = amount === null ? null : Math.abs(amount);
-  const amountCameFromText = hasValidAmount ? textContainsAmountToken(candidateRawText, amount) : false;
-  const shouldClarify = needsClarification || !hasValidAmount || !amountCameFromText;
-  const safeDate = resolveDateFromText(candidateRawText, rawText, todayIsoDate);
-  const safeType =
-    typeof aiValue.type === "string" && isTransactionType(aiValue.type) ? aiValue.type : "expense";
-
-  return {
-    type: shouldClarify ? null : safeType,
-    amount: shouldClarify ? null : normalizedAmount,
-    currency: DEFAULT_CURRENCY,
-    category: shouldClarify ? DEFAULT_CATEGORY : toSafeCategory(aiValue.category),
-    tag: toNullableString(aiValue.tag),
-    merchant: toNullableString(aiValue.merchant),
-    payment_method: toNullableString(aiValue.payment_method),
-    account: toNullableString(aiValue.account),
-    date: safeDate,
-    note: toNullableString(aiValue.note),
-    raw_text: candidateRawText,
-    source: "ai",
-    ai_confidence: shouldClarify ? null : toSafeConfidence(aiValue.ai_confidence),
-    needs_clarification: shouldClarify,
-  };
-}
-
-function sanitizeParsedTransactionsBatch(
-  aiValue: unknown,
-  rawText: string,
-  todayIsoDate: string,
-): ParsedTransactionBatch {
-  if (!isRecord(aiValue)) {
-    throw new Error("AI 返回 JSON 必须是对象。");
-  }
-
-  if (!Array.isArray(aiValue.transactions)) {
-    throw new Error("AI 返回 JSON 必须包含 transactions 数组。");
-  }
-
-  const slicedTransactions = aiValue.transactions.slice(0, MAX_PARSED_TRANSACTIONS);
-
-  return {
-    transactions: slicedTransactions.map((transaction) =>
-      sanitizeParsedTransaction(transaction, rawText, todayIsoDate),
-    ),
-    truncated: aiValue.transactions.length > MAX_PARSED_TRANSACTIONS,
-    max_transactions: MAX_PARSED_TRANSACTIONS,
-    max_input_chars: MAX_PARSE_INPUT_CHARS,
-  };
 }
 
 function buildParserPrompt(text: string, todayIsoDate: string): OpenAiChatMessage[] {
@@ -456,7 +61,7 @@ function buildParserPrompt(text: string, todayIsoDate: string): OpenAiChatMessag
         "date must use YYYY-MM-DD.",
         "currency must be CNY.",
         "source must be ai.",
-        `category must be one of these default categories only: ${defaultCategories.join(", ")}.`,
+        `category must be one of these default categories only: ${DEFAULT_CATEGORIES.join(", ")}.`,
         "Classify the transaction into the closest default category. For example, coffee and meals should be 餐饮.",
         "If category is uncertain, use 其他.",
         "Optional missing fields must be null.",
@@ -504,7 +109,7 @@ Deno.serve(async (request) => {
     assertEmailAllowed(user.email);
 
     const body = (await request.json().catch(() => null)) as unknown;
-    const text = validateParseRequestBody(body);
+    const text = validateAiTextRequestBody(body);
     const todayIsoDate = getServerTodayIsoDate();
     const aiContent = await parseTransactionWithAi(text, todayIsoDate);
     const aiJson = parseAiJson(aiContent);

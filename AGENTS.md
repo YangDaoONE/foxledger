@@ -8,7 +8,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
-当前本地代码已完成 V3.1 M0“共享统计与契约测试”和 M1“安全只读数据层”的代码与自动化检查，尚未推送或发布；V3.1 M2–M5 未实施，生产站点仍以 V3.0 为准。
+当前本地代码已完成 V3.1 M0–M2 的代码与自动化检查，尚未推送或发布；V3.1 M3–M5 未实施，生产站点仍以 V3.0 为准。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -38,6 +38,7 @@ FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐
 - 日期范围统计和 drilldown 到账单页筛选。
 - V3.1 M0 环境无关共享统计规则、严格 query plan / stats envelope / grounded answer 契约和统计 drilldown 回归测试。
 - V3.1 M1 Edge 公共认证、邮箱白名单、环境变量、OpenAI client，以及用户 JWT + publishable key + RLS 的完整只读分页、白名单筛选、商家聚合和最多 500 条 AI 安全明细选择。
+- V3.1 M2 尚未部署的 `fox-chat` 第一次 AI：严格区分记账、问账、澄清和不支持，记账复用 V3.0 清洗，问账只返回 normalized plan，支持强制记账/问账纠错。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Vercel 只部署 Vite 静态前端，线上不再使用旧 Next API。
 
@@ -301,6 +302,9 @@ supabase/functions/_shared/ledgerContracts.ts
 supabase/functions/_shared/auth.ts
 supabase/functions/_shared/aiClient.ts
 supabase/functions/_shared/ledgerRead.ts
+supabase/functions/_shared/transactionSanitizer.ts
+supabase/functions/_shared/chatIntent.ts
+supabase/functions/fox-chat/index.ts
 ```
 
 当前支持范围：
@@ -424,6 +428,6 @@ npm run verify:v3
 ## 13. 后续阶段边界
 
 - V3.0 发布验收完成后，只有用户明确要求时才开始 `docs/V3.1_EXECUTABLE_DESIGN.md`。
-- V3.1 M1 已完成本地代码和自动化检查；只有用户明确要求时才开始 M2“第一次 AI 与自动意图路由”。
+- V3.1 M2 已完成本地代码和自动化检查；只有用户明确要求时才开始 M3“第二次 AI 与有依据回答”。
 - 不得把 V3.1 的 AI 问账、连续追问或全站体验统一写成当前已完成功能。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

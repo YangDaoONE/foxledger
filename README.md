@@ -7,7 +7,7 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
-当前本地代码已完成 V3.1 M0“共享统计与契约测试”和 M1“安全只读数据层”的代码与自动化检查，尚未推送或发布；V3.1 M2–M5 仍未实施，生产站点仍以 V3.0 为准。
+当前本地代码已完成 V3.1 M0–M2 的代码与自动化检查，尚未推送或发布；V3.1 M3–M5 仍未实施，生产站点仍以 V3.0 为准。
 
 ## 当前状态
 
@@ -39,6 +39,7 @@ V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生�
 - Vitest + React Testing Library 覆盖关键规则、缓存、同步、批次状态机和 Chat 交互。
 - V3.1 M0 已增加前端与 Edge 共用的环境无关统计模块、严格 query plan / stats envelope / grounded answer 契约，以及统计 drilldown 回归测试。
 - V3.1 M1 已抽取 Edge 公共认证、邮箱白名单、环境变量和 OpenAI client，并实现用户 JWT + publishable key + RLS 的完整只读分页、代码白名单筛选、商家聚合、比较统计和最多 500 条 AI 安全明细选择。
+- V3.1 M2 已新增尚未部署的 `fox-chat` 第一阶段：一次 AI 严格路由记账、问账、澄清和不支持；记账复用 V3.0 服务端清洗，问账只返回 normalized plan，强制意图纠错只允许记账或问账。
 - Vercel 已按 Vite 静态前端部署，线上不再依赖旧 Next `/api/parse-transaction`。
 
 当前限制：
@@ -97,6 +98,7 @@ src/
 supabase/
   config.toml
   functions/_shared/               V3.1 共享统计、严格契约、Edge 认证/AI client 和安全只读数据层
+  functions/fox-chat/              V3.1 M2 第一次 AI 与严格意图路由（本地，未部署）
   functions/parse-transaction/     AI 解析 Edge Function
   migrations/                      transactions 表和权限 migration
 scripts/verify-v3-build.mjs        Chat chunk、角色资源和 Workbox 边界验证
@@ -227,7 +229,7 @@ npm run functions:deploy
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run test`：24 个测试文件、112 项测试通过。
+- `npm run test`：26 个测试文件、129 项测试通过。
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
 - `npm run verify:v3`：通过；验证 Chat gzip、狐狐资源预算、PWA manifest 和 Workbox 敏感缓存边界。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
@@ -243,6 +245,6 @@ V3.0 静态前端已完成生产部署、服务器产物核对和真机 PWA 更�
 ## 后续边界
 
 - V3.0 完成发布验收后，才允许按 `docs/V3.1_EXECUTABLE_DESIGN.md` 启动 V3.1。
-- V3.1 M0–M1 已在本地完成代码和自动化检查，尚未发布；M2 第一次 AI 与自动意图路由及后续批次必须等待用户明确开始。
-- AI 问账、连续追问和全站体验统一仍不是已实现功能，不得写成现状。
+- V3.1 M0–M2 已在本地完成代码和自动化检查，尚未发布；M3 第二次 AI 与有依据回答及后续批次必须等待用户明确开始。
+- 当前 PWA 仍调用生产 `parse-transaction`，尚未接入 `fox-chat`；AI 问账回答、连续追问和全站体验统一仍不是已实现功能，不得写成现状。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

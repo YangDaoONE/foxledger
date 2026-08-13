@@ -8,7 +8,7 @@
 
 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码、自动化检查、Vercel 生产部署、服务器产物核对和真机 PWA 更新验收均已于 2026-08-13 通过，V3.0 已正式收口。
 
-当前本地代码已完成 V3.1 M0“共享统计与契约测试”和 M1“安全只读数据层”的代码与自动化检查。M0 已保存为本地提交 `2b1b165`；M1 当前尚未提交，二者均未推送或发布。V3.1 M2–M5 未实施，生产站点仍以 V3.0 为准。
+当前本地代码已完成 V3.1 M0–M2 的代码与自动化检查。M0、M1 分别保存为本地提交 `2b1b165`、`c1ebd33`；M2 当前尚未提交，均未推送或发布。V3.1 M3–M5 未实施，生产站点仍以 V3.0 为准。
 
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -48,7 +48,16 @@
 - `ledgerRead.ts` 对每一页使用 `id,user_id,date,type,amount,category,merchant` 字段白名单、显式 `.eq("user_id", verifiedUserId)` 和 `date + id` 稳定排序。
 - 全部分页与全部操作成功后才返回结果；任一页错误、重复行、跨用户行或非法行都整体失败，不生成部分统计。
 - query plan 筛选完全由代码执行；正式统计覆盖全部匹配行，AI 安全明细只有 `date/type/amount/category/merchant`，最多 500 条，并以确定性金额极值和时间代表性选择。
-- 未新增 `fox-chat` 入口、AI 问账调用、数据库写操作、schema、环境变量或 service role；M2 未开始。
+- M1 批次本身未新增 `fox-chat` 入口、AI 问账调用、数据库写操作、schema、环境变量或 service role；`fox-chat` 第一阶段已在后续独立 M2 批次实现。
+
+### 2.3 V3.1 M2 本地实现
+
+- 新增 `fox-chat` Edge Function 第一阶段，并在 `supabase/config.toml` 配置自处理 CORS/JWT；函数内部继续验证 bearer token 和 `ALLOWED_EMAILS`。
+- `transactionSanitizer.ts` 抽取 V3.0 当前输入、敏感长数字、金额来源、日期、分类、50 条上限和 AI JSON 清洗；`parse-transaction` 与 `fox-chat` 共同复用，现有解析规则保持。
+- `chatIntent.ts` 严格解析四类 discriminated union：`record_transaction`、`query_ledger`、`clarify`、`unsupported`；拒绝混合字段、未知 key 和任意模型文案。
+- 问账只生成并通过代码校验 normalized query plan，不执行 M1 数据读取、不进行第二次 AI，也不生成自然回答。
+- 请求只允许当前 `text`、可空 `previous_context` 和可选 `forced_intent`；M2 明确拒绝非空历史上下文，强制意图只允许“记账”或“问账”。
+- `fox-chat` 没有数据库写路径、SQL、service role 或自由工具；当前 PWA 尚未调用它，函数尚未部署。
 
 ## 3. 数据库与缓存契约
 
@@ -112,6 +121,9 @@ supabase/functions/_shared/edgeEnv.ts          Edge secrets 读取
 supabase/functions/_shared/auth.ts             JWT、白名单和用户级 Supabase client
 supabase/functions/_shared/aiClient.ts         OpenAI-compatible 公共 client
 supabase/functions/_shared/ledgerRead.ts       RLS 完整分页与安全统计封装
+supabase/functions/_shared/transactionSanitizer.ts V3.0/V3.1 共用交易清洗
+supabase/functions/_shared/chatIntent.ts       第一次 AI 严格意图与计划
+supabase/functions/fox-chat/index.ts           M2 Edge 入口（本地，未部署）
 supabase/migrations/003_add_ai_batch_id.sql   V3.0 最小 schema
 supabase/migrations/004_restrict_transactions_permissions.sql 权限收口
 ```
@@ -179,13 +191,13 @@ M5 已由用户完成以下人工确认：
 - 生产部署后的登录、白名单、解析、确认保存、最近批次和撤销回归。
 - 生产网络请求中 Supabase/Auth/AI 响应未进入 Cache Storage。
 
-V3.1 M0–M1 当前自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；24 个测试文件、112 项测试通过。M1 的测试覆盖 publishable key、用户 JWT、邮箱白名单、显式用户约束、稳定分页、字段白名单、筛选、统计、比较、商家分组、0/1/500/501 明细边界，以及任一页失败不返回部分统计。
+V3.1 M0–M2 当前自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；26 个测试文件、129 项测试通过。M2 测试覆盖当前输入与敏感数字、金额来源、四类 intent、严格 query plan、混合/未知字段拒绝、强制意图、历史上下文拒绝，以及 `fox-chat` 无读账/写库边界。
 
 部署回退必须保留 Dexie v4 schema；不能直接回退到只认识 v3 的旧构建。已经远端成功的账单不能因回退或同步错误重复写入。
 
 ## 8. 后续边界
 
-V3.1 M0–M1 已完成本地代码和自动化检查，但未发布；当前仍没有实现 `fox-chat`、AI 意图路由、问账模型调用、连续追问或全站体验统一。只有用户明确说“开始 V3.1 M2”后才能实施 M2，而且仍需按内部批次推进。
+V3.1 M0–M2 已完成本地代码和自动化检查，但未发布；当前 `fox-chat` 只完成第一次 AI 与计划，不执行问账数据读取、第二次 AI、有依据回答、连续追问或前端接入。只有用户明确说“开始 V3.1 M3”后才能实施 M3，而且仍需按内部批次推进。
 
 语音、OCR、图片、多模态和原生 App 能力不在当前 Web/PWA 范围。
 
@@ -194,9 +206,9 @@ V3.1 M0–M1 已完成本地代码和自动化检查，但未发布；当前仍�
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
 
-当前生产验收基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；V3.1 M0–M1 已在本地完成代码和自动化检查，尚未推送或发布，M2–M5 未实施。
+当前生产验收基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；V3.1 M0–M2 已在本地完成代码和自动化检查，尚未推送或发布，M3–M5 未实施。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS、不把历史账单/统计/Dexie 发给 AI、用户确认后才写库、新 AI 不持久化 raw_text、只处理 Web/PWA 仓库。
 
-不要提前实现 V3.1 M2，也不要把尚未部署或尚未验收的功能写成生产现状。
+不要提前实现 V3.1 M3，也不要把尚未部署或尚未验收的功能写成生产现状。
 ```

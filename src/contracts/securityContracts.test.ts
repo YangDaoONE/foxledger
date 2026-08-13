@@ -111,6 +111,9 @@ describe("AI Edge Function 安全基线", () => {
   const authModule = readRepositoryFile("supabase/functions/_shared/auth.ts");
   const aiClientModule = readRepositoryFile("supabase/functions/_shared/aiClient.ts");
   const envModule = readRepositoryFile("supabase/functions/_shared/edgeEnv.ts");
+  const transactionSanitizerModule = readRepositoryFile(
+    "supabase/functions/_shared/transactionSanitizer.ts",
+  );
 
   it("函数自处理 JWT，但内部仍验证 bearer token 与邮箱白名单", () => {
     expect(config).toMatch(
@@ -135,6 +138,8 @@ describe("AI Edge Function 安全基线", () => {
     expect(edgeFunction).toContain("Parse only the current user input. Do not infer from history.");
     expect(edgeFunction).toContain("Do not calculate summaries or statistics.");
     expect(edgeFunction).toContain("requestOpenAiChatContent({");
+    expect(edgeFunction).toContain("sanitizeParsedTransactionsBatch(aiJson, text, todayIsoDate)");
+    expect(transactionSanitizerModule).toContain("textContainsAmountToken");
   });
 });
 
@@ -163,5 +168,50 @@ describe("V3.1 安全只读数据层基线", () => {
   it("任何分页或行校验失败都明确拒绝部分统计", () => {
     expect(ledgerReadModule).toContain("未生成部分统计");
     expect(ledgerReadModule).toContain("MAX_AI_LEDGER_DETAILS = 500");
+  });
+});
+
+describe("V3.1 fox-chat M2 安全基线", () => {
+  const config = readRepositoryFile("supabase/config.toml");
+  const foxChatFunction = readRepositoryFile("supabase/functions/fox-chat/index.ts");
+  const chatIntentModule = readRepositoryFile(
+    "supabase/functions/_shared/chatIntent.ts",
+  );
+  const transactionSanitizerModule = readRepositoryFile(
+    "supabase/functions/_shared/transactionSanitizer.ts",
+  );
+
+  it("函数自处理 CORS/JWT，但内部继续验证 bearer token 和邮箱白名单", () => {
+    expect(config).toMatch(/\[functions\.fox-chat\]\s+verify_jwt = false/i);
+    expect(foxChatFunction).toContain("getBearerToken(request)");
+    expect(foxChatFunction).toContain("verifySupabaseToken(token, createClient)");
+    expect(foxChatFunction).toContain("assertEmailAllowed(user.email)");
+  });
+
+  it("M2 只执行第一次 AI 和严格计划校验，不读取账本、不写数据库", () => {
+    expect(foxChatFunction).toContain("runFoxChatFirstStage({");
+    expect(foxChatFunction).not.toContain("executeLedgerQueryPlan");
+    expect([foxChatFunction, chatIntentModule].join("\n")).not.toMatch(
+      /\.(?:insert|update|delete)\s*\(/i,
+    );
+    expect([foxChatFunction, chatIntentModule].join("\n")).not.toMatch(
+      /service[_-]?role/i,
+    );
+  });
+
+  it("记账路径与 parse-transaction 复用同一清洗器，问账路径不允许 SQL", () => {
+    expect(foxChatFunction).toContain('from "../_shared/transactionSanitizer.ts"');
+    expect(chatIntentModule).toContain("sanitizeParsedTransactionsBatch(");
+    expect(chatIntentModule).toContain("parseLedgerQueryPlan(result.plan)");
+    expect(chatIntentModule).toContain("Never output SQL");
+    expect(transactionSanitizerModule).toContain("hasSensitiveLongNumber");
+  });
+
+  it("当前 M2 不发送历史上下文，强制意图仅允许记账或问账", () => {
+    expect(chatIntentModule).toContain("当前版本暂不支持连续追问");
+    expect(chatIntentModule).toContain(
+      'FORCED_CHAT_INTENTS = ["record_transaction", "query_ledger"]',
+    );
+    expect(chatIntentModule).toContain("Use only the current user input");
   });
 });

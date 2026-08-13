@@ -2,12 +2,12 @@
 
 FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本仓库只维护 `D:\fox\foxledger` Web/PWA 前端、Supabase migrations 和 Supabase Edge Function，不包含原生 App 仓库内容。
 
-当前生产基线：**V3.0 狐狐对话记账版**
+当前生产版本：**V3.1 发布候选版（真机 PWA 更新验收中）**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
-V3.1 M0–M4 已完成验收并保存独立提交；`fox-chat` 已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳及受控真实只读问账已通过，等待推送发布和真机 PWA 更新验收；生产站点仍以 V3.0 为准。
+V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账和生产服务器产物核对已通过；等待用户完成真实手机安装态 PWA 更新验收后正式收口。
 
 ## 当前状态
 
@@ -40,7 +40,7 @@ V3.1 M0–M4 已完成验收并保存独立提交；`fox-chat` 已部署。M5 �
 - V3.1 M0 已增加前端与 Edge 共用的环境无关统计模块、严格 query plan / stats envelope / grounded answer 契约，以及统计 drilldown 回归测试。
 - V3.1 M1 已抽取 Edge 公共认证、邮箱白名单、环境变量和 OpenAI client，并实现用户 JWT + publishable key + RLS 的完整只读分页、代码白名单筛选、商家聚合、比较统计和最多 500 条 AI 安全明细选择。
 - V3.1 M2 已实现 `fox-chat` 第一阶段：一次 AI 严格路由记账、问账、澄清和不支持；记账复用 V3.0 服务端清洗，问账只返回 normalized plan，强制意图纠错只允许记账或问账。
-- V3.1 M3 已接通并通过受控验收：RLS 完整查询、代码统计、最多 500 条五字段 AI 明细、第二次 grounded answer、服务端 metric ref 替换、内存连续追问、依据展开和账单筛选跳转；`fox-chat` 已部署，但 V3.1 前端尚未发布。
+- V3.1 M3 已接通并通过受控验收：RLS 完整查询、代码统计、最多 500 条五字段 AI 明细、第二次 grounded answer、服务端 metric ref 替换、内存连续追问、依据展开和账单筛选跳转；`fox-chat` 与 V3.1 前端均已部署。
 - M3 只读层兼容历史分类：未知、空或带首尾空格的分类按现有交易规则归为 `其他`；日期、类型、金额、商家、用户归属和分页完整性仍严格校验。
 - V3.1 M4 已完成本地实现：品牌、财务语义、间距、圆角和阴影 token 收口；登录、首页、账单、统计、设置及狐狐现有表现统一；同步状态显示缓存行数、最近成功时间、具体失败原因和手动重试；未修改同步算法、交易 API、统计口径、数据库 schema 或 AI 数据边界。
 - V3.1 M5 已增加 15 条 Playwright 桌面/Pixel 7/Axe/PWA 流程，覆盖登录、核心导航、统计口径、问账请求白名单、依据、会话清理、离线只读、恢复同步、移动端溢出/焦点、退出清理、WCAG AA 和离线应用壳；验收发现并修复移动端从文本框点击发送时的布局跳动。
@@ -138,7 +138,7 @@ ALLOWED_EMAILS
 
 - `OPENAI_BASE_URL` 可以继续使用个人 VPS 的 OpenAI-compatible 转发地址。
 - `OPENAI_API_KEY` 只放在 Supabase Edge Function secrets，不进入 PWA 前端。
-- 当前生产前端调用 `<SUPABASE_URL>/functions/v1/parse-transaction`；本地 M3 前端已切换到已部署验收的 `<SUPABASE_URL>/functions/v1/fox-chat`，但该前端尚未发布。
+- 当前生产前端调用 `<SUPABASE_URL>/functions/v1/fox-chat`；`parse-transaction` 继续保留为 V3.0 兼容回退能力。
 - 不要在代码、文档、提交记录或截图里写真实密钥。
 
 ## 数据和安全规则
@@ -240,19 +240,17 @@ npm run functions:deploy
 - `npm run test:e2e`：15 条系统 Chrome 桌面、Pixel 7、Axe 与 PWA 流程通过。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
 - 受控真实账号只读问账通过：服务端返回可信范围、代码统计和五字段依据，未产生写操作。
-- 本地生产产物已生成，提交 `94aeba1` 已完成 Vercel 生产部署；生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过。
-- 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
-- M0–M4 人工验收通过，包括解析、候选核对、固定批次保存、最近批次、正式编辑、单删、部分删除后整批撤销、离线限制和刷新恢复。
-- M5 代码、自动化检查、生产部署和真实手机 PWA 更新验收均已通过。
+- V3.1 生产部署通过：主页与 `/chat` 返回 200，主 JS/CSS 哈希匹配本地构建；manifest、Service Worker、23 个唯一预缓存资源和 NetworkOnly 边界核对通过。
+- V3.0 历史发布验收已通过：提交 `94aeba1` 的服务器产物、账单同步、M0–M5 功能和真实手机 PWA 更新均已确认。
 
-V3.0 静态前端已完成生产部署、服务器产物核对和真机 PWA 更新验收。后续生产状态仍必须以实际部署结果为准，不能仅凭本地构建判断。
+V3.1 最新静态前端已完成生产部署和服务器产物核对；真实手机安装态 PWA 更新仍待确认。后续生产状态仍必须以实际部署结果为准，不能仅凭本地构建判断。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
 ## 后续边界
 
-- V3.0 完成发布验收后，才允许按 `docs/V3.1_EXECUTABLE_DESIGN.md` 启动 V3.1。
-- V3.1 M0–M4 已完成验收并保持独立提交；M5 本地、浏览器和受控真实问账已通过。
-- 本地 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复，但生产 PWA 仍是 V3.0；不得把尚未发布的 V3.1 写成生产现状。
-- M5 还需完成推送、生产产物核对和真实手机 PWA 更新验收，完成前不开始 V3.2。
+- V3.0 已完成发布验收并正式收口；V3.1 按 `docs/V3.1_EXECUTABLE_DESIGN.md` 分批实施。
+- V3.1 M0–M4 已完成人工验收并保持独立提交；M5 本地、浏览器、受控真实问账、部署和服务器产物核对已通过。
+- 生产 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复。
+- M5 只剩真实手机安装态 PWA 更新验收，完成前不正式收口、不开始 V3.2。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

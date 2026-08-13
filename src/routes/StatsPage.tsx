@@ -1,12 +1,14 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { RefreshCw } from "lucide-react";
+import { ChartNoAxesCombined, RefreshCw } from "lucide-react";
 
 import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
 import { getStatsForRange } from "@/features/stats/statsApi";
@@ -86,7 +88,18 @@ export function StatsPage() {
 
   return (
     <div className="view-stack">
-      <SectionBlock eyebrow="统计" title="日期范围">
+      <PageIntro
+        description="所有正式数字由代码基于当前用户缓存计算，不交给 AI 统计。"
+        eyebrow="统计"
+        icon={<ChartNoAxesCombined size={24} />}
+        title="看见收支的节奏"
+      />
+
+      <SectionBlock
+        description="选择范围后可点击支出、收入、分类或日期下钻到账单。"
+        eyebrow="范围"
+        title="日期范围"
+      >
         <div className="toolbar-row">
           <div className="chip-row">
             {rangeOptions.map((option) => (
@@ -101,12 +114,12 @@ export function StatsPage() {
           </div>
           <AppButton
             disabled={!isOnline || isSyncing}
-            icon={<RefreshCw size={16} />}
+            icon={<RefreshCw className={isSyncing ? "spin" : undefined} size={16} />}
             type="button"
             variant="secondary"
-            onClick={syncNow}
+            onClick={() => void syncNow().catch(() => undefined)}
           >
-            刷新
+            {isSyncing ? "同步中" : "刷新"}
           </AppButton>
         </div>
 
@@ -143,31 +156,33 @@ export function StatsPage() {
 
       {stats ? (
         <>
-          <section className="stats-grid">
-            <button className="stat-card expense" type="button" onClick={() => drilldown({ type: "expense" })}>
-              <span>总支出</span>
-              <strong>{formatCurrency(stats.summary.expense)}</strong>
-            </button>
-            <button className="stat-card income" type="button" onClick={() => drilldown({ type: "income" })}>
-              <span>总收入</span>
-              <strong>{formatCurrency(stats.summary.income)}</strong>
-            </button>
-            <div className="stat-card balance">
-              <span>结余</span>
-              <strong>{formatCurrency(stats.summary.balance)}</strong>
-            </div>
-            <div className="stat-card">
-              <span>交易笔数</span>
-              <strong>{stats.transactionCount}</strong>
-            </div>
-            <div className="stat-card">
-              <span>日均支出</span>
-              <strong>{formatCurrency(stats.averageDailyExpense)}</strong>
-            </div>
-            <div className="stat-card">
-              <span>最大支出</span>
-              <strong>{formatCurrency(stats.maxExpenseAmount)}</strong>
-            </div>
+          <section className="metric-grid">
+            <MetricCard
+              label="总支出"
+              onClick={() => drilldown({ type: "expense" })}
+              tone="expense"
+              value={formatCurrency(stats.summary.expense)}
+            />
+            <MetricCard
+              label="总收入"
+              onClick={() => drilldown({ type: "income" })}
+              tone="income"
+              value={formatCurrency(stats.summary.income)}
+            />
+            <MetricCard
+              label="结余"
+              tone="balance"
+              value={formatCurrency(stats.summary.balance)}
+            />
+            <MetricCard label="交易笔数" value={`${stats.transactionCount} 笔`} />
+            <MetricCard
+              label="日均支出"
+              value={formatCurrency(stats.averageDailyExpense)}
+            />
+            <MetricCard
+              label="最大支出"
+              value={formatCurrency(stats.maxExpenseAmount)}
+            />
           </section>
 
           <SectionBlock eyebrow="排行" title="分类支出">

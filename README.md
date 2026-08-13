@@ -2,12 +2,12 @@
 
 FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本仓库只维护 `D:\fox\foxledger` Web/PWA 前端、Supabase migrations 和 Supabase Edge Function，不包含原生 App 仓库内容。
 
-当前代码基线：**V3.0 狐狐对话记账版**
+当前生产基线：**V3.0 狐狐对话记账版**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
-当前本地代码已完成并通过 V3.1 M0–M3 验收，尚未推送或发布 V3.1 前端；`fox-chat` 已部署用于受控验收。V3.1 M4–M5 仍未实施，生产站点前端仍以 V3.0 为准。
+V3.1 M0–M3 已完成验收并推送；`fox-chat` 已部署用于受控验收。当前工作区已完成 M4 本地实现和自动化检查，等待用户验收；V3.1 静态前端尚未发布，生产站点仍以 V3.0 为准，M5 未开始。
 
 ## 当前状态
 
@@ -42,6 +42,7 @@ V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生�
 - V3.1 M2 已实现 `fox-chat` 第一阶段：一次 AI 严格路由记账、问账、澄清和不支持；记账复用 V3.0 服务端清洗，问账只返回 normalized plan，强制意图纠错只允许记账或问账。
 - V3.1 M3 已接通并通过受控验收：RLS 完整查询、代码统计、最多 500 条五字段 AI 明细、第二次 grounded answer、服务端 metric ref 替换、内存连续追问、依据展开和账单筛选跳转；`fox-chat` 已部署，但 V3.1 前端尚未发布。
 - M3 只读层兼容历史分类：未知、空或带首尾空格的分类按现有交易规则归为 `其他`；日期、类型、金额、商家、用户归属和分页完整性仍严格校验。
+- V3.1 M4 已完成本地实现：品牌、财务语义、间距、圆角和阴影 token 收口；登录、首页、账单、统计、设置及狐狐现有表现统一；同步状态显示缓存行数、最近成功时间、具体失败原因和手动重试；未修改同步算法、交易 API、统计口径、数据库 schema 或 AI 数据边界。
 - Vercel 已按 Vite 静态前端部署，线上不再依赖旧 Next `/api/parse-transaction`。
 
 当前限制：
@@ -232,9 +233,9 @@ npm run functions:deploy
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run test`：30 个测试文件、145 项测试通过。
+- `npm run test`：33 个测试文件、156 项测试通过。
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
-- `npm run verify:v3`：通过；Chat gzip 9932 B，狐狐资源 443 B，PWA NetworkOnly/本地图片边界正常。
+- `npm run verify:v3`：通过；Chat gzip 9907 B，狐狐资源 443 B，PWA NetworkOnly/本地图片边界正常。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
 - 本地生产产物已生成，提交 `94aeba1` 已完成 Vercel 生产部署；生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过。
 - 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
@@ -248,7 +249,7 @@ V3.0 静态前端已完成生产部署、服务器产物核对和真机 PWA 更�
 ## 后续边界
 
 - V3.0 完成发布验收后，才允许按 `docs/V3.1_EXECUTABLE_DESIGN.md` 启动 V3.1。
-- V3.1 M0–M3 已完成并通过验收，各批次保持独立本地提交边界；当前尚未推送或发布 V3.1 前端。
-- 本地 PWA 已接入 `fox-chat`，但生产 PWA 仍是 V3.0 `parse-transaction`；不得把本地 M3 写成生产现状。
-- M4 全站体验统一和 M5 浏览器/真机/发布验收仍未开始，必须等待用户明确开始下一批。
+- V3.1 M0–M3 已完成验收、保持独立提交并推送；M4 已完成本地实现和自动化检查，等待用户验收。
+- 本地 PWA 已接入 `fox-chat` 和 M4 全站视觉/同步诊断，但生产 PWA 仍是 V3.0；不得把本地 V3.1 写成生产现状。
+- M5 浏览器、真机和发布验收尚未开始，必须等待用户明确开始下一批。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

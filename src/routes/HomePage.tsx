@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { MessageCircle, Plus } from "lucide-react";
+import { MessageCircle, Plus, WalletCards } from "lucide-react";
 
 import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
+import { MetricCard } from "@/components/ui/MetricCard";
+import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
 import { getStatsForRange } from "@/features/stats/statsApi";
@@ -45,24 +47,42 @@ export function HomePage() {
 
   return (
     <div className="view-stack">
-      <SectionBlock eyebrow="本月" title="概览">
-        <div className="summary-grid">
-          <div className="summary-card expense">
-            <span>支出</span>
-            <strong>{formatCurrency(summary?.expense ?? 0)}</strong>
-          </div>
-          <div className="summary-card income">
-            <span>收入</span>
-            <strong>{formatCurrency(summary?.income ?? 0)}</strong>
-          </div>
-          <div className="summary-card balance">
-            <span>结余</span>
-            <strong>{formatCurrency(summary?.balance ?? 0)}</strong>
-          </div>
+      <PageIntro
+        description="手动记账、狐狐问账与离线缓存，都从同一本可靠账本出发。"
+        eyebrow="今日账本"
+        icon={<WalletCards size={24} />}
+        title="收支清楚，记账轻松"
+      />
+
+      <SectionBlock
+        description={`${monthRange.startDate} 至 ${monthRange.endDate}`}
+        eyebrow="本月"
+        title="收支概览"
+      >
+        <div className="metric-grid compact">
+          <MetricCard
+            label="支出"
+            tone="expense"
+            value={formatCurrency(summary?.expense ?? 0)}
+          />
+          <MetricCard
+            label="收入"
+            tone="income"
+            value={formatCurrency(summary?.income ?? 0)}
+          />
+          <MetricCard
+            label="结余"
+            tone="balance"
+            value={formatCurrency(summary?.balance ?? 0)}
+          />
         </div>
       </SectionBlock>
 
-      <SectionBlock eyebrow="手动" title="新增账单">
+      <SectionBlock
+        description="保存后会立即刷新云端数据和本地只读缓存。"
+        eyebrow="手动"
+        title="新增账单"
+      >
         {!isOnline ? (
           <StateBlock title="离线缓存" tone="warning">
             当前只能查看已同步缓存，联网后可保存正式账单。
@@ -91,9 +111,9 @@ export function HomePage() {
       <Link className="chat-entry-card" to="/chat">
         <span className="chat-entry-icon"><MessageCircle size={24} aria-hidden="true" /></span>
         <span>
-          <small>AI 候选确认</small>
-          <strong>和狐狐记一笔</strong>
-          <em>用一句话整理多笔账单，核对后再记账。</em>
+          <small>AI 记账与问账</small>
+          <strong>和狐狐聊聊账本</strong>
+          <em>一句话记账，或基于云端事实查看有依据的回答。</em>
         </span>
         <span aria-hidden="true">进入</span>
       </Link>

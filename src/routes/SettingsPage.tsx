@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings2 } from "lucide-react";
 
 import { useAuth } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
+import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { ImportTransactions } from "@/features/import/ImportTransactions";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import { getErrorMessage } from "@/lib/errors";
+import { formatDateTime } from "@/lib/format";
 
 export function SettingsPage() {
   const { signOut, user } = useAuth();
@@ -34,12 +36,25 @@ export function SettingsPage() {
 
   return (
     <div className="view-stack">
-      <SectionBlock eyebrow="账号" title="登录信息">
+      <PageIntro
+        description="管理登录、隐私说明和 CSV 导入，不在浏览器保存聊天内容。"
+        eyebrow="设置"
+        icon={<Settings2 size={24} />}
+        title="账号与数据边界"
+      />
+
+      <SectionBlock
+        description="缓存行数来自当前用户最近一次完整同步。"
+        eyebrow="账号"
+        title="登录信息"
+      >
         <div className="account-panel">
           <span>当前邮箱</span>
           <strong>{user?.email ?? "未知"}</strong>
           <span>缓存行数</span>
           <strong>{syncMeta?.row_count ?? 0}</strong>
+          <span>最近同步</span>
+          <strong>{formatDateTime(syncMeta?.last_successful_sync_at ?? null)}</strong>
         </div>
         {message ? <p className="form-message danger">{message}</p> : null}
         <AppButton

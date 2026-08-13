@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { getRouteApi } from "@tanstack/react-router";
-import { RefreshCw, Search, Trash2 } from "lucide-react";
+import { ReceiptText, RefreshCw, Search, Trash2 } from "lucide-react";
 
 import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
+import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
 import { useSyncState } from "@/features/sync/SyncProvider";
@@ -153,16 +154,27 @@ export function TransactionsPage() {
 
   return (
     <div className="view-stack">
-      <SectionBlock eyebrow="账单" title="筛选和汇总">
+      <PageIntro
+        description="搜索、筛选和管理当前用户已完整同步的账单缓存。"
+        eyebrow="账单"
+        icon={<ReceiptText size={24} />}
+        title="每一笔都有来处"
+      />
+
+      <SectionBlock
+        description="筛选只影响当前列表，不会修改云端账单。"
+        eyebrow="查找"
+        title="筛选和汇总"
+      >
         <div className="toolbar-row">
           <AppButton
             disabled={!isOnline || isSyncing}
-            icon={<RefreshCw size={16} />}
+            icon={<RefreshCw className={isSyncing ? "spin" : undefined} size={16} />}
             type="button"
             variant="secondary"
-            onClick={syncNow}
+            onClick={() => void syncNow().catch(() => undefined)}
           >
-            刷新
+            {isSyncing ? "同步中" : "刷新"}
           </AppButton>
           <AppButton
             type="button"

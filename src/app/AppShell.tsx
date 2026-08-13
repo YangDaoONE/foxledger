@@ -6,7 +6,7 @@ import { SyncStatusBanner } from "@/features/sync/SyncStatusBanner";
 import { SyncProvider, useSyncState } from "@/features/sync/SyncProvider";
 
 function AppShellContent() {
-  const { isOnline, isSyncing, syncError, syncMeta, syncPhase } = useSyncState();
+  const { isOnline, isSyncing, syncError, syncMeta, syncNow, syncPhase } = useSyncState();
 
   return (
     <>
@@ -21,8 +21,12 @@ function AppShellContent() {
           isOnline={isOnline}
           isSyncing={isSyncing}
           lastSuccessfulSyncAt={syncMeta?.last_successful_sync_at ?? null}
+          rowCount={syncMeta?.row_count ?? 0}
           syncError={syncError}
           syncPhase={syncPhase}
+          onRetry={() => {
+            void syncNow().catch(() => undefined);
+          }}
         />
         <Outlet />
       </main>

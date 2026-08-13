@@ -53,6 +53,15 @@ export function SettingsPage() {
         </AppButton>
       </SectionBlock>
 
+      <SectionBlock eyebrow="AI 与隐私" title="狐狐如何使用账本数据">
+        <p className="settings-help-text">
+          记账时只发送当前输入文字。问账时，服务端会在当前用户 RLS 边界内读取云端相关账单，向当前配置的 AI 服务发送代码计算的完整相关统计，以及最多 500 条仅含日期、类型、金额、分类和商家的相关明细。Dexie 本地缓存、备注、账户、支付方式、原文、用户 ID 和交易 ID 不会发送给 AI。
+        </p>
+        <p className="settings-help-text">
+          AI 只生成候选或解释：记账仍需你确认后才写入，问账回答不会自动新增、修改或删除账单。
+        </p>
+      </SectionBlock>
+
       {user ? (
         <ImportTransactions
           isOnline={isOnline}

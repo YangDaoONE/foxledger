@@ -9,6 +9,7 @@ import {
 import {
   LEDGER_QUERY_CATEGORIES,
   LEDGER_TRANSACTION_TYPES,
+  isLedgerIsoDate,
   parseLedgerQueryPlan,
   type LedgerDateRange,
   type LedgerQueryFilters,
@@ -86,6 +87,15 @@ function isAllowedCategory(value: unknown): value is string {
   );
 }
 
+function normalizeLedgerCategory(value: unknown) {
+  if (value !== null && typeof value !== "string") {
+    throw new Error("账单查询发现无效分类字段，未生成部分统计。");
+  }
+
+  const category = value?.trim() ?? "";
+  return isAllowedCategory(category) ? category : "其他";
+}
+
 function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerReadRow {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("账单查询返回了无效行，未生成部分统计。");
@@ -107,21 +117,27 @@ function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerR
     throw new Error("账单查询返回了不属于当前用户的数据，未生成部分统计。");
   }
 
-  if (
-    typeof row.date !== "string" ||
-    !/^\d{4}-\d{2}-\d{2}$/.test(row.date) ||
-    !isAllowedTransactionType(row.type) ||
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    !isAllowedCategory(row.category) ||
-    (row.merchant !== null && typeof row.merchant !== "string")
-  ) {
-    throw new Error("账单查询返回了不符合统计契约的数据，未生成部分统计。");
+  if (typeof row.date !== "string" || !isLedgerIsoDate(row.date)) {
+    throw new Error("账单查询发现无效日期字段，未生成部分统计。");
   }
+
+  if (!isAllowedTransactionType(row.type)) {
+    throw new Error("账单查询发现无效类型字段，未生成部分统计。");
+  }
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("账单查询发现无效金额字段，未生成部分统计。");
+  }
+
+  if (row.merchant !== null && typeof row.merchant !== "string") {
+    throw new Error("账单查询发现无效商家字段，未生成部分统计。");
+  }
+
+  const category = normalizeLedgerCategory(row.category);
 
   return {
     amount,
-    category: row.category,
+    category,
     date: row.date,
     id: row.id,
     merchant: row.merchant?.trim() || null,

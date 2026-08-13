@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 
 import { AppButton } from "@/components/ui/AppButton";
-import { MAX_PARSE_INPUT_CHARS } from "@/features/ai/parseTransactionApi";
+import { MAX_FOX_CHAT_INPUT_CHARS } from "@/features/chat/foxChatConstants";
 
 type ChatComposerProps = {
   isOnline: boolean;
@@ -67,15 +67,15 @@ export function ChatComposer({
       }}
     >
       <label className="chat-composer-field">
-        <span className="sr-only">告诉狐狐要记录的账单</span>
+        <span className="sr-only">告诉狐狐要记的账或要问的账</span>
         <textarea
           aria-describedby="chat-composer-meta"
           disabled={!isOnline || isParsing}
           enterKeyHint="send"
           inputMode="text"
-          maxLength={MAX_PARSE_INPUT_CHARS}
+          maxLength={MAX_FOX_CHAT_INPUT_CHARS}
           onChange={(event) => setText(event.target.value)}
-          placeholder={isOnline ? "例如：午饭 32，地铁 6" : "联网后可以和狐狐记账"}
+          placeholder={isOnline ? "例如：午饭 32；或问：本月餐饮花了多少" : "联网后可以和狐狐记账或问账"}
           rows={2}
           value={text}
           onBlur={() => {
@@ -93,10 +93,10 @@ export function ChatComposer({
       </label>
       <div className="chat-composer-actions">
         <span id="chat-composer-meta">
-          {text.length} / {MAX_PARSE_INPUT_CHARS}
+          {text.length} / {MAX_FOX_CHAT_INPUT_CHARS}
         </span>
         <AppButton
-          aria-label="发送给狐狐解析"
+          aria-label="发送给狐狐"
           disabled={!trimmed || !isOnline || isParsing}
           icon={<Send size={17} />}
           type="submit"

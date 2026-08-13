@@ -8,7 +8,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
-当前本地代码已完成 V3.1 M0–M2 的代码与自动化检查，尚未推送或发布；V3.1 M3–M5 未实施，生产站点仍以 V3.0 为准。
+当前本地代码已完成并通过 V3.1 M0–M3 验收，尚未推送或发布 V3.1 前端；`fox-chat` 已部署用于受控验收。V3.1 M4–M5 未实施，生产站点前端仍以 V3.0 为准。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -38,7 +38,8 @@ FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐
 - 日期范围统计和 drilldown 到账单页筛选。
 - V3.1 M0 环境无关共享统计规则、严格 query plan / stats envelope / grounded answer 契约和统计 drilldown 回归测试。
 - V3.1 M1 Edge 公共认证、邮箱白名单、环境变量、OpenAI client，以及用户 JWT + publishable key + RLS 的完整只读分页、白名单筛选、商家聚合和最多 500 条 AI 安全明细选择。
-- V3.1 M2 尚未部署的 `fox-chat` 第一次 AI：严格区分记账、问账、澄清和不支持，记账复用 V3.0 清洗，问账只返回 normalized plan，支持强制记账/问账纠错。
+- V3.1 M2 `fox-chat` 第一次 AI：严格区分记账、问账、澄清和不支持，记账复用 V3.0 清洗，问账只返回 normalized plan，支持强制记账/问账纠错。
+- V3.1 M3 已部署验收的只读问账闭环：完整 RLS 查询、代码统计、最多 500 条五字段 AI 明细、grounded answer、服务端 metric ref 替换、normalized 内存追问、依据展示和账单筛选跳转。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Vercel 只部署 Vite 静态前端，线上不再使用旧 Next API。
 
@@ -62,7 +63,7 @@ FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐
 - 不要引入 Supabase `service_role` key。
 - 不要绕过 Supabase RLS。
 - 不要让 AI 直接写数据库。
-- 不要把历史账单、统计数据或本地缓存发给 AI。
+- 记账不得把历史账单、统计或本地缓存发给 AI；问账只允许发送当前用户云端相关的代码统计和最多 500 条 `date/type/amount/category/merchant` 明细，绝不发送 Dexie、旧消息、旧回答或禁止字段。
 - AI 结果必须用户确认后才入库。
 - 统计必须由代码基于当前用户数据计算，不能调用 AI。
 - 不要修改 Supabase schema，除非用户明确要求并先确认方案。
@@ -225,15 +226,21 @@ updated_at
 同步失败，显示上次缓存
 ```
 
-## 6. AI 解析规则
+## 6. AI 记账与问账规则
 
-当前 AI 业务 API：
+生产 V3.0 AI 业务 API：
 
 ```text
 supabase/functions/parse-transaction/index.ts
 ```
 
-PWA 前端调用：
+V3.1 M3 已部署验收、但生产前端尚未接入的统一 API：
+
+```text
+supabase/functions/fox-chat/index.ts
+```
+
+生产 V3.0 PWA 前端调用：
 
 ```text
 POST <SUPABASE_URL>/functions/v1/parse-transaction
@@ -242,6 +249,8 @@ apikey: <supabase_publishable_key>
 Content-Type: application/json
 ```
 
+本地 V3.1 M3 PWA 调用相同认证头的 `/functions/v1/fox-chat`；上线前必须先部署并验收该函数。
+
 必须保持：
 
 - Edge Function 必须要求登录。
@@ -249,18 +258,20 @@ Content-Type: application/json
 - 邮箱白名单 `ALLOWED_EMAILS` 必须保留。
 - Edge Function 不使用 `service_role` key。
 - `OPENAI_API_KEY`、`OPENAI_BASE_URL`、`OPENAI_MODEL` 只存在于 Supabase Edge Function secrets。
-- 服务端只验证 token，不读取历史账单。
-- AI 只能解析当前输入文本。
-- 不把历史账单、统计数据、本地缓存、银行卡号、身份证号、完整地址等敏感信息给 AI。
+- 记账路径只能解析当前输入文本，不读取历史账单或统计。
+- 问账第一次 AI 只能接收当前问题、服务端日期与可选的 normalized query context；context 不得包含旧消息、旧回答、统计或明细。
+- 问账数据源只能是当前用户 JWT + publishable key + RLS 下的云端相关账单，不能读取或上传 Dexie。
+- 第二次 AI 只允许接收代码计算的完整相关统计和最多 500 条 `date/type/amount/category/merchant` 明细；不得发送 `id/user_id/raw_text/note/account/payment_method/tag/ai_confidence/created_at/updated_at`。
+- AI 返回的问账数字必须引用服务端允许的 metric ref，经存在性和模板一致性验证后由代码替换；未引用数字、未知 metric/evidence ref 必须拒绝。
 - AI 返回结果必须先 `JSON.parse`。
 - AI 返回结果必须服务端二次校验和清洗。
 - AI 不允许直接写数据库。
-- AI 不允许计算统计。
+- AI 不允许生成正式统计；统计必须由共享代码计算，第二次 AI 只解释。
 - 用户确认后才写入 Supabase。
 - 新 V3.0 AI 账单写库时不得提交 `raw_text`；`raw_text` 只允许存在于当前内存候选核对期间。
 - 离线时不允许 AI 解析或保存 AI 候选。
 
-`supabase/config.toml` 中 `parse-transaction` 设置了 `verify_jwt = false`，用于让函数自己处理 CORS preflight 和中文错误响应；这不代表放弃登录校验，函数内部必须继续用 Supabase access token 验证用户。
+`supabase/config.toml` 中 `parse-transaction` 和 `fox-chat` 设置了 `verify_jwt = false`，用于让函数自己处理 CORS preflight 和中文错误响应；这不代表放弃登录校验，函数内部必须继续用 Supabase access token 验证用户。
 
 ## 7. CSV 导入规则
 
@@ -328,6 +339,7 @@ supabase/functions/fox-chat/index.ts
 - 统计不调用 AI。
 - 统计 query key 独立于 transactions，使用 `["stats", userId, rangeKey...]`。
 - 统计 drilldown 只切换到账单页并应用筛选，不新增数据库表。
+- AI 问账以云端当前用户 RLS 结果为事实源，由同一共享纯计算规则生成正式统计；Dexie 统计页仍保持现有离线缓存口径。
 
 ## 9. UI/UX 规则
 
@@ -373,7 +385,7 @@ supabase/functions/fox-chat/index.ts
 规则：
 
 - Vite PWA 部署为静态前端。
-- AI API 部署到 Supabase Edge Function `parse-transaction`。
+- AI API 部署到 Supabase Edge Functions `parse-transaction` 与 `fox-chat`；V3.1 前端切换前必须先部署并验收 `fox-chat`。
 - 线上 PWA 不需要旧 Next `/api/parse-transaction` rewrite。
 - 修改 Supabase Edge Function secrets 后，需要重新部署或确认函数使用最新 secrets。
 - 不要把 `.env.local` 提交到 GitHub。
@@ -428,6 +440,6 @@ npm run verify:v3
 ## 13. 后续阶段边界
 
 - V3.0 发布验收完成后，只有用户明确要求时才开始 `docs/V3.1_EXECUTABLE_DESIGN.md`。
-- V3.1 M2 已完成本地代码和自动化检查；只有用户明确要求时才开始 M3“第二次 AI 与有依据回答”。
-- 不得把 V3.1 的 AI 问账、连续追问或全站体验统一写成当前已完成功能。
+- V3.1 M3 已完成代码、自动化和受控人工验收；只有用户明确要求时才开始 M4“全站体验统一”。
+- 不得把本地 V3.1 AI 问账写成生产已完成功能，也不得提前实施 M4/M5。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

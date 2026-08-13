@@ -5,8 +5,8 @@ import type { ParsedTransactionBatch } from "@/features/ai/types";
 
 const mocks = vi.hoisted(() => ({
   insertAiBatchTransactionsForUser: vi.fn(),
-  parseTransactionsWithAi: vi.fn(),
   refreshAfterWrite: vi.fn(),
+  sendFoxChatMessage: vi.fn(),
   userId: "user-1",
 }));
 
@@ -14,9 +14,9 @@ vi.mock("@/auth/AuthProvider", () => ({
   useAuthUser: () => ({ id: mocks.userId }),
 }));
 
-vi.mock("@/features/ai/parseTransactionApi", () => ({
-  MAX_PARSE_INPUT_CHARS: 3000,
-  parseTransactionsWithAi: mocks.parseTransactionsWithAi,
+vi.mock("@/features/chat/foxChatApi", () => ({
+  MAX_FOX_CHAT_INPUT_CHARS: 3000,
+  sendFoxChatMessage: mocks.sendFoxChatMessage,
 }));
 
 vi.mock("@/features/sync/SyncProvider", () => ({
@@ -92,11 +92,55 @@ function SessionProbe() {
   );
 }
 
+function createQueryResult(label = "本月") {
+  const plan = {
+    answer_goal: "summary" as const,
+    operations: [
+      {
+        filters: {
+          categories: ["餐饮"],
+          keyword: null,
+          maxAmount: null,
+          merchants: [],
+          minAmount: null,
+          types: ["expense" as const],
+        },
+        groupBy: ["category" as const],
+        metrics: ["expense" as const],
+        order: "amount_desc" as const,
+        range: {
+          endDate: "2026-08-31",
+          label,
+          startDate: "2026-08-01",
+        },
+      },
+    ],
+  };
+
+  return {
+    answer: {
+      evidenceRefs: [],
+      metricRefs: ["operations.0.stats.summary.expense"],
+      suggestion: null,
+      text: "本月餐饮支出 ¥32.00。",
+    },
+    answer_error: null,
+    answer_status: "ready" as const,
+    context: { date_anchor: "2026-08-13", intent: "query_ledger" as const, plan },
+    intent: "query_ledger" as const,
+    operations: [],
+    plan,
+  };
+}
+
 describe("ChatSessionProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.userId = "user-1";
-    mocks.parseTransactionsWithAi.mockResolvedValue(parseResult);
+    mocks.sendFoxChatMessage.mockResolvedValue({
+      intent: "record_transaction",
+      ledger_result: parseResult,
+    });
     mocks.refreshAfterWrite.mockResolvedValue(undefined);
     mocks.insertAiBatchTransactionsForUser.mockImplementation(
       async (_userId: string, transactions: Array<{ ai_batch_id: string; id: string }>) => ({
@@ -107,7 +151,7 @@ describe("ChatSessionProvider", () => {
     );
   });
 
-  it("每次只把当前输入文本交给 parser，不发送历史消息或缓存", async () => {
+  it("每次只发送当前输入和严格内存上下文，不发送历史消息或缓存", async () => {
     const localStorageSpy = vi.spyOn(Storage.prototype, "setItem");
     render(
       <ChatSessionProvider>
@@ -116,15 +160,15 @@ describe("ChatSessionProvider", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "发送午饭" }));
-    await waitFor(() => expect(mocks.parseTransactionsWithAi).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByTestId("message-count")).toHaveTextContent("2"));
 
     fireEvent.click(screen.getByRole("button", { name: "发送地铁" }));
-    await waitFor(() => expect(mocks.parseTransactionsWithAi).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(2));
 
-    expect(mocks.parseTransactionsWithAi.mock.calls).toEqual([
-      ["午饭 32"],
-      ["地铁 6"],
+    expect(mocks.sendFoxChatMessage.mock.calls).toEqual([
+      [{ previousContext: null, text: "午饭 32" }],
+      [{ previousContext: null, text: "地铁 6" }],
     ]);
     expect(localStorageSpy).not.toHaveBeenCalled();
   });
@@ -151,10 +195,34 @@ describe("ChatSessionProvider", () => {
     expect(screen.getByTestId("message-count")).toHaveTextContent("0");
   });
 
+  it("连续追问只携带上一轮服务端返回的 normalized context", async () => {
+    const firstResult = createQueryResult();
+    mocks.sendFoxChatMessage
+      .mockResolvedValueOnce(firstResult)
+      .mockResolvedValueOnce(createQueryResult("上月"));
+    render(
+      <ChatSessionProvider>
+        <SessionProbe />
+      </ChatSessionProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "发送午饭" }));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByTestId("message-count")).toHaveTextContent("2"));
+    fireEvent.click(screen.getByRole("button", { name: "发送地铁" }));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(2));
+
+    expect(mocks.sendFoxChatMessage.mock.calls[1][0]).toEqual({
+      previousContext: firstResult.context,
+      text: "地铁 6",
+    });
+    expect(localStorage.getItem("fox-chat-context")).toBeNull();
+  });
+
   it("空解析只显示确定性错误，不创建空结果卡", async () => {
-    mocks.parseTransactionsWithAi.mockResolvedValue({
-      ...parseResult,
-      transactions: [],
+    mocks.sendFoxChatMessage.mockResolvedValue({
+      intent: "record_transaction",
+      ledger_result: { ...parseResult, transactions: [] },
     });
     render(
       <ChatSessionProvider>
@@ -165,7 +233,10 @@ describe("ChatSessionProvider", () => {
     fireEvent.click(screen.getByRole("button", { name: "发送午饭" }));
 
     await waitFor(() => expect(screen.getByTestId("message-count")).toHaveTextContent("2"));
-    expect(mocks.parseTransactionsWithAi).toHaveBeenCalledWith("午饭 32");
+    expect(mocks.sendFoxChatMessage).toHaveBeenCalledWith({
+      previousContext: null,
+      text: "午饭 32",
+    });
   });
 
   it("远端保存成功但缓存刷新失败时不重复写入，只重试同步", async () => {

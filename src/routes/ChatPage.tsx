@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
 
 import { BatchDetailSheet } from "@/features/chat/BatchDetailSheet";
 import { ChatComposer } from "@/features/chat/ChatComposer";
@@ -6,6 +7,7 @@ import { ChatMessageList } from "@/features/chat/ChatMessageList";
 import { FoxMascot, type FoxMascotState } from "@/features/chat/FoxMascot";
 import { RecentAiBatchesPanel } from "@/features/chat/RecentAiBatchesPanel";
 import { useChatSession } from "@/features/chat/ChatSessionProvider";
+import { createLedgerQueryNavigation } from "@/features/chat/ledgerQueryNavigation";
 import { useSyncState } from "@/features/sync/SyncProvider";
 
 type SelectedCandidate = {
@@ -14,6 +16,7 @@ type SelectedCandidate = {
 };
 
 export function ChatPage() {
+  const navigate = useNavigate();
   const {
     completeCandidateReview,
     confirmBatch,
@@ -59,7 +62,10 @@ export function ChatPage() {
 
     const latestResult = [...state.messages]
       .reverse()
-      .find((message) => message.type === "ledger_result");
+      .find(
+        (message) =>
+          message.type === "ledger_result" || message.type === "query_result",
+      );
 
     if (latestResult?.type === "ledger_result") {
       if (
@@ -98,9 +104,9 @@ export function ChatPage() {
       <section className="chat-hero">
         <FoxMascot state={mascotState} />
         <div>
-          <p>狐狐对话记账</p>
-          <h2>告诉我这一笔</h2>
-          <span>我会先整理成候选，核对前不会写入账本。</span>
+          <p>狐狐记账与问账</p>
+          <h2>记一笔，也可以问账</h2>
+          <span>记账先生成候选；问账只读云端事实，任何回答都不会自动改账。</span>
         </div>
       </section>
 
@@ -114,6 +120,7 @@ export function ChatPage() {
         isOnline={isOnline}
         messages={state.messages}
         onConfirmBatch={(messageId) => void confirmBatch(messageId)}
+        onCorrectIntent={(text, intent) => void sendMessage(text, intent)}
         onOpenCandidate={(messageId, candidateId, trigger) => {
           lastDetailTriggerRef.current = trigger;
           setSelectedCandidate({ candidateId, messageId });
@@ -127,6 +134,26 @@ export function ChatPage() {
           ) {
             closeDetails();
           }
+        }}
+        onOpenQueryTransactions={(messageId, operationIndex) => {
+          const message = state.messages.find(
+            (item) => item.id === messageId && item.type === "query_result",
+          );
+
+          if (!message || message.type !== "query_result") {
+            return;
+          }
+
+          const operation = message.result.plan.operations[operationIndex];
+
+          if (!operation) {
+            return;
+          }
+
+          void navigate({
+            search: createLedgerQueryNavigation(operation).search,
+            to: "/transactions",
+          });
         }}
         onRetryBatchSync={(messageId) => void retryBatchSync(messageId)}
       />

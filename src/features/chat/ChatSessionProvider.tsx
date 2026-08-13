@@ -11,10 +11,6 @@ import {
 
 import { useAuthUser } from "@/auth/AuthProvider";
 import {
-  MAX_PARSE_INPUT_CHARS,
-  parseTransactionsWithAi,
-} from "@/features/ai/parseTransactionApi";
-import {
   chatReducer,
   createChatCandidateBatch,
   createInitialChatState,
@@ -22,6 +18,10 @@ import {
 import { createChatBatchInsertRequest } from "@/features/chat/chatBatchSave";
 import { canConfirmCandidateBatch } from "@/features/chat/batchCalculations";
 import type { ChatState } from "@/features/chat/chatTypes";
+import {
+  MAX_FOX_CHAT_INPUT_CHARS,
+  sendFoxChatMessage,
+} from "@/features/chat/foxChatApi";
 import type { ConfirmTransactionDraft } from "@/features/ai/types";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import {
@@ -30,6 +30,7 @@ import {
 } from "@/features/transactions/transactionsApi";
 import { getErrorMessage } from "@/lib/errors";
 import { getNetworkOnlineState } from "@/lib/networkStatus";
+import type { ForcedChatIntent } from "@shared/chatIntent";
 
 type ChatSessionContextValue = {
   beginBatchUndo: (batchId: string) => void;
@@ -39,7 +40,7 @@ type ChatSessionContextValue = {
   markBatchUndone: (batchId: string) => void;
   removeCandidate: (messageId: string, candidateId: string) => void;
   retryBatchSync: (messageId: string) => Promise<void>;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, forcedIntent?: ForcedChatIntent) => Promise<void>;
   state: ChatState;
   updateCandidate: (
     messageId: string,
@@ -49,6 +50,19 @@ type ChatSessionContextValue = {
 };
 
 const ChatSessionContext = createContext<ChatSessionContextValue | null>(null);
+
+const clarificationMessages = {
+  intent_ambiguous: "我还不确定你是想记账还是问账，请选择后重试这句话。",
+  missing_query_scope: "问账还缺少明确范围，请补充时间、分类或想看的指标。",
+  missing_transaction_details: "记账信息还不完整，请补充金额和用途，或选择意图后重试。",
+} as const;
+
+const unsupportedMessages = {
+  financial_advice: "狐狐可以整理账本事实，但不能提供具体投资产品或专业投资建议。",
+  general_chat: "狐狐目前专注于记账和账本问答。",
+  not_ledger_related: "这次输入似乎与记账或账本问题无关。",
+  unsupported_capability: "狐狐目前只处理文字记账和账本问答，暂不支持图片、语音或其他操作。",
+} as const;
 
 export function ChatSessionProvider({ children }: { children: ReactNode }) {
   const user = useAuthUser();
@@ -70,7 +84,10 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "reset", userId: user.id });
   }, [user.id]);
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (
+    text: string,
+    forcedIntent?: ForcedChatIntent,
+  ) => {
     const trimmed = text.trim();
 
     if (!trimmed || parseInFlightRef.current) {
@@ -87,7 +104,7 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
           createdAt,
           id: errorMessageId,
           role: "assistant",
-          text: "离线时不能使用狐狐解析，请联网后再试。",
+          text: "离线时不能使用狐狐记账或问账，请联网后再试。",
           type: "error",
         },
         type: "parse_failed",
@@ -96,13 +113,13 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    if (trimmed.length > MAX_PARSE_INPUT_CHARS) {
+    if (trimmed.length > MAX_FOX_CHAT_INPUT_CHARS) {
       dispatch({
         errorMessage: {
           createdAt,
           id: errorMessageId,
           role: "assistant",
-          text: `输入不能超过 ${MAX_PARSE_INPUT_CHARS} 字。`,
+          text: `输入不能超过 ${MAX_FOX_CHAT_INPUT_CHARS} 字。`,
           type: "error",
         },
         type: "parse_failed",
@@ -131,34 +148,77 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     });
 
     try {
-      const result = await parseTransactionsWithAi(trimmed);
+      const result = await sendFoxChatMessage({
+        ...(forcedIntent ? { forcedIntent } : {}),
+        previousContext: stateRef.current.previousContext,
+        text: trimmed,
+      });
 
       if (userIdRef.current !== userId) {
         return;
       }
 
-      if (result.transactions.length === 0) {
+      if (result.intent === "record_transaction") {
+        if (result.ledger_result.transactions.length === 0) {
+          dispatch({
+            errorMessage: {
+              createdAt: new Date().toISOString(),
+              id: crypto.randomUUID(),
+              role: "assistant",
+              text: "没有识别到账单，请补充金额和用途后再试。",
+              type: "error",
+            },
+            type: "parse_failed",
+            userId,
+          });
+          return;
+        }
+
         dispatch({
-          errorMessage: {
+          resultMessage: {
+            batch: createChatCandidateBatch(
+              result.ledger_result.transactions,
+              result.ledger_result.truncated,
+            ),
             createdAt: new Date().toISOString(),
             id: crypto.randomUUID(),
             role: "assistant",
-            text: "没有识别到账单，请补充金额和用途后再试。",
-            type: "error",
+            type: "ledger_result",
           },
-          type: "parse_failed",
+          type: "parse_succeeded",
           userId,
         });
         return;
       }
 
+      if (result.intent === "query_ledger") {
+        dispatch({
+          previousContext: result.context,
+          resultMessage: {
+            createdAt: new Date().toISOString(),
+            id: crypto.randomUUID(),
+            result,
+            role: "assistant",
+            type: "query_result",
+          },
+          type: "parse_succeeded",
+          userId,
+        });
+        return;
+      }
+
+      const text =
+        result.intent === "clarify"
+          ? clarificationMessages[result.clarification_key]
+          : unsupportedMessages[result.reason_key];
       dispatch({
         resultMessage: {
-          batch: createChatCandidateBatch(result.transactions, result.truncated),
           createdAt: new Date().toISOString(),
           id: crypto.randomUUID(),
+          originalText: trimmed,
           role: "assistant",
-          type: "ledger_result",
+          text,
+          type: "intent_notice",
         },
         type: "parse_succeeded",
         userId,

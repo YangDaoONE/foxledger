@@ -42,22 +42,28 @@ function createQueryPlan() {
   };
 }
 
-describe("fox-chat M2 请求契约", () => {
-  it("只接受当前文本、空上下文和两个强制意图", () => {
+describe("fox-chat M3 请求契约", () => {
+  it("只接受当前文本、严格查询上下文和两个强制意图", () => {
+    const previousContext = {
+      date_anchor: today,
+      intent: "query_ledger",
+      plan: createQueryPlan(),
+    };
+
     expect(
       validateFoxChatRequestBody({
         forced_intent: "query_ledger",
-        previous_context: null,
+        previous_context: previousContext,
         text: "本月餐饮花了多少？",
       }),
     ).toEqual({
       forced_intent: "query_ledger",
-      previous_context: null,
+      previous_context: previousContext,
       text: "本月餐饮花了多少？",
     });
   });
 
-  it("拒绝未知字段、任意 user_id、非法强制意图和非空历史上下文", () => {
+  it("拒绝未知字段、任意 user_id、非法强制意图和夹带历史内容的上下文", () => {
     expect(() =>
       validateFoxChatRequestBody({ text: "本月支出", user_id: "user-2" }),
     ).toThrow(InputValidationError);
@@ -69,7 +75,18 @@ describe("fox-chat M2 请求契约", () => {
         previous_context: { old_message: "历史账单" },
         text: "那上个月呢？",
       }),
-    ).toThrow("当前版本暂不支持连续追问");
+    ).toThrow(/previous_context/);
+    expect(() =>
+      validateFoxChatRequestBody({
+        previous_context: {
+          date_anchor: today,
+          intent: "query_ledger",
+          plan: createQueryPlan(),
+          stats: { expense: 999 },
+        },
+        text: "那上个月呢？",
+      }),
+    ).toThrow(/未知字段/);
   });
 });
 
@@ -172,7 +189,7 @@ describe("fox-chat 四类严格意图", () => {
 });
 
 describe("fox-chat 第一次 AI 编排", () => {
-  it("只调用一次 AI，强制意图进入 system prompt，且用户消息只有当前文本和日期", async () => {
+  it("只调用一次 AI，强制意图进入 system prompt，且用户消息只有当前文本、日期和空上下文", async () => {
     const requestAi = vi.fn().mockResolvedValue(
       JSON.stringify({ intent: "query_ledger", plan: createQueryPlan() }),
     );
@@ -191,10 +208,38 @@ describe("fox-chat 第一次 AI 编排", () => {
     expect(messages[0].content).toContain("MUST return intent=query_ledger");
     expect(messages[0].content).toContain("Never output SQL");
     expect(JSON.parse(messages[1].content)).toEqual({
+      previous_context: null,
       text: "这个月餐饮比上月多多少？",
       today,
     });
     expect(messages[1].content).not.toContain("history");
+  });
+
+  it("连续追问只向第一次 AI 提供归一化计划与日期锚点", async () => {
+    const previousContext = {
+      date_anchor: today,
+      intent: "query_ledger" as const,
+      plan: createQueryPlan(),
+    };
+    const requestAi = vi.fn().mockResolvedValue(
+      JSON.stringify({ intent: "query_ledger", plan: createQueryPlan() }),
+    );
+
+    await runFoxChatFirstStage({
+      body: { previous_context: previousContext, text: "那上个月呢？" },
+      requestAi,
+      todayIsoDate: today,
+    });
+
+    const userPayload = JSON.parse(requestAi.mock.calls[0][0][1].content);
+    expect(userPayload).toEqual({
+      previous_context: previousContext,
+      text: "那上个月呢？",
+      today,
+    });
+    expect(userPayload).not.toHaveProperty("messages");
+    expect(userPayload).not.toHaveProperty("stats");
+    expect(userPayload).not.toHaveProperty("aiDetails");
   });
 
   it("prompt 明确四类边界，不提供数据库写工具", () => {
@@ -208,5 +253,10 @@ describe("fox-chat 第一次 AI 编排", () => {
     expect(messages[0].content).toContain("clarify");
     expect(messages[0].content).toContain("unsupported");
     expect(messages[0].content).toContain("never write, update, or delete ledger data");
+    expect(messages[0].content).toContain('"startDate":"YYYY-MM-DD"');
+    expect(messages[0].content).toContain("never return compareRange:null");
+    expect(messages[0].content).toContain(
+      "Every operation MUST contain range, filters, metrics, groupBy, and order",
+    );
   });
 });

@@ -7,10 +7,10 @@ import {
 } from "@/features/chat/batchCalculations";
 import type {
   ChatCandidateBatch,
-  ChatLedgerResultMessage,
   ChatMessage,
   ChatState,
 } from "@/features/chat/chatTypes";
+import type { LedgerConversationContext } from "@shared/chatIntent";
 
 export type ChatAction =
   | { type: "reset"; userId: string }
@@ -21,7 +21,8 @@ export type ChatAction =
       userMessage: ChatMessage;
     }
   | {
-      resultMessage: ChatLedgerResultMessage;
+      previousContext?: LedgerConversationContext;
+      resultMessage: ChatMessage;
       type: "parse_succeeded";
       userId: string;
     }
@@ -76,6 +77,7 @@ export function createInitialChatState(userId: string): ChatState {
   return {
     isParsing: false,
     messages: [],
+    previousContext: null,
     userId,
   };
 }
@@ -134,6 +136,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         ...state.messages.filter((message) => message.type !== "parsing"),
         action.resultMessage,
       ],
+      previousContext: action.previousContext ?? state.previousContext,
     };
   }
 

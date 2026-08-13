@@ -1,0 +1,1 @@
+export const MAX_FOX_CHAT_INPUT_CHARS = 3000;

@@ -1,18 +1,23 @@
 import { useEffect, useRef } from "react";
 
 import { LedgerResultCard } from "@/features/chat/LedgerResultCard";
+import { LedgerQueryResultCard } from "@/features/chat/LedgerQueryResultCard";
+import { AppButton } from "@/components/ui/AppButton";
 import type { ChatMessage } from "@/features/chat/chatTypes";
+import type { ForcedChatIntent } from "@shared/chatIntent";
 
 type ChatMessageListProps = {
   isOnline: boolean;
   messages: ChatMessage[];
   onConfirmBatch: (messageId: string) => void;
+  onCorrectIntent: (text: string, intent: ForcedChatIntent) => void;
   onOpenCandidate: (
     messageId: string,
     candidateId: string,
     trigger: HTMLButtonElement,
   ) => void;
   onRemoveCandidate: (messageId: string, candidateId: string) => void;
+  onOpenQueryTransactions: (messageId: string, operationIndex: number) => void;
   onRetryBatchSync: (messageId: string) => void;
 };
 
@@ -20,8 +25,10 @@ export function ChatMessageList({
   isOnline,
   messages,
   onConfirmBatch,
+  onCorrectIntent,
   onOpenCandidate,
   onRemoveCandidate,
+  onOpenQueryTransactions,
   onRetryBatchSync,
 }: ChatMessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -44,8 +51,10 @@ export function ChatMessageList({
   if (messages.length === 0) {
     return (
       <div className="chat-empty">
-        <strong>说说刚刚发生的账单</strong>
-        <p>狐狐只会解析你这次发送的文字，不会读取历史账单或统计。</p>
+        <strong>记一笔，或问问账本</strong>
+        <p>
+          记账只解析当前文字；问账会读取当前用户的云端相关统计，并向 AI 提供最多 500 条五字段明细。
+        </p>
       </div>
     );
   }
@@ -73,6 +82,45 @@ export function ChatMessageList({
                 onRemoveCandidate={onRemoveCandidate}
                 onRetrySync={onRetryBatchSync}
               />
+            </div>
+          );
+        }
+
+        if (message.type === "query_result") {
+          return (
+            <div className="chat-message assistant" key={message.id}>
+              <LedgerQueryResultCard
+                result={message.result}
+                onOpenTransactions={(operationIndex) =>
+                  onOpenQueryTransactions(message.id, operationIndex)
+                }
+              />
+            </div>
+          );
+        }
+
+        if (message.type === "intent_notice") {
+          return (
+            <div className="chat-message assistant intent-notice" key={message.id}>
+              <span>{message.text}</span>
+              <div className="intent-correction-actions">
+                <AppButton
+                  disabled={!isOnline}
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onCorrectIntent(message.originalText, "record_transaction")}
+                >
+                  我是想记账
+                </AppButton>
+                <AppButton
+                  disabled={!isOnline}
+                  type="button"
+                  variant="secondary"
+                  onClick={() => onCorrectIntent(message.originalText, "query_ledger")}
+                >
+                  我是想问账
+                </AppButton>
+              </div>
             </div>
           );
         }

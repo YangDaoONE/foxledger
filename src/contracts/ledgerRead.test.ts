@@ -251,6 +251,32 @@ describe("RLS 完整分页读取与统计", () => {
     ]);
   });
 
+  it("兼容历史未知或空分类，并按现有业务规则归一为其他", async () => {
+    const rows = [
+      createRow(0, { amount: 32, category: "旧分类" }),
+      createRow(1, { amount: 20, category: " 餐饮 " }),
+      { ...createRow(2), amount: 8, category: null },
+    ];
+    const fake = createFakeClient(async () => ({ data: rows, error: null }));
+    const result = await executeLedgerQueryPlan({
+      accessToken: "user-token",
+      createClient: createFactory(fake.client),
+      plan: createPlan(),
+      readEnv,
+      verifiedUserId: "user-1",
+    });
+
+    expect(result.operations[0].stats.categorySpend).toEqual([
+      { amount: 40, category: "其他" },
+      { amount: 20, category: "餐饮" },
+    ]);
+    expect(result.operations[0].aiDetails.map((detail) => detail.category)).toEqual([
+      "其他",
+      "餐饮",
+      "其他",
+    ]);
+  });
+
   it("比较范围分别完整统计，并由代码生成支出变化", async () => {
     const rows = [
       createRow(0, { amount: 150, date: "2026-08-10" }),
@@ -333,6 +359,29 @@ describe("完整性失败边界", () => {
           verifiedUserId: "user-1",
         }),
       ).rejects.toThrow("未生成部分统计");
+    }
+  });
+
+  it("日期、类型、金额和商家等关键字段异常仍整体失败并指出字段", async () => {
+    const cases = [
+      [{ ...createRow(0), date: "2026-02-30" }, "日期字段"],
+      [{ ...createRow(0), type: "unknown" }, "类型字段"],
+      [{ ...createRow(0), amount: 0 }, "金额字段"],
+      [{ ...createRow(0), merchant: { text: "商家" } }, "商家字段"],
+    ] as const;
+
+    for (const [row, field] of cases) {
+      const fake = createFakeClient(async () => ({ data: [row], error: null }));
+
+      await expect(
+        executeLedgerQueryPlan({
+          accessToken: "user-token",
+          createClient: createFactory(fake.client),
+          plan: createPlan(),
+          readEnv,
+          verifiedUserId: "user-1",
+        }),
+      ).rejects.toThrow(field);
     }
   });
 

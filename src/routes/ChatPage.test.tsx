@@ -4,17 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   insertAiBatchTransactionsForUser: vi.fn(),
-  parseTransactionsWithAi: vi.fn(),
   refreshAfterWrite: vi.fn(),
+  sendFoxChatMessage: vi.fn(),
 }));
 
 vi.mock("@/auth/AuthProvider", () => ({
   useAuthUser: () => ({ id: "user-1" }),
 }));
 
-vi.mock("@/features/ai/parseTransactionApi", () => ({
-  MAX_PARSE_INPUT_CHARS: 3000,
-  parseTransactionsWithAi: mocks.parseTransactionsWithAi,
+vi.mock("@/features/chat/foxChatApi", () => ({
+  MAX_FOX_CHAT_INPUT_CHARS: 3000,
+  sendFoxChatMessage: mocks.sendFoxChatMessage,
 }));
 
 vi.mock("@/features/sync/SyncProvider", () => ({
@@ -51,28 +51,31 @@ import { ChatPage } from "@/routes/ChatPage";
 
 describe("ChatPage 候选闭环", () => {
   it("补全 clarification 候选并完成核对前不调用交易写 API", async () => {
-    mocks.parseTransactionsWithAi.mockResolvedValue({
-      max_input_chars: 3000,
-      max_transactions: 50,
-      transactions: [
-        {
-          account: null,
-          ai_confidence: 0.5,
-          amount: null,
-          category: "餐饮",
-          currency: "CNY",
-          date: "2026-08-13",
-          merchant: null,
-          needs_clarification: true,
-          note: null,
-          payment_method: null,
-          raw_text: "午饭",
-          source: "ai",
-          tag: null,
-          type: "expense",
-        },
-      ],
-      truncated: false,
+    mocks.sendFoxChatMessage.mockResolvedValue({
+      intent: "record_transaction",
+      ledger_result: {
+        max_input_chars: 3000,
+        max_transactions: 50,
+        transactions: [
+          {
+            account: null,
+            ai_confidence: 0.5,
+            amount: null,
+            category: "餐饮",
+            currency: "CNY",
+            date: "2026-08-13",
+            merchant: null,
+            needs_clarification: true,
+            note: null,
+            payment_method: null,
+            raw_text: "午饭",
+            source: "ai",
+            tag: null,
+            type: "expense",
+          },
+        ],
+        truncated: false,
+      },
     });
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -85,10 +88,10 @@ describe("ChatPage 候选闭环", () => {
       </QueryClientProvider>,
     );
 
-    fireEvent.change(screen.getByLabelText("告诉狐狐要记录的账单"), {
+    fireEvent.change(screen.getByLabelText("告诉狐狐要记的账或要问的账"), {
       target: { value: "午饭" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "发送给狐狐解析" }));
+    fireEvent.click(screen.getByRole("button", { name: "发送给狐狐" }));
 
     await screen.findByText("需要核对");
     expect(screen.getByText("存在未补全或未核对候选，整批确认保持阻断。")).toBeInTheDocument();

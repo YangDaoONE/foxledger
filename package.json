@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "functions:deploy": "supabase functions deploy parse-transaction",
+    "functions:deploy": "npm run functions:deploy:parse && npm run functions:deploy:chat",
+    "functions:deploy:chat": "supabase functions deploy fox-chat",
+    "functions:deploy:parse": "supabase functions deploy parse-transaction",
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "test": "vitest run",

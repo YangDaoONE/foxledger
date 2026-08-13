@@ -7,7 +7,7 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
-当前本地代码已完成 V3.1 M0–M2 的代码与自动化检查，尚未推送或发布；V3.1 M3–M5 仍未实施，生产站点仍以 V3.0 为准。
+当前本地代码已完成并通过 V3.1 M0–M3 验收，尚未推送或发布 V3.1 前端；`fox-chat` 已部署用于受控验收。V3.1 M4–M5 仍未实施，生产站点前端仍以 V3.0 为准。
 
 ## 当前状态
 
@@ -33,19 +33,21 @@ V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生�
 - 从 Dexie 当前真实缓存重建最近 AI 批次，支持正式单笔编辑、二次确认删除和整批撤销。
 - 当前聊天跨应用内路由保留，刷新、关闭、登录失效或退出后清空，不持久化聊天。
 - 原创轻量狐狐提供 normal、listening、thinking、happy、confused 五种状态和 reduced-motion 适配。
-- AI 文本解析继续由 Supabase Edge Function `parse-transaction` 完成，候选必须用户确认后才写入 Supabase。
+- 生产 V3.0 AI 文本解析由 Supabase Edge Function `parse-transaction` 完成；本地 V3.1 M3 已通过 `fox-chat` 复用同一清洗规则。两者的候选都必须用户确认后才写入 Supabase。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Workbox 对 Supabase/API 敏感路径和非 GET 请求使用显式 `NetworkOnly`，只对同源静态图片使用运行时缓存。
 - Vitest + React Testing Library 覆盖关键规则、缓存、同步、批次状态机和 Chat 交互。
 - V3.1 M0 已增加前端与 Edge 共用的环境无关统计模块、严格 query plan / stats envelope / grounded answer 契约，以及统计 drilldown 回归测试。
 - V3.1 M1 已抽取 Edge 公共认证、邮箱白名单、环境变量和 OpenAI client，并实现用户 JWT + publishable key + RLS 的完整只读分页、代码白名单筛选、商家聚合、比较统计和最多 500 条 AI 安全明细选择。
-- V3.1 M2 已新增尚未部署的 `fox-chat` 第一阶段：一次 AI 严格路由记账、问账、澄清和不支持；记账复用 V3.0 服务端清洗，问账只返回 normalized plan，强制意图纠错只允许记账或问账。
+- V3.1 M2 已实现 `fox-chat` 第一阶段：一次 AI 严格路由记账、问账、澄清和不支持；记账复用 V3.0 服务端清洗，问账只返回 normalized plan，强制意图纠错只允许记账或问账。
+- V3.1 M3 已接通并通过受控验收：RLS 完整查询、代码统计、最多 500 条五字段 AI 明细、第二次 grounded answer、服务端 metric ref 替换、内存连续追问、依据展开和账单筛选跳转；`fox-chat` 已部署，但 V3.1 前端尚未发布。
+- M3 只读层兼容历史分类：未知、空或带首尾空格的分类按现有交易规则归为 `其他`；日期、类型、金额、商家、用户归属和分页完整性仍严格校验。
 - Vercel 已按 Vite 静态前端部署，线上不再依赖旧 Next `/api/parse-transaction`。
 
 当前限制：
 
 - 没有离线正式写入队列。
-- 没有 AI 查账，AI 不读取历史账单、统计数据或本地缓存。
+- 生产站点尚无 AI 问账；本地 M3 问账代码只读取当前用户云端相关账单，不读取或上传 Dexie，并严格限制发送给第二次 AI 的字段与数量。
 - 没有自定义分类、账户、支付方式管理。
 - 没有多币种和汇率。
 - CSV 导入只追加新增，不覆盖、不合并、不自动去重。
@@ -98,7 +100,7 @@ src/
 supabase/
   config.toml
   functions/_shared/               V3.1 共享统计、严格契约、Edge 认证/AI client 和安全只读数据层
-  functions/fox-chat/              V3.1 M2 第一次 AI 与严格意图路由（本地，未部署）
+  functions/fox-chat/              V3.1 M2–M3 意图路由与只读问账（已部署验收）
   functions/parse-transaction/     AI 解析 Edge Function
   migrations/                      transactions 表和权限 migration
 scripts/verify-v3-build.mjs        Chat chunk、角色资源和 Workbox 边界验证
@@ -134,7 +136,7 @@ ALLOWED_EMAILS
 
 - `OPENAI_BASE_URL` 可以继续使用个人 VPS 的 OpenAI-compatible 转发地址。
 - `OPENAI_API_KEY` 只放在 Supabase Edge Function secrets，不进入 PWA 前端。
-- 前端只调用 `<SUPABASE_URL>/functions/v1/parse-transaction`。
+- 当前生产前端调用 `<SUPABASE_URL>/functions/v1/parse-transaction`；本地 M3 前端已切换到已部署验收的 `<SUPABASE_URL>/functions/v1/fox-chat`，但该前端尚未发布。
 - 不要在代码、文档、提交记录或截图里写真实密钥。
 
 ## 数据和安全规则
@@ -154,8 +156,9 @@ ai_batch_id uuid null
 - 不绕过 RLS。
 - 前端只能使用 publishable key。
 - 查询、更新、删除除了依赖 RLS，也要显式约束当前用户。
-- AI 只解析当前输入文本，不读取历史账单、统计数据或本地缓存。
-- AI 不直接写数据库，不计算统计。
+- 记账 AI 只解析当前输入文本；问账第一阶段只接收当前问题和可选 normalized plan 上下文。
+- 问账服务端只在当前用户 JWT + RLS 边界内读取与计划相关的云端账单；第二次 AI 只接收代码计算的完整相关统计及最多 500 条 `date/type/amount/category/merchant` 明细，不接收 Dexie、本地缓存或禁止字段。
+- AI 不直接写数据库，也不生成正式统计；正式数字始终由代码计算并通过 metric ref 服务端替换。
 - AI 结果必须用户确认后才入库。
 - 新 V3.0 AI 账单不持久化 `raw_text`；它只在当前内存候选核对期间存在。
 - 离线时禁用正式写操作，包括新增、编辑、删除、多选删除、AI 保存候选和 CSV 导入。
@@ -221,7 +224,7 @@ npm run preview
 npm run functions:deploy
 ```
 
-`supabase/config.toml` 中 `parse-transaction` 的 `verify_jwt = false` 是为了函数自己处理 CORS preflight 和中文错误响应；函数内部仍必须验证 `Authorization: Bearer <access_token>`。
+`supabase/config.toml` 中 `parse-transaction` 与 `fox-chat` 的 `verify_jwt = false` 是为了函数自己处理 CORS preflight 和中文错误响应；两个函数内部仍必须验证 `Authorization: Bearer <access_token>`。
 
 ## 最近验证结果
 
@@ -229,9 +232,9 @@ npm run functions:deploy
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run test`：26 个测试文件、129 项测试通过。
+- `npm run test`：30 个测试文件、145 项测试通过。
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
-- `npm run verify:v3`：通过；验证 Chat gzip、狐狐资源预算、PWA manifest 和 Workbox 敏感缓存边界。
+- `npm run verify:v3`：通过；Chat gzip 9932 B，狐狐资源 443 B，PWA NetworkOnly/本地图片边界正常。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
 - 本地生产产物已生成，提交 `94aeba1` 已完成 Vercel 生产部署；生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过。
 - 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
@@ -245,6 +248,7 @@ V3.0 静态前端已完成生产部署、服务器产物核对和真机 PWA 更�
 ## 后续边界
 
 - V3.0 完成发布验收后，才允许按 `docs/V3.1_EXECUTABLE_DESIGN.md` 启动 V3.1。
-- V3.1 M0–M2 已在本地完成代码和自动化检查，尚未发布；M3 第二次 AI 与有依据回答及后续批次必须等待用户明确开始。
-- 当前 PWA 仍调用生产 `parse-transaction`，尚未接入 `fox-chat`；AI 问账回答、连续追问和全站体验统一仍不是已实现功能，不得写成现状。
+- V3.1 M0–M3 已完成并通过验收，各批次保持独立本地提交边界；当前尚未推送或发布 V3.1 前端。
+- 本地 PWA 已接入 `fox-chat`，但生产 PWA 仍是 V3.0 `parse-transaction`；不得把本地 M3 写成生产现状。
+- M4 全站体验统一和 M5 浏览器/真机/发布验收仍未开始，必须等待用户明确开始下一批。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

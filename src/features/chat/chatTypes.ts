@@ -3,8 +3,16 @@ import type {
   ParsedTransaction,
 } from "@/features/ai/types";
 import type { AiBatchInsertRequest } from "@/features/ai/aiBatchSave";
+import type { FoxChatQueryClientResult } from "@/features/chat/foxChatApi";
+import type { LedgerConversationContext } from "@shared/chatIntent";
 
-export type ChatMessageType = "error" | "ledger_result" | "parsing" | "text";
+export type ChatMessageType =
+  | "error"
+  | "intent_notice"
+  | "ledger_result"
+  | "parsing"
+  | "query_result"
+  | "text";
 export type ChatRole = "assistant" | "system" | "user";
 
 export type AiBatchStatus =
@@ -60,13 +68,29 @@ export type ChatLedgerResultMessage = ChatMessageBase & {
   type: "ledger_result";
 };
 
+export type ChatQueryResultMessage = ChatMessageBase & {
+  result: FoxChatQueryClientResult;
+  role: "assistant";
+  type: "query_result";
+};
+
+export type ChatIntentNoticeMessage = ChatMessageBase & {
+  originalText: string;
+  role: "assistant";
+  text: string;
+  type: "intent_notice";
+};
+
 export type ChatMessage =
+  | ChatIntentNoticeMessage
   | ChatLedgerResultMessage
   | ChatParsingMessage
+  | ChatQueryResultMessage
   | ChatTextMessage;
 
 export type ChatState = {
   isParsing: boolean;
   messages: ChatMessage[];
+  previousContext: LedgerConversationContext | null;
   userId: string;
 };

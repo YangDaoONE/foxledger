@@ -46,7 +46,7 @@ describe("Chat 移动端交互", () => {
         onSend={vi.fn()}
       />,
     );
-    const textarea = screen.getByLabelText("告诉狐狐要记录的账单");
+    const textarea = screen.getByLabelText("告诉狐狐要记的账或要问的账");
 
     fireEvent.focus(textarea);
     fireEvent.blur(textarea);
@@ -72,7 +72,9 @@ describe("Chat 移动端交互", () => {
     const props = {
       isOnline: true,
       onConfirmBatch: vi.fn(),
+      onCorrectIntent: vi.fn(),
       onOpenCandidate: vi.fn(),
+      onOpenQueryTransactions: vi.fn(),
       onRemoveCandidate: vi.fn(),
       onRetryBatchSync: vi.fn(),
     };

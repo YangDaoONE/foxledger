@@ -6,10 +6,8 @@ import {
   verifySupabaseToken,
 } from "../_shared/auth.ts";
 import { requestOpenAiChatContent } from "../_shared/aiClient.ts";
-import {
-  ChatIntentContractError,
-  runFoxChatFirstStage,
-} from "../_shared/chatIntent.ts";
+import { ChatIntentContractError } from "../_shared/chatIntent.ts";
+import { runFoxChatFlow } from "../_shared/foxChatFlow.ts";
 import { LedgerContractError } from "../_shared/ledgerContracts.ts";
 import {
   InputValidationError,
@@ -59,15 +57,19 @@ Deno.serve(async (request) => {
     assertEmailAllowed(user.email);
 
     const body = (await request.json().catch(() => null)) as unknown;
-    const result = await runFoxChatFirstStage({
+    const todayIsoDate = getServerTodayIsoDate();
+    const result = await runFoxChatFlow({
+      accessToken: token,
       body,
+      createClient,
       requestAi: (messages) =>
         requestOpenAiChatContent({
           messages,
           responseFormat: { type: "json_object" },
           temperature: 0.1,
         }),
-      todayIsoDate: getServerTodayIsoDate(),
+      todayIsoDate,
+      verifiedUserId: user.id,
     });
 
     return jsonResponse(result);
@@ -80,8 +82,15 @@ Deno.serve(async (request) => {
       return errorResponse(error.message, 403);
     }
 
-    if (error instanceof ChatIntentContractError || error instanceof LedgerContractError) {
-      return errorResponse("AI 返回的意图或查询计划不符合安全契约，请重试。", 502);
+    if (error instanceof LedgerContractError) {
+      return errorResponse(
+        `AI 查询计划字段 ${error.path} 未通过安全校验，请重试。`,
+        502,
+      );
+    }
+
+    if (error instanceof ChatIntentContractError) {
+      return errorResponse("AI 返回的意图结构不完整，请重试。", 502);
     }
 
     return errorResponse(error instanceof Error ? error.message : "狐狐暂时无法处理。", 500);

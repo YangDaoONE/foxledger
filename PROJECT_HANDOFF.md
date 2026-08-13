@@ -6,11 +6,11 @@
 
 ## 1. 当前状态
 
-当前代码基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码和自动化检查已于 2026-08-13 完成，本地生产构建已生成；静态前端尚未执行生产部署，真机 PWA 尚未获取 V3.0 Service Worker，因此 V3.0 尚未完成生产发布验收。
+当前代码基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码和自动化检查已于 2026-08-13 完成，提交 `94aeba1` 已完成 Vercel 生产部署，生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过；真机 PWA 获取新 Service Worker 后的最终更新验收待完成。
 
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
-当前工作区修改尚未提交，Git 当前提交仍是 `258b0fd2dddff9cc593ab0e8dc7305a562476763`；不能把本地 `dist` 视为生产站点已更新。
+生产部署必须继续以 GitHub/Vercel 状态和服务器实际产物为准，不能只凭本地 `dist` 推断。
 
 ## 2. V3.0 已实现代码
 
@@ -165,7 +165,7 @@ M5 生产发布后仍需完成以下人工确认：
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
 
-当前仓库代码基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；M0–M5 代码与本地检查已完成，但静态前端尚未执行生产部署，真机 PWA 更新与生产发布验收待完成。
+当前仓库代码基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；M0–M5 代码、本地检查和 Vercel 生产部署已完成，真机 PWA 获取新 Service Worker 后的最终更新验收待完成。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS、不把历史账单/统计/Dexie 发给 AI、用户确认后才写库、新 AI 不持久化 raw_text、只处理 Web/PWA 仓库。
 

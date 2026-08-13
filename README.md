@@ -5,7 +5,7 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 当前代码基线：**V3.0 狐狐对话记账版**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
-V3.0 已于 2026-08-13 完成 M0–M5 代码和本地生产构建；静态前端尚未执行生产部署，真机 PWA 更新与生产发布验收待完成。
+V3.0 已于 2026-08-13 完成 M0–M5 代码和本地生产构建，并以提交 `94aeba1` 发布到生产；真机 PWA 获取新 Service Worker 后的最终更新验收待完成。
 
 ## 当前状态
 
@@ -226,12 +226,12 @@ npm run functions:deploy
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
 - `npm run verify:v3`：通过；验证 Chat gzip、狐狐资源预算、PWA manifest 和 Workbox 敏感缓存边界。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
-- 本地生产产物已生成；尚未执行 V3.0 静态前端生产部署。
+- 本地生产产物已生成，提交 `94aeba1` 已完成 Vercel 生产部署；生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过。
 - 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
 - M0–M4 人工验收通过，包括解析、候选核对、固定批次保存、最近批次、正式编辑、单删、部分删除后整批撤销、离线限制和刷新恢复。
-- M5 代码与自动化检查已通过；真实手机尚未获取 V3.0 Service Worker，生产 PWA 更新和缓存边界仍待部署后验收。
+- M5 代码、自动化检查和生产部署已通过；真实手机获取 V3.0 Service Worker、离线应用壳和生产缓存边界仍待最终验收。
 
-V3.0 静态前端尚未完成生产部署。生产状态必须以实际部署结果为准，不能仅凭本地构建判断。
+V3.0 静态前端已完成生产部署并核对服务器产物。生产状态必须以实际部署结果为准，不能仅凭本地构建判断。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 

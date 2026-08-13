@@ -1,13 +1,13 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { MessageCircle, Plus } from "lucide-react";
 
 import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
-import { AiParsePanel } from "@/features/ai/AiParsePanel";
 import { getStatsForRange } from "@/features/stats/statsApi";
 import { getPresetStatsRange } from "@/features/stats/statsRanges";
 import { useSyncState } from "@/features/sync/SyncProvider";
@@ -88,7 +88,15 @@ export function HomePage() {
         )}
       </SectionBlock>
 
-      <AiParsePanel isOnline={isOnline} onSaved={refreshAfterWrite} userId={user.id} />
+      <Link className="chat-entry-card" to="/chat">
+        <span className="chat-entry-icon"><MessageCircle size={24} aria-hidden="true" /></span>
+        <span>
+          <small>AI 候选确认</small>
+          <strong>和狐狐记一笔</strong>
+          <em>用一句话整理多笔账单，核对后再记账。</em>
+        </span>
+        <span aria-hidden="true">进入</span>
+      </Link>
     </div>
   );
 }

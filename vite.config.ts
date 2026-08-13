@@ -68,11 +68,45 @@ export default defineConfig(() => ({
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,svg,png,ico,webp}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /^\/auth\/v1\//,
+          /^\/functions\/v1\//,
+          /^\/rest\/v1\//,
+          /^\/storage\/v1\//,
+        ],
         runtimeCaching: [
           {
+            urlPattern: () => true,
+            handler: "NetworkOnly",
+            method: "POST",
+          },
+          {
+            urlPattern: () => true,
+            handler: "NetworkOnly",
+            method: "PUT",
+          },
+          {
+            urlPattern: () => true,
+            handler: "NetworkOnly",
+            method: "PATCH",
+          },
+          {
+            urlPattern: () => true,
+            handler: "NetworkOnly",
+            method: "DELETE",
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith(".supabase.co") ||
+              /^\/(?:auth|functions|rest|storage)\/v1\//.test(url.pathname),
+            handler: "NetworkOnly",
+          },
+          {
             urlPattern: ({ request, url }) =>
-              request.destination === "image" && url.origin === self.location.origin,
+              request.method === "GET" &&
+              request.destination === "image" &&
+              url.origin === self.location.origin,
             handler: "CacheFirst",
             options: {
               cacheName: "foxledger-local-images",

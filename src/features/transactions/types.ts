@@ -3,6 +3,7 @@ export type TransactionType = "expense" | "income" | "transfer";
 export type TransactionSource = "manual" | "ai";
 
 export type CachedTransaction = {
+  ai_batch_id: string | null;
   cache_key: string;
   id: string;
   user_id: string;
@@ -20,6 +21,8 @@ export type CachedTransaction = {
 };
 
 export type TransactionInsertPayload = {
+  ai_batch_id?: string | null;
+  id?: string;
   type: TransactionType;
   amount: number;
   currency: "CNY";
@@ -33,6 +36,17 @@ export type TransactionInsertPayload = {
   raw_text?: string | null;
   source: TransactionSource;
   ai_confidence?: number | null;
+};
+
+export type AiBatchTransactionInput = Omit<
+  TransactionInsertPayload,
+  "ai_batch_id" | "id" | "raw_text" | "source"
+>;
+
+export type AiBatchTransactionInsert = AiBatchTransactionInput & {
+  ai_batch_id: string;
+  id: string;
+  source: "ai";
 };
 
 export type TransactionWritePayload = TransactionInsertPayload & {

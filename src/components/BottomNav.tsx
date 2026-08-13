@@ -1,11 +1,12 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { BarChart3, Home, ReceiptText, Settings } from "lucide-react";
+import { BarChart3, Home, MessageCircle, ReceiptText, Settings } from "lucide-react";
 
 const navItems = [
   { icon: Home, label: "首页", to: "/" },
   { icon: ReceiptText, label: "账单", to: "/transactions" },
+  { featured: true, icon: MessageCircle, label: "狐狐", to: "/chat" },
   { icon: BarChart3, label: "统计", to: "/stats" },
-  { icon: Settings, label: "设置", to: "/settings" },
+  { icon: Settings, label: "设置", to: "/settings", featured: false },
 ] as const;
 
 export function BottomNav() {
@@ -20,7 +21,7 @@ export function BottomNav() {
         return (
           <Link
             aria-current={isActive ? "page" : undefined}
-            className={`bottom-nav-item ${isActive ? "active" : ""}`}
+            className={`bottom-nav-item ${"featured" in item && item.featured ? "featured" : ""} ${isActive ? "active" : ""}`}
             key={item.to}
             to={item.to}
           >

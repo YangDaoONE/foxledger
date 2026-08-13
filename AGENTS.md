@@ -6,7 +6,7 @@
 
 ## 1. 当前项目角色
 
-FoxLedger / 狐狐记账 Web/PWA 当前基线为 **v2.3.1 Vite PWA + Supabase Edge AI API 收口版**。
+FoxLedger / 狐狐记账 Web/PWA 当前代码基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码和本地生产构建，但静态前端尚未执行生产部署，真机 PWA 更新与生产发布验收待完成。不能从本地代码状态推断生产状态。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -14,6 +14,7 @@ FoxLedger / 狐狐记账 Web/PWA 当前基线为 **v2.3.1 Vite PWA + Supabase Ed
 
 - React + Vite + TypeScript 前端。
 - TanStack Router 页面路由和底部导航。
+- 独立懒加载 `/chat` 狐狐页和居中五栏导航。
 - 路由页面懒加载，以及 React、TanStack、Supabase、本地存储依赖分包。
 - TanStack Query 查询、同步和刷新。
 - Supabase Auth 邮箱密码登录、注册、会话恢复和退出。
@@ -25,6 +26,12 @@ FoxLedger / 狐狐记账 Web/PWA 当前基线为 **v2.3.1 Vite PWA + Supabase Ed
 - 搜索、类型筛选、分类筛选、日期范围筛选、排序和加载更多。
 - 账单搜索点击“搜索”或回车后才应用，不逐字刷新。
 - AI 文本解析由 Supabase Edge Function `parse-transaction` 完成，候选确认后批量入库。
+- 狐狐候选摘要、详情、编辑、移除和 `needs_attention` 确认阻断。
+- 同次确认固定 `ai_batch_id` 与 transaction IDs，保存异常使用只读协调查询防止重复写入。
+- `saved/sync_warning` 分离远端成功和本地缓存刷新失败；同步重试不得重新插入。
+- Dexie v4 最近 AI 批次，以及正式单笔编辑、二次确认删除和整批撤销。
+- 当前聊天只存内存：跨内部路由保留，刷新、关闭、登录失效或退出后清空。
+- 原创轻量狐狐 normal、listening、thinking、happy、confused 五种状态。
 - CSV 导入。
 - 日期范围统计和 drilldown 到账单页筛选。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
@@ -90,6 +97,7 @@ source
 ai_confidence
 created_at
 updated_at
+ai_batch_id
 ```
 
 规则：
@@ -101,6 +109,7 @@ updated_at
 - 当前固定货币为 `CNY`。
 - 非默认分类归一为 `其他`。
 - `source` 只能是 `manual` 或 `ai`。
+- `ai_batch_id` 可以为空；不为空时 `source` 必须为 `ai`，同次确认的 AI 账单使用同一 UUID。
 - `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
 - `transfer` 暂不计入收入、支出和结余。
 - 不要随意新增表或修改 schema。
@@ -149,6 +158,8 @@ Edge Function 内也保留同一套默认分类和交易规则；如果未来调
 ```text
 supabase/migrations/001_create_transactions.sql
 supabase/migrations/002_grant_transactions_permissions.sql
+supabase/migrations/003_add_ai_batch_id.sql
+supabase/migrations/004_restrict_transactions_permissions.sql
 ```
 
 如果出现 `permission denied for table transactions`，优先检查 `002_grant_transactions_permissions.sql` 是否已经在 Supabase SQL Editor 执行。
@@ -161,7 +172,7 @@ supabase/migrations/002_grant_transactions_permissions.sql
 
 ```text
 name: foxledger
-version: 3
+version: 4
 stores:
   transactions_cache
   sync_meta
@@ -180,9 +191,10 @@ category
 merchant
 payment_method
 date
-note
-source
-created_at
+  note
+  source
+  ai_batch_id
+  created_at
 updated_at
 ```
 
@@ -240,6 +252,7 @@ Content-Type: application/json
 - AI 不允许直接写数据库。
 - AI 不允许计算统计。
 - 用户确认后才写入 Supabase。
+- 新 V3.0 AI 账单写库时不得提交 `raw_text`；`raw_text` 只允许存在于当前内存候选核对期间。
 - 离线时不允许 AI 解析或保存 AI 候选。
 
 `supabase/config.toml` 中 `parse-transaction` 设置了 `verify_jwt = false`，用于让函数自己处理 CORS preflight 和中文错误响应；这不代表放弃登录校验，函数内部必须继续用 Supabase access token 验证用户。
@@ -309,6 +322,7 @@ src/routes/StatsPage.tsx
 
 - 首页。
 - 账单。
+- 狐狐。
 - 统计。
 - 设置。
 
@@ -335,6 +349,8 @@ src/routes/StatsPage.tsx
 - 不缓存 Supabase 请求。
 - 不缓存登录响应、AI API 响应或任何用户敏感数据响应。
 - 非 GET 用户数据请求必须 network-only。
+- Supabase `/auth/v1`、`/rest/v1`、`/functions/v1`、`/storage/v1` 请求必须 network-only。
+- 运行时 CacheFirst 只能用于同源静态图片，不能扩大到 JSON、API 或导航响应。
 - 当前没有离线正式记账、离线同步队列或 push notification。
 
 ## 11. 部署规则
@@ -389,19 +405,15 @@ git status
 ```bash
 npm run lint
 npm run typecheck
+npm run test
 npm run build
+npm run verify:v3
 ```
 
 如果检查失败，需要如实说明失败原因，不要隐瞒。
 
-## 13. 下一阶段优先级
+## 13. 后续阶段边界
 
-P1：
-
-- 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
-- 增强同步状态诊断文案，显示最近同步时间和失败原因。
-
-P2：
-
-- 评估前端交易规则和 Edge Function 交易规则是否值得抽共享模块；没有明显收益时保持简单重复。
-- 继续移动端 UI/UX 小修，但不要引入大型 UI 框架。
+- V3.0 发布验收完成后，只有用户明确要求时才开始 `docs/V3.1_EXECUTABLE_DESIGN.md`。
+- 不得把 V3.1 的 AI 问账、连续追问或全站体验统一写成当前已完成功能。
+- 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

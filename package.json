@@ -9,7 +9,9 @@
     "functions:deploy": "supabase functions deploy parse-transaction",
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "verify:v3": "node scripts/verify-v3-build.mjs"
   },
   "repository": {
     "type": "git",
@@ -34,6 +36,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^26.0.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
@@ -41,12 +45,15 @@
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
+    "fake-indexeddb": "^6.2.5",
     "globals": "^17.7.0",
+    "jsdom": "^29.1.1",
     "supabase": "^2.108.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.0",
     "vite": "^8.1.0",
-    "vite-plugin-pwa": "^1.3.0"
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "postcss": "^8.5.10"

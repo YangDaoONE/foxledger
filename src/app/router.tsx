@@ -33,6 +33,12 @@ const transactionsRoute = createRoute({
   validateSearch: validateTransactionSearch,
 });
 
+const chatRoute = createRoute({
+  component: lazyRouteComponent(() => import("@/routes/ChatPage"), "ChatPage"),
+  getParentRoute: () => rootRoute,
+  path: "/chat",
+});
+
 const statsRoute = createRoute({
   component: lazyRouteComponent(() => import("@/routes/StatsPage"), "StatsPage"),
   getParentRoute: () => rootRoute,
@@ -51,6 +57,7 @@ const settingsRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   transactionsRoute,
+  chatRoute,
   statsRoute,
   settingsRoute,
 ]);

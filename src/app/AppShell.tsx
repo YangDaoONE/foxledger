@@ -1,11 +1,12 @@
 import { Outlet } from "@tanstack/react-router";
 
 import { BottomNav } from "@/components/BottomNav";
+import { ChatSessionProvider } from "@/features/chat/ChatSessionProvider";
 import { SyncStatusBanner } from "@/features/sync/SyncStatusBanner";
 import { SyncProvider, useSyncState } from "@/features/sync/SyncProvider";
 
 function AppShellContent() {
-  const { isOnline, isSyncing, syncError, syncMeta } = useSyncState();
+  const { isOnline, isSyncing, syncError, syncMeta, syncPhase } = useSyncState();
 
   return (
     <>
@@ -21,6 +22,7 @@ function AppShellContent() {
           isSyncing={isSyncing}
           lastSuccessfulSyncAt={syncMeta?.last_successful_sync_at ?? null}
           syncError={syncError}
+          syncPhase={syncPhase}
         />
         <Outlet />
       </main>
@@ -32,7 +34,9 @@ function AppShellContent() {
 export function AppShell() {
   return (
     <SyncProvider>
-      <AppShellContent />
+      <ChatSessionProvider>
+        <AppShellContent />
+      </ChatSessionProvider>
     </SyncProvider>
   );
 }

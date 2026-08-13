@@ -23,6 +23,7 @@ export function AiParsePanel({ isOnline, onSaved, userId }: AiParsePanelProps) {
   const [candidates, setCandidates] = useState<ParsedTransaction[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isParsing, setIsParsing] = useState(false);
+  const [isBatchLocked, setIsBatchLocked] = useState(false);
 
   async function handleParse() {
     const trimmed = text.trim();
@@ -64,7 +65,7 @@ export function AiParsePanel({ isOnline, onSaved, userId }: AiParsePanelProps) {
     <SectionBlock eyebrow="AI" title="文本记账">
       <textarea
         className="ai-textarea"
-        disabled={!isOnline || isParsing}
+        disabled={!isOnline || isParsing || isBatchLocked}
         onChange={(event) => setText(event.target.value)}
         placeholder="例如：今天午饭 32，地铁 6，工资 8000"
         value={text}
@@ -77,7 +78,7 @@ export function AiParsePanel({ isOnline, onSaved, userId }: AiParsePanelProps) {
       </div>
       {message ? <p className="form-message">{message}</p> : null}
       <AppButton
-        disabled={!isOnline || isParsing}
+        disabled={!isOnline || isParsing || isBatchLocked}
         icon={<Sparkles size={16} />}
         type="button"
         onClick={handleParse}
@@ -88,6 +89,7 @@ export function AiParsePanel({ isOnline, onSaved, userId }: AiParsePanelProps) {
       <ConfirmTransactionBatch
         isOnline={isOnline}
         onClear={() => setCandidates([])}
+        onPendingChange={setIsBatchLocked}
         onSaved={async () => {
           await onSaved();
           setText("");

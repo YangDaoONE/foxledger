@@ -5,13 +5,17 @@ import {
   useContext,
   useEffect,
   useRef,
+  useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { getCachedSyncMeta } from "@/features/transactions/localTransactions";
-import { syncTransactionsCacheFromRemote } from "@/features/transactions/transactionSync";
+import {
+  syncTransactionsCacheFromRemote,
+  type TransactionSyncPhase,
+} from "@/features/transactions/transactionSync";
 import type { CacheSyncMeta } from "@/lib/localDb";
 import { useNetworkStatus } from "@/lib/networkStatus";
 
@@ -21,6 +25,7 @@ type SyncContextValue = {
   refreshAfterWrite: () => Promise<void>;
   syncError: string | null;
   syncMeta: CacheSyncMeta | null;
+  syncPhase: TransactionSyncPhase | null;
   syncNow: () => Promise<void>;
 };
 
@@ -32,6 +37,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const isOnline = useNetworkStatus();
   const queryClient = useQueryClient();
   const autoSyncedUserRef = useRef<string | null>(null);
+  const activeSyncCountRef = useRef(0);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncPhase, setSyncPhase] = useState<TransactionSyncPhase | null>(null);
 
   const syncMetaQuery = useQuery({
     queryFn: () => getCachedSyncMeta(userId),
@@ -39,14 +47,32 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   });
 
   const syncMutation = useMutation({
-    mutationFn: () => syncTransactionsCacheFromRemote(userId),
-    onSettled: async () => {
-      await Promise.all([
+    mutationFn: async () => {
+      activeSyncCountRef.current += 1;
+      setIsSyncing(true);
+
+      try {
+        return await syncTransactionsCacheFromRemote(userId, setSyncPhase);
+      } finally {
+        activeSyncCountRef.current -= 1;
+
+        if (activeSyncCountRef.current === 0) {
+          setIsSyncing(false);
+          setSyncPhase(null);
+        }
+      }
+    },
+    onSettled: () => {
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.syncMeta(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.stats(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.monthlySummaries(userId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.recentAiBatches(userId) }),
       ]);
+    },
+    onSuccess: (syncMeta) => {
+      queryClient.setQueryData(queryKeys.syncMeta(userId), syncMeta);
     },
   });
   const syncMutationRef = useRef(syncMutation);
@@ -83,13 +109,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const value: SyncContextValue = {
     isOnline,
-    isSyncing: syncMutation.isPending,
+    isSyncing,
     refreshAfterWrite,
     syncError:
       syncMutation.error instanceof Error
         ? syncMutation.error.message
         : syncMetaQuery.data?.last_error ?? null,
     syncMeta: syncMetaQuery.data ?? null,
+    syncPhase,
     syncNow,
   };
 

@@ -24,28 +24,44 @@ type RemoteRequestError = {
 
 type RemoteCacheRow = Parameters<typeof normalizeRemoteCacheRow>[0];
 
+export type TransactionSyncPhase =
+  | "fetching-remote"
+  | "recording-failure"
+  | "replacing-cache";
+
+type TransactionSyncPhaseListener = (phase: TransactionSyncPhase) => void;
+
 const activeSyncs = new Map<string, Promise<CacheSyncMeta>>();
 
-export async function syncTransactionsCacheFromRemote(userId: string) {
+export async function syncTransactionsCacheFromRemote(
+  userId: string,
+  onPhaseChange?: TransactionSyncPhaseListener,
+) {
   const active = activeSyncs.get(userId);
 
   if (active) {
     return active;
   }
 
-  const syncPromise = syncTransactionsCacheFromRemoteInternal(userId).finally(() => {
-    if (activeSyncs.get(userId) === syncPromise) {
-      activeSyncs.delete(userId);
-    }
-  });
+  const syncPromise = syncTransactionsCacheFromRemoteInternal(userId, onPhaseChange).finally(
+    () => {
+      if (activeSyncs.get(userId) === syncPromise) {
+        activeSyncs.delete(userId);
+      }
+    },
+  );
 
   activeSyncs.set(userId, syncPromise);
   return syncPromise;
 }
 
-async function syncTransactionsCacheFromRemoteInternal(userId: string) {
+async function syncTransactionsCacheFromRemoteInternal(
+  userId: string,
+  onPhaseChange?: TransactionSyncPhaseListener,
+) {
   if (!getNetworkOnlineState()) {
     const message = "当前离线，无法同步缓存。";
+    onPhaseChange?.("recording-failure");
     await markSyncFailed(userId, message);
     throw new Error(message);
   }
@@ -53,11 +69,13 @@ async function syncTransactionsCacheFromRemoteInternal(userId: string) {
   const transactions: CachedTransaction[] = [];
 
   for (let pageIndex = 0; pageIndex < REMOTE_SYNC_MAX_PAGES; pageIndex += 1) {
+    onPhaseChange?.("fetching-remote");
     const from = pageIndex * REMOTE_SYNC_PAGE_SIZE;
     const to = from + REMOTE_SYNC_PAGE_SIZE - 1;
     const { data, error } = await fetchRemoteTransactionsPage(userId, from, to).catch(
       async (error: unknown) => {
         const message = getRemoteRequestErrorMessage(toRemoteRequestError(error));
+        onPhaseChange?.("recording-failure");
         await markSyncFailed(userId, message);
         throw new Error(message);
       },
@@ -65,6 +83,7 @@ async function syncTransactionsCacheFromRemoteInternal(userId: string) {
 
     if (error) {
       const message = getRemoteRequestErrorMessage(error);
+      onPhaseChange?.("recording-failure");
       await markSyncFailed(userId, message);
       throw new Error(message);
     }
@@ -76,16 +95,19 @@ async function syncTransactionsCacheFromRemoteInternal(userId: string) {
       transactions.push(...rows);
 
       if (rows.length < REMOTE_SYNC_PAGE_SIZE) {
+        onPhaseChange?.("replacing-cache");
         return replaceCachedTransactionsForUser({ transactions, userId });
       }
     } catch (error) {
       const message = "远端账单数据格式异常，本次未替换缓存。";
+      onPhaseChange?.("recording-failure");
       await markSyncFailed(userId, message);
       throw error instanceof Error ? new Error(`${message}${error.message}`) : new Error(message);
     }
   }
 
   const message = `账单数量超过 ${REMOTE_SYNC_MAX_ROWS} 条，本次未替换缓存。`;
+  onPhaseChange?.("recording-failure");
   await markSyncFailed(userId, message);
   throw new Error(message);
 }

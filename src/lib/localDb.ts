@@ -11,17 +11,23 @@ export type CacheSyncMeta = {
   user_id: string;
 };
 
-class FoxLedgerDb extends Dexie {
+export class FoxLedgerDb extends Dexie {
   sync_meta!: Table<CacheSyncMeta, string>;
   transactions_cache!: Table<CachedTransaction, string>;
 
-  constructor() {
-    super("foxledger");
+  constructor(databaseName = "foxledger") {
+    super(databaseName);
 
     this.version(3).stores({
       sync_meta: "user_id, sync_state, updated_at",
       transactions_cache:
         "cache_key, user_id, id, date, created_at, updated_at, type, category, [user_id+date]",
+    });
+
+    this.version(4).stores({
+      sync_meta: "user_id, sync_state, updated_at",
+      transactions_cache:
+        "cache_key, user_id, id, date, created_at, updated_at, type, category, ai_batch_id, [user_id+date], [user_id+ai_batch_id]",
     });
   }
 }

@@ -48,9 +48,9 @@ export function ImportTransactions({ isOnline, onImported, userId }: ImportTrans
         ({ transaction }) => transaction,
       );
 
-      const count = await insertTransactionsForUser(userId, payload);
+      const transactionIds = await insertTransactionsForUser(userId, payload);
       await onImported();
-      setMessage(`已导入 ${count} 条账单。`);
+      setMessage(`已导入 ${transactionIds.length} 条账单。`);
       setResult(null);
     } catch (error) {
       setMessage(getErrorMessage(error, "CSV 导入失败。"));

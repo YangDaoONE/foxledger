@@ -8,7 +8,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.1 发布候选版**；V3.0 已于 2026-08-13 完整收口，V3.1 等待最后的真实手机安装态 PWA 更新验收。后续修改仍不能从本地代码状态推断生产状态。
 
-V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账和生产服务器产物检查已通过，移动端发送布局跳动已修复；真实手机安装态 PWA 更新验收待用户确认。
+V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账和生产服务器产物检查已通过，移动端发送布局跳动及设置页 CSV 控件窄屏撑宽已修复；真实手机安装态 PWA 更新验收待用户确认。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 

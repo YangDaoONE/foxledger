@@ -81,13 +81,18 @@ test("离线时只读缓存、禁用狐狐，恢复联网后自动同步", async
 
 test("页面不横向溢出且键盘焦点可见", async ({ page }) => {
   await login(page);
-  await page.getByRole("link", { exact: true, name: "狐狐" }).click();
+  await page.setViewportSize({ height: 720, width: 320 });
 
-  const overflow = await page.evaluate(() => ({
-    clientWidth: document.documentElement.clientWidth,
-    scrollWidth: document.documentElement.scrollWidth,
-  }));
-  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
+  for (const destination of ["首页", "账单", "统计", "设置", "狐狐"]) {
+    await page.getByRole("link", { exact: true, name: destination }).click();
+    const overflow = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(overflow.scrollWidth, `${destination}页面不应横向溢出`).toBeLessThanOrEqual(
+      overflow.clientWidth,
+    );
+  }
 
   const composer = page.getByLabel("告诉狐狐要记的账或要问的账");
   await composer.focus();

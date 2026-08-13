@@ -839,6 +839,12 @@ button.metric-card:hover:not(:disabled) {
   padding: 14px;
 }
 
+.file-input input[type="file"] {
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
 .error-list {
   color: var(--danger);
   display: grid;

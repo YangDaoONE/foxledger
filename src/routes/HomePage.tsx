@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 
+import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { SectionBlock } from "@/components/ui/SectionBlock";
@@ -25,7 +26,11 @@ export function HomePage() {
 
   const summaryQuery = useQuery({
     queryFn: () => getStatsForRange(user.id, monthRange),
-    queryKey: ["monthlySummary", user.id, monthRange.startDate, monthRange.endDate],
+    queryKey: queryKeys.monthlySummary(
+      user.id,
+      monthRange.startDate,
+      monthRange.endDate,
+    ),
   });
 
   const createMutation = useMutation({

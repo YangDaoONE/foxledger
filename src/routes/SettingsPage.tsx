@@ -6,6 +6,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { ImportTransactions } from "@/features/import/ImportTransactions";
 import { useSyncState } from "@/features/sync/SyncProvider";
+import { getErrorMessage } from "@/lib/errors";
 
 export function SettingsPage() {
   const { signOut, user } = useAuth();
@@ -25,7 +26,7 @@ export function SettingsPage() {
     try {
       await signOut();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "退出登录失败。");
+      setMessage(getErrorMessage(error, "退出登录失败。"));
     } finally {
       setIsSigningOut(false);
     }

@@ -1,7 +1,6 @@
-import { supabase } from "@/lib/supabase";
-import { env } from "@/lib/env";
-
 import type { ParsedTransactionBatch } from "@/features/ai/types";
+import { env } from "@/lib/env";
+import { supabase } from "@/lib/supabase";
 
 export const MAX_PARSE_INPUT_CHARS = 3000;
 export const MAX_PARSED_TRANSACTIONS = 50;

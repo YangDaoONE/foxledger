@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
+import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
@@ -15,6 +16,9 @@ import {
 } from "@/features/stats/statsRanges";
 import type { StatsDateRange, StatsRangeKey } from "@/features/stats/types";
 import { useSyncState } from "@/features/sync/SyncProvider";
+import { createTransactionSearch } from "@/features/transactions/transactionSearch";
+import type { TransactionType } from "@/features/transactions/types";
+import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
 
 const rangeOptions: Array<{ key: StatsRangeKey; label: string }> = [
@@ -45,7 +49,7 @@ export function StatsPage() {
       };
     } catch (error) {
       return {
-        error: error instanceof Error ? error.message : "自定义日期不正确。",
+        error: getErrorMessage(error, "自定义日期不正确。"),
         range: null,
       };
     }
@@ -56,24 +60,33 @@ export function StatsPage() {
   const statsQuery = useQuery({
     enabled: Boolean(range),
     queryFn: () => getStatsForRange(user.id, range!),
-    queryKey: ["stats", user.id, range?.key, range?.startDate, range?.endDate],
+    queryKey: queryKeys.statsRange(
+      user.id,
+      range?.key,
+      range?.startDate,
+      range?.endDate,
+    ),
   });
 
-  function drilldown(params: { category?: string; type?: "expense" | "income" | "transfer" }) {
+  function drilldown(params: {
+    category?: string;
+    date?: string;
+    type?: TransactionType;
+  }) {
     if (!range) {
       return;
     }
 
+    const startDate = params.date ?? range.startDate;
+    const endDate = params.date ?? range.endDate;
+
     navigate({
-      search: {
-        category: params.category ?? "",
-        endDate: range.endDate,
-        scope: String(Date.now()),
-        search: "",
-        sort: "date-desc",
-        startDate: range.startDate,
+      search: createTransactionSearch({
+        category: params.category,
+        endDate,
+        startDate,
         type: params.type ?? "",
-      },
+      }),
       to: "/transactions",
     });
   }
@@ -133,7 +146,7 @@ export function StatsPage() {
       {statsQuery.isLoading ? <StateBlock title="读取统计">正在读取本地缓存。</StateBlock> : null}
       {statsQuery.error ? (
         <StateBlock title="统计失败" tone="danger">
-          {statsQuery.error instanceof Error ? statsQuery.error.message : "统计失败。"}
+          {getErrorMessage(statsQuery.error, "统计失败。")}
         </StateBlock>
       ) : null}
 
@@ -199,20 +212,7 @@ export function StatsPage() {
                     style={{ height: `${Math.max(item.percent, 6)}%` }}
                     title={`${item.date} ${formatCurrency(item.amount)}`}
                     type="button"
-                    onClick={() =>
-                      navigate({
-                        search: {
-                          category: "",
-                          endDate: item.date,
-                          scope: String(Date.now()),
-                          search: "",
-                          sort: "date-desc",
-                          startDate: item.date,
-                          type: "expense",
-                        },
-                        to: "/transactions",
-                      })
-                    }
+                    onClick={() => drilldown({ date: item.date, type: "expense" })}
                   >
                     <span>{item.date.slice(5)}</span>
                   </button>

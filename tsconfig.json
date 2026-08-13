@@ -30,9 +30,6 @@
   ],
   "exclude": [
     "node_modules",
-    "app",
-    "components",
-    "lib",
-    "types"
+    "dist"
   ]
 }

@@ -1,9 +1,39 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { VitePWA } from "vite-plugin-pwa";
 import { fileURLToPath, URL } from "node:url";
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(() => ({
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: "vendor-react",
+              priority: 40,
+              test: /node_modules[\\/](?:react|react-dom|scheduler)[\\/]/,
+            },
+            {
+              name: "vendor-tanstack",
+              priority: 30,
+              test: /node_modules[\\/]@tanstack[\\/]/,
+            },
+            {
+              name: "vendor-supabase",
+              priority: 20,
+              test: /node_modules[\\/]@supabase[\\/]/,
+            },
+            {
+              name: "vendor-storage",
+              priority: 10,
+              test: /node_modules[\\/](?:dexie|workbox-window|workbox-core)[\\/]/,
+            },
+          ],
+        },
+      },
+    },
+  },
   envPrefix: ["VITE_", "NEXT_PUBLIC_"],
   resolve: {
     alias: {

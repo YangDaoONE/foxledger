@@ -9,12 +9,7 @@ const eslintConfig = [
     ignores: [
       "node_modules/**",
       "dist/**",
-      ".next/**",
-      "app/**",
-      "components/**",
-      "lib/**",
-      "types/**",
-      "next.config.ts",
+      ".vite/**",
     ],
   },
   js.configs.recommended,

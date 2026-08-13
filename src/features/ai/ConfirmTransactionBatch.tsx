@@ -12,14 +12,15 @@ import type {
   ConfirmTransactionDraft,
   ParsedTransaction,
 } from "@/features/ai/types";
-import type { TransactionWritePayload } from "@/features/transactions/types";
+import type { TransactionInsertPayload } from "@/features/transactions/types";
 import {
   DEFAULT_CURRENCY,
   defaultCategories,
+  toNullableText,
   transactionTypeOptions,
 } from "@/features/transactions/transactionRules";
-import { insertTransactions } from "@/features/transactions/transactionsApi";
-import { toNullableText } from "@/features/transactions/transactionRules";
+import { insertTransactionsForUser } from "@/features/transactions/transactionsApi";
+import { getErrorMessage } from "@/lib/errors";
 
 type ConfirmTransactionBatchProps = {
   isOnline: boolean;
@@ -93,7 +94,7 @@ export function ConfirmTransactionBatch({
     setMessage(null);
 
     try {
-      const payload = selectedCandidates.map<TransactionWritePayload>((candidate) => {
+      const payload = selectedCandidates.map<TransactionInsertPayload>((candidate) => {
         const { amount, category } = validateAiTransactionDraft(
           candidate.source,
           candidate.draft,
@@ -113,15 +114,14 @@ export function ConfirmTransactionBatch({
           source: "ai",
           tag: toNullableText(candidate.source.tag),
           type: candidate.draft.type,
-          user_id: userId,
         };
       });
 
-      await insertTransactions(payload);
+      await insertTransactionsForUser(userId, payload);
       await onSaved();
       onClear();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "保存 AI 候选失败。");
+      setMessage(getErrorMessage(error, "保存 AI 候选失败。"));
     } finally {
       setIsSaving(false);
     }

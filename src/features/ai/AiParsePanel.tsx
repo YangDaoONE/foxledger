@@ -10,6 +10,7 @@ import {
   parseTransactionsWithAi,
 } from "@/features/ai/parseTransactionApi";
 import type { ParsedTransaction } from "@/features/ai/types";
+import { getErrorMessage } from "@/lib/errors";
 
 type AiParsePanelProps = {
   isOnline: boolean;
@@ -53,7 +54,7 @@ export function AiParsePanel({ isOnline, onSaved, userId }: AiParsePanelProps) {
         setMessage(result.truncated ? "结果已按候选数量上限截断。" : null);
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "AI 解析失败。");
+      setMessage(getErrorMessage(error, "AI 解析失败。"));
     } finally {
       setIsParsing(false);
     }

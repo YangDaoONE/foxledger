@@ -14,6 +14,7 @@ FoxLedger / 狐狐记账 Web/PWA 当前基线为 **v2.3.1 Vite PWA + Supabase Ed
 
 - React + Vite + TypeScript 前端。
 - TanStack Router 页面路由和底部导航。
+- 路由页面懒加载，以及 React、TanStack、Supabase、本地存储依赖分包。
 - TanStack Query 查询、同步和刷新。
 - Supabase Auth 邮箱密码登录、注册、会话恢复和退出。
 - 当前用户 `transactions` 读写，继续依赖 Supabase RLS 并显式约束当前用户。
@@ -395,16 +396,9 @@ npm run build
 
 ## 13. 下一阶段优先级
 
-P0：
-
-- 复测本地和线上同步状态，重点排查本地是否仍长时间显示“同步中 · 正在刷新本地缓存”。
-- 做真实手机 PWA 验收：安装、离线缓存、恢复联网同步、Service Worker 更新。
-- 做 AI 端到端验收：允许邮箱、解析成功、未登录、非白名单、超时、候选确认保存。
-
 P1：
 
 - 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
-- 处理 Vite chunk size 提示，优先路由级懒加载。
 - 增强同步状态诊断文案，显示最近同步时间和失败原因。
 
 P2：

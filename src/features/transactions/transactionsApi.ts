@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 import type {
   CachedTransaction,
+  TransactionInsertPayload,
   TransactionType,
   TransactionWritePayload,
 } from "@/features/transactions/types";
@@ -160,11 +161,18 @@ export async function deleteTransactionsByIds(userId: string, transactionIds: st
   return data?.length ?? 0;
 }
 
-export async function insertTransactions(payload: TransactionWritePayload[]) {
-  if (payload.length === 0) {
+export async function insertTransactionsForUser(
+  userId: string,
+  transactions: TransactionInsertPayload[],
+) {
+  if (transactions.length === 0) {
     throw new Error("没有可保存的账单。");
   }
 
+  const payload: TransactionWritePayload[] = transactions.map((transaction) => ({
+    ...transaction,
+    user_id: userId,
+  }));
   const { data, error } = await supabase.from("transactions").insert(payload).select("id");
 
   if (error) {

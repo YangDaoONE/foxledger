@@ -6,6 +6,7 @@ import {
   toNullableText,
 } from "@/features/transactions/transactionRules";
 import { isValidIsoDate } from "@/lib/date";
+import { getErrorMessage } from "@/lib/errors";
 
 export type CsvImportTransaction = {
   account: string | null;
@@ -145,7 +146,7 @@ export function parseTransactionsCsv(text: string): CsvImportResult {
   } catch (error) {
     return {
       errorRows: [],
-      fileError: error instanceof Error ? error.message : "CSV 解析失败。",
+      fileError: getErrorMessage(error, "CSV 解析失败。"),
       missingRequiredHeaders: [],
       totalRows: 0,
       validRows: [],

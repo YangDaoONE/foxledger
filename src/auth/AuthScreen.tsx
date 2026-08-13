@@ -3,6 +3,7 @@ import { LogIn } from "lucide-react";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { TextField } from "@/components/ui/TextField";
+import { getErrorMessage } from "@/lib/errors";
 import { supabase } from "@/lib/supabase";
 
 export function AuthScreen({ initialError }: { initialError: string | null }) {
@@ -32,7 +33,7 @@ export function AuthScreen({ initialError }: { initialError: string | null }) {
         setMessage("注册请求已提交，如开启邮件确认，请先完成邮箱验证。");
       }
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "登录失败。");
+      setMessage(getErrorMessage(error, "登录失败。"));
     } finally {
       setIsSubmitting(false);
     }

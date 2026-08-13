@@ -8,6 +8,7 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { getCachedSyncMeta } from "@/features/transactions/localTransactions";
 import { syncTransactionsCacheFromRemote } from "@/features/transactions/transactionSync";
@@ -34,16 +35,18 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   const syncMetaQuery = useQuery({
     queryFn: () => getCachedSyncMeta(userId),
-    queryKey: ["syncMeta", userId],
+    queryKey: queryKeys.syncMeta(userId),
   });
 
   const syncMutation = useMutation({
     mutationFn: () => syncTransactionsCacheFromRemote(userId),
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["syncMeta", userId] });
-      await queryClient.invalidateQueries({ queryKey: ["transactions", userId] });
-      await queryClient.invalidateQueries({ queryKey: ["stats", userId] });
-      await queryClient.invalidateQueries({ queryKey: ["monthlySummary", userId] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.syncMeta(userId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.transactions(userId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.stats(userId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.monthlySummaries(userId) }),
+      ]);
     },
   });
   const syncMutationRef = useRef(syncMutation);

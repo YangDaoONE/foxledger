@@ -2,15 +2,12 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
+  lazyRouteComponent,
 } from "@tanstack/react-router";
 
 import { AuthGate } from "@/auth/AuthGate";
 import { AppShell } from "@/app/AppShell";
-import { HomePage } from "@/routes/HomePage";
-import { SettingsPage } from "@/routes/SettingsPage";
-import { StatsPage } from "@/routes/StatsPage";
-import { TransactionsPage } from "@/routes/TransactionsPage";
-import type { TransactionSortOption, TransactionType } from "@/features/transactions/types";
+import { validateTransactionSearch } from "@/features/transactions/transactionSearch";
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -21,42 +18,32 @@ const rootRoute = createRootRoute({
 });
 
 const indexRoute = createRoute({
-  component: HomePage,
+  component: lazyRouteComponent(() => import("@/routes/HomePage"), "HomePage"),
   getParentRoute: () => rootRoute,
   path: "/",
 });
 
-export const transactionsRoute = createRoute({
-  component: TransactionsPage,
+const transactionsRoute = createRoute({
+  component: lazyRouteComponent(
+    () => import("@/routes/TransactionsPage"),
+    "TransactionsPage",
+  ),
   getParentRoute: () => rootRoute,
   path: "/transactions",
-  validateSearch: (search) => ({
-    category: typeof search.category === "string" ? search.category : "",
-    endDate: typeof search.endDate === "string" ? search.endDate : "",
-    scope: typeof search.scope === "string" ? search.scope : "",
-    search: typeof search.search === "string" ? search.search : "",
-    sort:
-      typeof search.sort === "string" &&
-      ["date-desc", "date-asc", "amount-desc", "amount-asc"].includes(search.sort)
-        ? (search.sort as TransactionSortOption)
-        : "date-desc",
-    startDate: typeof search.startDate === "string" ? search.startDate : "",
-    type:
-      typeof search.type === "string" &&
-      ["expense", "income", "transfer"].includes(search.type)
-        ? (search.type as TransactionType)
-        : "",
-  }),
+  validateSearch: validateTransactionSearch,
 });
 
 const statsRoute = createRoute({
-  component: StatsPage,
+  component: lazyRouteComponent(() => import("@/routes/StatsPage"), "StatsPage"),
   getParentRoute: () => rootRoute,
   path: "/stats",
 });
 
 const settingsRoute = createRoute({
-  component: SettingsPage,
+  component: lazyRouteComponent(
+    () => import("@/routes/SettingsPage"),
+    "SettingsPage",
+  ),
   getParentRoute: () => rootRoute,
   path: "/settings",
 });

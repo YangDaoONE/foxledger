@@ -1,23 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { getRouteApi } from "@tanstack/react-router";
 import { RefreshCw, Search, Trash2 } from "lucide-react";
 
-import { transactionsRoute } from "@/app/router";
+import { queryKeys } from "@/app/queryKeys";
 import { useAuthUser } from "@/auth/AuthProvider";
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
 import { useSyncState } from "@/features/sync/SyncProvider";
-import { TransactionCard } from "@/features/transactions/TransactionCard";
 import {
   TransactionForm,
   type TransactionFormValues,
 } from "@/features/transactions/TransactionForm";
+import { TransactionList } from "@/features/transactions/TransactionList";
 import {
   defaultCategories,
   transactionTypeOptions,
 } from "@/features/transactions/transactionRules";
+import { transactionSortOptions } from "@/features/transactions/transactionSearch";
 import type {
   CachedTransaction,
   TransactionFilters,
@@ -32,10 +34,11 @@ import {
 import { formatCurrency } from "@/lib/format";
 
 const PAGE_SIZE = 30;
+const transactionsRouteApi = getRouteApi("/transactions");
 
 export function TransactionsPage() {
   const user = useAuthUser();
-  const search = transactionsRoute.useSearch();
+  const search = transactionsRouteApi.useSearch();
   const { isOnline, isSyncing, refreshAfterWrite, syncNow } = useSyncState();
   const searchType = search.type as TransactionFilters["type"];
   const [filters, setFilters] = useState<TransactionFilters>(() => ({
@@ -77,7 +80,7 @@ export function TransactionsPage() {
         offset: 0,
         userId: user.id,
       }),
-    queryKey: ["transactions", user.id, filtersKey, visibleCount],
+    queryKey: queryKeys.transactionPage(user.id, filtersKey, visibleCount),
   });
 
   const updateMutation = useMutation({
@@ -113,22 +116,6 @@ export function TransactionsPage() {
   });
 
   const data = transactionsQuery.data;
-  const shouldGroupByDate = filters.sort === "date-desc" || filters.sort === "date-asc";
-  const groupedTransactions = useMemo(() => {
-    if (!shouldGroupByDate) {
-      return [];
-    }
-
-    const groups = new Map<string, CachedTransaction[]>();
-
-    for (const transaction of data?.transactions ?? []) {
-      const rows = groups.get(transaction.date) ?? [];
-      rows.push(transaction);
-      groups.set(transaction.date, rows);
-    }
-
-    return Array.from(groups.entries());
-  }, [data?.transactions, shouldGroupByDate]);
 
   function updateFilter<Key extends keyof TransactionFilters>(
     key: Key,
@@ -159,6 +146,11 @@ export function TransactionsPage() {
     });
   }
 
+  function toggleManageMode() {
+    setManageMode((value) => !value);
+    setSelectedIds(new Set());
+  }
+
   return (
     <div className="view-stack">
       <SectionBlock eyebrow="账单" title="筛选和汇总">
@@ -175,10 +167,7 @@ export function TransactionsPage() {
           <AppButton
             type="button"
             variant={manageMode ? "primary" : "secondary"}
-            onClick={() => {
-              setManageMode((value) => !value);
-              setSelectedIds(new Set());
-            }}
+            onClick={toggleManageMode}
           >
             {manageMode ? "完成" : "管理"}
           </AppButton>
@@ -240,10 +229,11 @@ export function TransactionsPage() {
                 updateFilter("sort", event.target.value as TransactionSortOption)
               }
             >
-              <option value="date-desc">日期倒序</option>
-              <option value="date-asc">日期正序</option>
-              <option value="amount-desc">金额倒序</option>
-              <option value="amount-asc">金额正序</option>
+              {transactionSortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
@@ -306,50 +296,18 @@ export function TransactionsPage() {
         </SectionBlock>
       ) : null}
 
-      <div className="transaction-list">
-        {transactionsQuery.isLoading ? <StateBlock title="读取缓存">正在读取本地缓存。</StateBlock> : null}
-        {transactionsQuery.error ? (
-          <StateBlock title="读取失败" tone="danger">
-            {transactionsQuery.error instanceof Error
-              ? transactionsQuery.error.message
-              : "读取账单失败。"}
-          </StateBlock>
-        ) : null}
-        {!transactionsQuery.isLoading && (data?.transactions.length ?? 0) === 0 ? (
-          <StateBlock title="暂无账单">当前筛选条件下没有账单。</StateBlock>
-        ) : null}
-
-        {shouldGroupByDate
-          ? groupedTransactions.map(([date, transactions]) => (
-              <section className="date-group" key={date}>
-                <h3>{date}</h3>
-                {transactions.map((transaction) => (
-                  <TransactionCard
-                    isOnline={isOnline}
-                    isSelected={selectedIds.has(transaction.id)}
-                    key={transaction.id}
-                    manageMode={manageMode}
-                    onDelete={() => deleteMutation.mutate(transaction.id)}
-                    onEdit={() => setEditingTransaction(transaction)}
-                    onToggleSelected={() => toggleSelected(transaction.id)}
-                    transaction={transaction}
-                  />
-                ))}
-              </section>
-            ))
-          : data?.transactions.map((transaction) => (
-              <TransactionCard
-                isOnline={isOnline}
-                isSelected={selectedIds.has(transaction.id)}
-                key={transaction.id}
-                manageMode={manageMode}
-                onDelete={() => deleteMutation.mutate(transaction.id)}
-                onEdit={() => setEditingTransaction(transaction)}
-                onToggleSelected={() => toggleSelected(transaction.id)}
-                transaction={transaction}
-              />
-            ))}
-      </div>
+      <TransactionList
+        error={transactionsQuery.error}
+        isLoading={transactionsQuery.isLoading}
+        isOnline={isOnline}
+        manageMode={manageMode}
+        onDelete={(transactionId) => deleteMutation.mutate(transactionId)}
+        onEdit={setEditingTransaction}
+        onToggleSelected={toggleSelected}
+        selectedIds={selectedIds}
+        sort={filters.sort}
+        transactions={data?.transactions ?? []}
+      />
 
       {data?.hasMore ? (
         <AppButton type="button" variant="secondary" onClick={() => setVisibleCount((value) => value + PAGE_SIZE)}>

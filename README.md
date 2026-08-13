@@ -11,6 +11,7 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 
 - React + Vite + TypeScript 前端。
 - TanStack Router 底部导航：首页、账单、统计、设置。
+- 页面按路由懒加载，React、TanStack、Supabase 和本地存储依赖独立分包。
 - TanStack Query 查询、刷新和同步状态管理。
 - Supabase Auth 邮箱密码登录、注册、会话恢复和退出。
 - Supabase Postgres `public.transactions` 当前用户读写，继续依赖 RLS 并显式约束当前用户。
@@ -33,7 +34,6 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 - 没有多币种和汇率。
 - CSV 导入只追加新增，不覆盖、不合并、不自动去重。
 - 目前没有 E2E 测试脚本。
-- Vite build 有单 chunk 超过 500 kB 的提示，不影响构建，后续可做路由级代码分割。
 
 ## 技术栈
 
@@ -58,6 +58,7 @@ src/
   main.tsx                         Vite 入口
   app/
     AppShell.tsx                   登录后应用壳和底部导航容器
+    queryKeys.ts                   TanStack Query 查询键工厂
     router.tsx                     TanStack Router 路由
   auth/                            Supabase session、登录守卫、登录/注册页
   components/                      底部导航和通用 UI 组件
@@ -192,14 +193,18 @@ npm run functions:deploy
 
 ## 最近验证结果
 
-最近一轮代码收口已验证：
+当前已验证：
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run build`：通过，仅有 Vite chunk size 提示。
+- `npm run build`：通过；页面与公共依赖已分包，无 chunk size 提示。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
-- `npm run functions:deploy`：Supabase Edge Function `parse-transaction` 部署成功。
-- 生产站点 [https://ledger.foxyang.com/](https://ledger.foxyang.com/) 已确认 serving Vite 静态产物。
+- 本地生产预览：登录页和懒加载路由正常，浏览器控制台无错误或警告。
+- 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
+- 真实手机 PWA 安装、离线缓存和恢复联网同步验收通过。
+- AI 端到端验收通过，包括登录与白名单校验、解析、异常提示、候选确认保存和保存后同步。
+
+`parse-transaction` 已部署，生产站点 [https://ledger.foxyang.com/](https://ledger.foxyang.com/) 正在提供 Vite 静态产物。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
@@ -207,9 +212,6 @@ npm run functions:deploy
 
 优先级从高到低：
 
-1. 复测本地和线上同步状态，重点检查本地是否仍长时间显示“同步中 · 正在刷新本地缓存”。
-2. 做真实手机 PWA 验收：安装、刷新、Service Worker 更新、离线缓存、恢复联网同步。
-3. 做 AI 端到端验收：允许邮箱、解析成功、401/403/超时错误、候选确认保存、保存后重新同步。
-4. 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
-5. 做路由级代码分割，处理 Vite chunk size 提示。
-6. 评估前端交易规则和 Edge Function 交易规则的重复维护成本，只在明显收益时抽出共享规则。
+1. 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
+2. 增强同步状态诊断：显示最近同步时间、失败原因和手动重试入口。
+3. 评估前端交易规则和 Edge Function 交易规则的重复维护成本，只在明显收益时抽出共享规则。

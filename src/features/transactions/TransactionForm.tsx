@@ -13,6 +13,7 @@ import {
   validateTransactionDraft,
 } from "@/features/transactions/transactionRules";
 import { getTodayLocalIsoDate } from "@/lib/date";
+import { getErrorMessage } from "@/lib/errors";
 
 export type TransactionFormValues = {
   amount: string;
@@ -89,7 +90,7 @@ export function TransactionForm({
         });
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "保存失败。");
+      setError(getErrorMessage(submitError, "保存失败。"));
     }
   }
 

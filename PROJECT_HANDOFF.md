@@ -14,6 +14,7 @@ FoxLedger Web/PWA 当前是 **v2.3.1 Vite PWA + Supabase Edge AI API 收口版**
 
 - 完成 Web/PWA 技术栈重构：React + Vite + TypeScript。
 - 完成 TanStack Router 底部导航：首页、账单、统计、设置。
+- 完成路由级懒加载和公共依赖分包，构建不再出现单 chunk 超过 500 kB 的提示。
 - 完成 TanStack Query 查询、刷新、同步状态串联。
 - 完成 Supabase Auth 登录、注册、session 恢复、退出。
 - 完成 Dexie / IndexedDB 离线只读缓存，按 `user_id` 隔离。
@@ -30,6 +31,9 @@ FoxLedger Web/PWA 当前是 **v2.3.1 Vite PWA + Supabase Edge AI API 收口版**
 - 修正 `TransactionForm` 在编辑不同账单时表单初值不刷新的问题。
 - 修正 `getCachedSyncMeta` 返回 `null`，避免 TanStack Query 收到 `undefined`。
 - 将同步 guard 调整为组件级 ref，避免模块级状态长期压制自动同步。
+- 集中维护查询键、账单页搜索参数校验和统计 drilldown 参数构造。
+- 将 AI/CSV 批量新增的 `user_id` 注入收口到交易 API，调用方只提交账单字段。
+- 将账单列表渲染从页面状态编排中拆出，保留原筛选、分组和管理行为。
 - 文档已重写为 Web/PWA 专属状态，不混入 App 仓库。
 
 ## 3. 当前关键文件
@@ -37,6 +41,7 @@ FoxLedger Web/PWA 当前是 **v2.3.1 Vite PWA + Supabase Edge AI API 收口版**
 ```text
 src/main.tsx                                  Vite 前端入口
 src/app/router.tsx                            TanStack Router 路由
+src/app/queryKeys.ts                          TanStack Query 查询键工厂
 src/app/AppShell.tsx                          登录后应用壳
 src/auth/*                                    Supabase session、登录守卫、登录/注册页
 src/components/BottomNav.tsx                  底部导航
@@ -118,33 +123,24 @@ npm run functions:deploy
 
 ## 6. 最近验证结果
 
-最近一轮已验证：
+当前已验证：
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run build`：通过，仅有 Vite chunk size 提示。
+- `npm run build`：通过；页面与公共依赖已分包，无 chunk size 提示。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
-- `npm run functions:deploy`：Supabase Edge Function `parse-transaction` 部署成功。
-- 生产站点 [https://ledger.foxyang.com/](https://ledger.foxyang.com/) 已确认 serving Vite 静态产物。
+- 本地生产预览：登录页和懒加载路由正常，浏览器控制台无错误或警告。
+- 本地与线上账单同步状态正常，未再出现长时间停留在“同步中”的问题。
+- 真实手机 PWA 安装、离线缓存和恢复联网同步验收通过。
+- AI 端到端验收通过，包括登录与白名单校验、解析、异常提示、候选确认保存和保存后同步。
 
-仍需人工复测：
-
-- 本地 `http://127.0.0.1:5173/` 是否还会长时间显示“同步中 · 正在刷新本地缓存”。
-- 真实手机 PWA 安装、离线缓存、恢复联网同步、Service Worker 更新。
-- AI 端到端解析和候选保存。
+`parse-transaction` 已部署，生产站点 [https://ledger.foxyang.com/](https://ledger.foxyang.com/) 正在提供 Vite 静态产物。
 
 ## 7. 已知风险和待办
-
-P0：
-
-- 复测并彻底定位本地同步状态异常。如果仍出现持续“同步中”，优先检查浏览器 Network、IndexedDB `sync_meta`、`SyncProvider` 状态切换和重复 invalidation。
-- 做线上和本地 AI 端到端验收，包括允许邮箱、非白名单、未登录、AI 超时、候选确认保存。
-- 做真实手机 PWA 验收，确认离线只读和恢复联网同步文案清晰。
 
 P1：
 
 - 增加关键纯函数测试：日期范围、统计口径、账单排序筛选、CSV parser、AI 清洗规则。
-- 对 Vite bundle 做路由级代码分割，处理 build chunk size 提示。
 - 增强同步状态诊断：最近同步时间、失败原因、手动重试入口。
 
 P2：

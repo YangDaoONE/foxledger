@@ -3,8 +3,9 @@ import { useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { parseTransactionsCsv, type CsvImportResult } from "@/features/import/csvImport";
-import type { TransactionWritePayload } from "@/features/transactions/types";
-import { insertTransactions } from "@/features/transactions/transactionsApi";
+import type { TransactionInsertPayload } from "@/features/transactions/types";
+import { insertTransactionsForUser } from "@/features/transactions/transactionsApi";
+import { getErrorMessage } from "@/lib/errors";
 
 type ImportTransactionsProps = {
   isOnline: boolean;
@@ -43,17 +44,16 @@ export function ImportTransactions({ isOnline, onImported, userId }: ImportTrans
     setMessage(null);
 
     try {
-      const payload = result.validRows.map<TransactionWritePayload>(({ transaction }) => ({
-        ...transaction,
-        user_id: userId,
-      }));
+      const payload = result.validRows.map<TransactionInsertPayload>(
+        ({ transaction }) => transaction,
+      );
 
-      const count = await insertTransactions(payload);
+      const count = await insertTransactionsForUser(userId, payload);
       await onImported();
       setMessage(`已导入 ${count} 条账单。`);
       setResult(null);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "CSV 导入失败。");
+      setMessage(getErrorMessage(error, "CSV 导入失败。"));
     } finally {
       setIsImporting(false);
     }

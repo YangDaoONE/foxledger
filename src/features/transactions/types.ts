@@ -19,8 +19,7 @@ export type CachedTransaction = {
   updated_at: string;
 };
 
-export type TransactionWritePayload = {
-  user_id: string;
+export type TransactionInsertPayload = {
   type: TransactionType;
   amount: number;
   currency: "CNY";
@@ -34,6 +33,10 @@ export type TransactionWritePayload = {
   raw_text?: string | null;
   source: TransactionSource;
   ai_confidence?: number | null;
+};
+
+export type TransactionWritePayload = TransactionInsertPayload & {
+  user_id: string;
 };
 
 export type TransactionSortOption =

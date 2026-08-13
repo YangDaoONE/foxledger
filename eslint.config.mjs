@@ -24,7 +24,6 @@ const eslintConfig = [
   {
     files: [
       "src/**/*.{ts,tsx}",
-      "supabase/functions/_shared/**/*.ts",
       "vite.config.ts",
       "vitest.config.ts",
     ],
@@ -43,6 +42,16 @@ const eslintConfig = [
         { allowConstantExport: true },
       ],
       "react-hooks/set-state-in-effect": "off",
+    },
+  },
+  {
+    files: ["supabase/functions/**/*.ts"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: {
+        ...globals.browser,
+        Deno: "readonly",
+      },
     },
   },
 ];

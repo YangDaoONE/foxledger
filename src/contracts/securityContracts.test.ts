@@ -108,25 +108,60 @@ describe("AI Edge Function 安全基线", () => {
   const edgeFunction = readRepositoryFile(
     "supabase/functions/parse-transaction/index.ts",
   );
+  const authModule = readRepositoryFile("supabase/functions/_shared/auth.ts");
+  const aiClientModule = readRepositoryFile("supabase/functions/_shared/aiClient.ts");
+  const envModule = readRepositoryFile("supabase/functions/_shared/edgeEnv.ts");
 
   it("函数自处理 JWT，但内部仍验证 bearer token 与邮箱白名单", () => {
     expect(config).toMatch(
       /\[functions\.parse-transaction\]\s+verify_jwt = false/i,
     );
     expect(edgeFunction).toContain("getBearerToken(request)");
-    expect(edgeFunction).toContain("verifySupabaseToken(token)");
+    expect(edgeFunction).toContain("verifySupabaseToken(token, createClient)");
     expect(edgeFunction).toContain("assertEmailAllowed(user.email)");
-    expect(edgeFunction).toContain('getOptionalEnv("ALLOWED_EMAILS")');
+    expect(authModule).toContain('getOptionalEdgeEnv("ALLOWED_EMAILS", readEnv)');
+    expect(authModule).toContain("supabase.auth.getUser(accessToken)");
   });
 
   it("只使用 publishable/anon key 校验用户，不引入 service_role", () => {
-    expect(edgeFunction).toContain('getOptionalEnv("SUPABASE_PUBLISHABLE_KEY")');
-    expect(edgeFunction).toContain('getOptionalEnv("SUPABASE_ANON_KEY")');
-    expect(edgeFunction).not.toMatch(/service[_-]?role/i);
+    expect(envModule).toContain('getOptionalEdgeEnv("SUPABASE_PUBLISHABLE_KEY", readEnv)');
+    expect(envModule).toContain('getOptionalEdgeEnv("SUPABASE_ANON_KEY", readEnv)');
+    expect([edgeFunction, authModule, aiClientModule, envModule].join("\n")).not.toMatch(
+      /service[_-]?role/i,
+    );
   });
 
   it("模型提示继续限定为当前输入解析，禁止历史与统计用途", () => {
     expect(edgeFunction).toContain("Parse only the current user input. Do not infer from history.");
     expect(edgeFunction).toContain("Do not calculate summaries or statistics.");
+    expect(edgeFunction).toContain("requestOpenAiChatContent({");
+  });
+});
+
+describe("V3.1 安全只读数据层基线", () => {
+  const ledgerReadModule = readRepositoryFile(
+    "supabase/functions/_shared/ledgerRead.ts",
+  );
+
+  it("只读取字段白名单，并在每一页显式约束验证用户", () => {
+    expect(ledgerReadModule).toContain(
+      'LEDGER_READ_SELECT = "id,user_id,date,type,amount,category,merchant"',
+    );
+    expect(ledgerReadModule).toContain('.eq("user_id", params.verifiedUserId)');
+    expect(ledgerReadModule).toContain('.order("date", { ascending: true })');
+    expect(ledgerReadModule).toContain('.order("id", { ascending: true })');
+  });
+
+  it("使用用户 token 与 publishable key，不包含数据库写操作或 service role", () => {
+    expect(ledgerReadModule).toContain("createUserScopedSupabaseClient(");
+    expect(ledgerReadModule).not.toMatch(/\.insert\s*\(/i);
+    expect(ledgerReadModule).not.toMatch(/\.update\s*\(/i);
+    expect(ledgerReadModule).not.toMatch(/\.delete\s*\(/i);
+    expect(ledgerReadModule).not.toMatch(/service[_-]?role/i);
+  });
+
+  it("任何分页或行校验失败都明确拒绝部分统计", () => {
+    expect(ledgerReadModule).toContain("未生成部分统计");
+    expect(ledgerReadModule).toContain("MAX_AI_LEDGER_DETAILS = 500");
   });
 });

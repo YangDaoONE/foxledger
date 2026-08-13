@@ -1,4 +1,14 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  ForbiddenEmailError,
+  assertEmailAllowed,
+  getBearerToken,
+  verifySupabaseToken,
+} from "../_shared/auth.ts";
+import {
+  requestOpenAiChatContent,
+  type OpenAiChatMessage,
+} from "../_shared/aiClient.ts";
 
 type TransactionType = "expense" | "income" | "transfer";
 
@@ -26,24 +36,10 @@ type ParsedTransactionBatch = {
   max_input_chars: number;
 };
 
-type OpenAiChatResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null;
-    };
-  }>;
-  error?: {
-    message?: string;
-  };
-};
-
 const DEFAULT_CURRENCY = "CNY";
 const DEFAULT_CATEGORY = "其他";
 const MAX_PARSE_INPUT_CHARS = 3000;
 const MAX_PARSED_TRANSACTIONS = 50;
-const OPENAI_REQUEST_TIMEOUT_MS = 30000;
-const openAiDefaultBaseUrl = "https://api.openai.com/v1";
-const openAiDefaultModel = "gpt-4o-mini";
 const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
 const defaultCategories = [
   "餐饮",
@@ -75,13 +71,6 @@ class InputValidationError extends Error {
   }
 }
 
-class ForbiddenEmailError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "ForbiddenEmailError";
-  }
-}
-
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     headers: corsHeaders,
@@ -95,77 +84,6 @@ function errorResponse(message: string, status: number) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function getOptionalEnv(name: string) {
-  const value = Deno.env.get(name)?.trim();
-  return value ? value : null;
-}
-
-function getRequiredEnv(name: string) {
-  const value = getOptionalEnv(name);
-
-  if (!value) {
-    throw new Error(`Missing ${name} in Edge Function secrets.`);
-  }
-
-  return value;
-}
-
-function getSupabasePublishableKey() {
-  const key = getOptionalEnv("SUPABASE_PUBLISHABLE_KEY") ?? getOptionalEnv("SUPABASE_ANON_KEY");
-
-  if (!key) {
-    throw new Error("Missing SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY in Edge Function secrets.");
-  }
-
-  return key;
-}
-
-function getBearerToken(request: Request) {
-  const authorization = request.headers.get("authorization");
-
-  if (!authorization?.startsWith("Bearer ")) {
-    return null;
-  }
-
-  const token = authorization.slice("Bearer ".length).trim();
-  return token.length > 0 ? token : null;
-}
-
-async function verifySupabaseToken(accessToken: string) {
-  const supabase = createClient(getRequiredEnv("SUPABASE_URL"), getSupabasePublishableKey(), {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
-  const { data, error } = await supabase.auth.getUser(accessToken);
-
-  if (error || !data.user) {
-    return null;
-  }
-
-  return data.user;
-}
-
-function getAllowedEmails() {
-  return (getOptionalEnv("ALLOWED_EMAILS") ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-function assertEmailAllowed(email: string | undefined) {
-  const allowedEmails = getAllowedEmails();
-
-  if (allowedEmails.length === 0) {
-    throw new Error("Missing ALLOWED_EMAILS in Edge Function secrets.");
-  }
-
-  if (!email || !allowedEmails.includes(email.toLowerCase())) {
-    throw new ForbiddenEmailError("当前账号不允许使用 AI 解析。");
-  }
 }
 
 function isTransactionType(value: string): value is TransactionType {
@@ -514,21 +432,7 @@ function sanitizeParsedTransactionsBatch(
   };
 }
 
-function getOpenAiConfig() {
-  const provider = getOptionalEnv("AI_PROVIDER") ?? "openai";
-
-  if (provider !== "openai") {
-    throw new Error("当前仅支持 AI_PROVIDER=openai。");
-  }
-
-  return {
-    apiKey: getRequiredEnv("OPENAI_API_KEY"),
-    baseUrl: (getOptionalEnv("OPENAI_BASE_URL") ?? openAiDefaultBaseUrl).replace(/\/+$/, ""),
-    model: getOptionalEnv("OPENAI_MODEL") ?? openAiDefaultModel,
-  };
-}
-
-function buildParserPrompt(text: string, todayIsoDate: string) {
+function buildParserPrompt(text: string, todayIsoDate: string): OpenAiChatMessage[] {
   return [
     {
       role: "system",
@@ -568,49 +472,11 @@ function buildParserPrompt(text: string, todayIsoDate: string) {
 }
 
 async function parseTransactionWithAi(text: string, todayIsoDate: string) {
-  const config = getOpenAiConfig();
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), OPENAI_REQUEST_TIMEOUT_MS);
-  let response: Response;
-
-  try {
-    response = await fetch(`${config.baseUrl}/chat/completions`, {
-      body: JSON.stringify({
-        messages: buildParserPrompt(text, todayIsoDate),
-        model: config.model,
-        response_format: { type: "json_object" },
-        temperature: 0.1,
-      }),
-      headers: {
-        Authorization: `Bearer ${config.apiKey}`,
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      throw new Error("AI 请求超时，请稍后重试。");
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
-  const responseBody = (await response.json().catch(() => null)) as OpenAiChatResponse | null;
-
-  if (!response.ok) {
-    throw new Error(responseBody?.error?.message ?? `AI request failed with status ${response.status}`);
-  }
-
-  const content = responseBody?.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error("AI 返回内容为空。");
-  }
-
-  return content.trim();
+  return requestOpenAiChatContent({
+    messages: buildParserPrompt(text, todayIsoDate),
+    responseFormat: { type: "json_object" },
+    temperature: 0.1,
+  });
 }
 
 Deno.serve(async (request) => {
@@ -629,7 +495,7 @@ Deno.serve(async (request) => {
   }
 
   try {
-    const user = await verifySupabaseToken(token);
+    const user = await verifySupabaseToken(token, createClient);
 
     if (!user) {
       return errorResponse("请先登录后再解析账单。", 401);

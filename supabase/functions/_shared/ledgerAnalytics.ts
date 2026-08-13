@@ -4,7 +4,7 @@ import {
   type LedgerStatsEnvelope,
   type LedgerTransactionType,
   isLedgerIsoDate,
-} from "./ledgerContracts";
+} from "./ledgerContracts.ts";
 
 export type LedgerStatsTransaction = {
   amount: number;

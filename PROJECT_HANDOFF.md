@@ -6,7 +6,7 @@
 
 ## 1. 当前状态
 
-当前代码基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码和自动化检查已于 2026-08-13 完成，提交 `94aeba1` 已完成 Vercel 生产部署，生产首页、`/chat`、manifest、Service Worker 和带哈希静态资源检查通过；真机 PWA 获取新 Service Worker 后的最终更新验收待完成。
+当前代码与生产验收基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码、自动化检查、Vercel 生产部署、服务器产物核对和真机 PWA 更新验收均已于 2026-08-13 通过，V3.0 已正式收口。
 
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -145,7 +145,7 @@ npm run verify:v3
 
 M0–M4 人工验收已经通过：候选闭环、真实批次保存、编辑、单删、部分删除后撤销剩余行、离线限制、跨路由保留和刷新恢复。
 
-M5 生产发布后仍需完成以下人工确认：
+M5 已由用户完成以下人工确认：
 
 - 真机 PWA 的软键盘、Safe Area、滚动和焦点。
 - 已安装 PWA 获取新 Service Worker 后的更新与离线应用壳。
@@ -165,7 +165,7 @@ M5 生产发布后仍需完成以下人工确认：
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
 
-当前仓库代码基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；M0–M5 代码、本地检查和 Vercel 生产部署已完成，真机 PWA 获取新 Service Worker 后的最终更新验收待完成。
+当前仓库与生产验收基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；M0–M5 代码、本地检查、Vercel 生产部署和真机 PWA 更新验收均已完成，V3.0 已正式收口。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS、不把历史账单/统计/Dexie 发给 AI、用户确认后才写库、新 AI 不持久化 raw_text、只处理 Web/PWA 仓库。
 

@@ -6,7 +6,7 @@
 
 ## 1. 当前项目角色
 
-FoxLedger / 狐狐记账 Web/PWA 当前代码基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码和本地生产构建，并以提交 `94aeba1` 完成 Vercel 生产部署；真机 PWA 获取新 Service Worker 后的最终更新验收待完成。不能从本地代码状态推断生产状态。
+FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 

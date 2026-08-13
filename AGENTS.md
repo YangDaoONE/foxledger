@@ -8,6 +8,8 @@
 
 FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**。V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
+当前工作区已完成 V3.1 M0“共享统计与契约测试”的代码和自动化检查，尚未发布；V3.1 M1–M5 未实施，生产站点仍以 V3.0 为准。
+
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 当前已完成：
@@ -34,6 +36,7 @@ FoxLedger / 狐狐记账 Web/PWA 当前代码与生产验收基线为 **V3.0 狐
 - 原创轻量狐狐 normal、listening、thinking、happy、confused 五种状态。
 - CSV 导入。
 - 日期范围统计和 drilldown 到账单页筛选。
+- V3.1 M0 环境无关共享统计规则、严格 query plan / stats envelope / grounded answer 契约和统计 drilldown 回归测试。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Vercel 只部署 Vite 静态前端，线上不再使用旧 Next API。
 
@@ -292,6 +295,8 @@ src/features/stats/statsApi.ts
 src/features/stats/statsCalculator.ts
 src/features/stats/statsRanges.ts
 src/routes/StatsPage.tsx
+supabase/functions/_shared/ledgerAnalytics.ts
+supabase/functions/_shared/ledgerContracts.ts
 ```
 
 当前支持范围：
@@ -415,5 +420,6 @@ npm run verify:v3
 ## 13. 后续阶段边界
 
 - V3.0 发布验收完成后，只有用户明确要求时才开始 `docs/V3.1_EXECUTABLE_DESIGN.md`。
+- V3.1 M0 已完成本地代码和自动化检查；只有用户明确要求时才开始 M1“安全只读数据层”。
 - 不得把 V3.1 的 AI 问账、连续追问或全站体验统一写成当前已完成功能。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

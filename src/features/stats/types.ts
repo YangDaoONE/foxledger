@@ -1,4 +1,4 @@
-import type { CachedTransaction } from "@/features/transactions/types";
+import type { LedgerStatsTransaction } from "@shared/ledgerAnalytics";
 
 export type StatsRangeKey = "custom" | "last-month" | "month" | "week" | "year";
 
@@ -38,4 +38,4 @@ export type MonthlyStats = {
   transactionCount: number;
 };
 
-export type StatsTransaction = Pick<CachedTransaction, "amount" | "category" | "date" | "type">;
+export type StatsTransaction = LedgerStatsTransaction;

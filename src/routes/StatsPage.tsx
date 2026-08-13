@@ -11,13 +11,16 @@ import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
 import { getStatsForRange } from "@/features/stats/statsApi";
 import {
+  createStatsDrilldownParams,
+  type StatsDrilldown,
+} from "@/features/stats/statsDrilldown";
+import {
   buildCustomStatsRange,
   getPresetStatsRange,
 } from "@/features/stats/statsRanges";
 import type { StatsDateRange, StatsRangeKey } from "@/features/stats/types";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import { createTransactionSearch } from "@/features/transactions/transactionSearch";
-import type { TransactionType } from "@/features/transactions/types";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
 
@@ -68,25 +71,13 @@ export function StatsPage() {
     ),
   });
 
-  function drilldown(params: {
-    category?: string;
-    date?: string;
-    type?: TransactionType;
-  }) {
+  function drilldown(params: StatsDrilldown) {
     if (!range) {
       return;
     }
 
-    const startDate = params.date ?? range.startDate;
-    const endDate = params.date ?? range.endDate;
-
     navigate({
-      search: createTransactionSearch({
-        category: params.category,
-        endDate,
-        startDate,
-        type: params.type ?? "",
-      }),
+      search: createTransactionSearch(createStatsDrilldownParams(range, params)),
       to: "/transactions",
     });
   }

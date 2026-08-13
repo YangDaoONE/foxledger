@@ -8,6 +8,8 @@
 
 当前代码与生产验收基线为 **V3.0 狐狐对话记账版**：M0–M5 的代码、自动化检查、Vercel 生产部署、服务器产物核对和真机 PWA 更新验收均已于 2026-08-13 通过，V3.0 已正式收口。
 
+当前工作区已完成 V3.1 M0“共享统计与契约测试”的代码和自动化检查，尚未提交或发布；V3.1 M1–M5 未实施，生产站点仍以 V3.0 为准。
+
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 生产部署必须继续以 GitHub/Vercel 状态和服务器实际产物为准，不能只凭本地 `dist` 推断。
@@ -29,6 +31,14 @@
 - 移动端 `dvh`、Safe Area、软键盘 Composer 可见性、消息滚动保护、弹层焦点圈定与回归。
 - Workbox 显式 NetworkOnly：所有非 GET，以及 Supabase auth/rest/functions/storage 路径；运行时 CacheFirst 只用于同源静态图片。
 - Vitest、React Testing Library、fake-indexeddb 和 V3 构建产物验证脚本。
+
+### 2.1 V3.1 M0 本地实现
+
+- `supabase/functions/_shared/ledgerAnalytics.ts` 提供前端与未来 Edge 共用的环境无关正式统计，覆盖收支、结余、交易数、日均、最大支出、分类、每日趋势、商家和类型分组。
+- `supabase/functions/_shared/ledgerContracts.ts` 提供严格 query plan、stats envelope 和 grounded answer 类型与运行时解析，拒绝未知字段、非法日期、未知分类、非有限数字和矛盾金额范围。
+- 现有 `statsCalculator.ts` 变为薄包装，保留 V3.0 统计页 summary、百分比和 drilldown 行为。
+- 新增共享统计、前端/Edge 正式数字一致性、契约和 drilldown 回归测试。
+- 未新增 `fox-chat`、Supabase 查询、AI 调用、环境变量或 schema 变更；没有把历史账单、统计或 Dexie 发给 AI。
 
 ## 3. 数据库与缓存契约
 
@@ -76,6 +86,7 @@ src/app/AppShell.tsx                         登录后 Sync + Chat Provider 生�
 src/app/router.tsx                           含懒加载 /chat
 src/app/queryKeys.ts                         transactions/stats/recent batch 查询键
 src/features/chat/                           Chat 状态机、UI、最近批次和保存后管理
+src/features/stats/statsDrilldown.ts          统计页 drilldown 纯参数契约
 src/features/ai/aiBatchSave.ts               固定 batch/transaction IDs
 src/features/transactions/transactionsApi.ts RLS 下显式用户约束、写入协调、编辑删除
 src/features/transactions/transactionSync.ts 全量分页同步
@@ -85,6 +96,8 @@ src/routes/ChatPage.tsx                       狐狐页面编排
 src/styles/globals.css                        Chat、移动端、Safe Area、reduced-motion
 vite.config.ts                                PWA manifest 与 Workbox 缓存边界
 scripts/verify-v3-build.mjs                   Chat chunk、角色资源、manifest、SW 验证
+supabase/functions/_shared/ledgerAnalytics.ts V3.1 共享正式统计规则
+supabase/functions/_shared/ledgerContracts.ts V3.1 严格数据契约
 supabase/migrations/003_add_ai_batch_id.sql   V3.0 最小 schema
 supabase/migrations/004_restrict_transactions_permissions.sql 权限收口
 ```
@@ -152,11 +165,13 @@ M5 已由用户完成以下人工确认：
 - 生产部署后的登录、白名单、解析、确认保存、最近批次和撤销回归。
 - 生产网络请求中 Supabase/Auth/AI 响应未进入 Cache Storage。
 
+V3.1 M0 当前自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；22 个测试文件、97 项测试通过。第一次与构建并行运行完整测试时，一个既有 Chat 重试用例在约 1 秒边界超时；该文件单独复跑和随后完整顺序复跑均通过，未修改或跳过测试。
+
 部署回退必须保留 Dexie v4 schema；不能直接回退到只认识 v3 的旧构建。已经远端成功的账单不能因回退或同步错误重复写入。
 
 ## 8. 后续边界
 
-`docs/V3.1_EXECUTABLE_DESIGN.md` 只是下一阶段设计，当前没有实现 AI 问账、查询计划、连续追问或全站体验统一。只有用户明确说“开始 V3.1”后才能实施，而且仍需按内部批次推进。
+V3.1 M0 已完成本地代码和自动化检查，但未发布；当前仍没有实现 AI 问账、远端只读数据层、连续追问或全站体验统一。只有用户明确说“开始 V3.1 M1”后才能实施 M1，而且仍需按内部批次推进。
 
 语音、OCR、图片、多模态和原生 App 能力不在当前 Web/PWA 范围。
 
@@ -165,9 +180,9 @@ M5 已由用户完成以下人工确认：
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
 
-当前仓库与生产验收基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；M0–M5 代码、本地检查、Vercel 生产部署和真机 PWA 更新验收均已完成，V3.0 已正式收口。
+当前生产验收基线为 FoxLedger Web/PWA V3.0 狐狐对话记账版；V3.1 M0 共享统计与契约测试已在本地完成代码和自动化检查，尚未发布，M1–M5 未实施。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS、不把历史账单/统计/Dexie 发给 AI、用户确认后才写库、新 AI 不持久化 raw_text、只处理 Web/PWA 仓库。
 
-不要提前实现 V3.1，也不要把尚未部署或尚未验收的功能写成生产现状。
+不要提前实现 V3.1 M1，也不要把尚未部署或尚未验收的功能写成生产现状。
 ```

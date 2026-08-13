@@ -22,7 +22,12 @@ const eslintConfig = [
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}", "vite.config.ts"],
+    files: [
+      "src/**/*.{ts,tsx}",
+      "supabase/functions/_shared/**/*.ts",
+      "vite.config.ts",
+      "vitest.config.ts",
+    ],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.browser,

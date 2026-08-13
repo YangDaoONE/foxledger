@@ -7,6 +7,8 @@ FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本�
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
+当前工作区已完成 V3.1 M0“共享统计与契约测试”的代码和自动化检查，尚未发布；V3.1 M1–M5 仍未实施，生产站点仍以 V3.0 为准。
+
 ## 当前状态
 
 已完成：
@@ -35,6 +37,7 @@ V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生�
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Workbox 对 Supabase/API 敏感路径和非 GET 请求使用显式 `NetworkOnly`，只对同源静态图片使用运行时缓存。
 - Vitest + React Testing Library 覆盖关键规则、缓存、同步、批次状态机和 Chat 交互。
+- V3.1 M0 已增加前端与 Edge 共用的环境无关统计模块、严格 query plan / stats envelope / grounded answer 契约，以及统计 drilldown 回归测试。
 - Vercel 已按 Vite 静态前端部署，线上不再依赖旧 Next `/api/parse-transaction`。
 
 当前限制：
@@ -92,6 +95,7 @@ src/
 
 supabase/
   config.toml
+  functions/_shared/               V3.1 前端与 Edge 共用的纯统计和严格契约模块
   functions/parse-transaction/     AI 解析 Edge Function
   migrations/                      transactions 表和权限 migration
 scripts/verify-v3-build.mjs        Chat chunk、角色资源和 Workbox 边界验证
@@ -222,7 +226,7 @@ npm run functions:deploy
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run test`：通过。
+- `npm run test`：22 个测试文件、97 项测试通过。
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
 - `npm run verify:v3`：通过；验证 Chat gzip、狐狐资源预算、PWA manifest 和 Workbox 敏感缓存边界。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
@@ -238,5 +242,6 @@ V3.0 静态前端已完成生产部署、服务器产物核对和真机 PWA 更�
 ## 后续边界
 
 - V3.0 完成发布验收后，才允许按 `docs/V3.1_EXECUTABLE_DESIGN.md` 启动 V3.1。
-- V3.1 当前不是已实现功能；AI 问账、连续追问和全站体验统一均不得写成现状。
+- V3.1 M0 已在本地完成代码和自动化检查，尚未发布；M1 安全只读数据层及后续批次必须等待用户明确开始。
+- AI 问账、连续追问和全站体验统一仍不是已实现功能，不得写成现状。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

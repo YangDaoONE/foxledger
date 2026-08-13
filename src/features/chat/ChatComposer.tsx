@@ -54,6 +54,7 @@ export function ChatComposer({
     }
 
     setText("");
+    onListeningChange?.(false);
     void onSend(trimmed);
   }
 
@@ -78,7 +79,14 @@ export function ChatComposer({
           placeholder={isOnline ? "例如：午饭 32；或问：本月餐饮花了多少" : "联网后可以和狐狐记账或问账"}
           rows={2}
           value={text}
-          onBlur={() => {
+          onBlur={(event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              composerRef.current?.contains(event.relatedTarget)
+            ) {
+              return;
+            }
+
             isFocusedRef.current = false;
             onListeningChange?.(false);
           }}

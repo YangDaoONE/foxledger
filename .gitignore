@@ -5,6 +5,8 @@ node_modules/
 dist/
 .vite/
 tsconfig.tsbuildinfo
+playwright-report/
+test-results/
 
 # local env files
 .env

@@ -54,6 +54,30 @@ describe("Chat 移动端交互", () => {
     expect(onListeningChange.mock.calls).toEqual([[true], [false]]);
   });
 
+  it("移动端从输入框点击发送时不会先移动输入区", () => {
+    const onListeningChange = vi.fn();
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    render(
+      <ChatComposer
+        isOnline
+        isParsing={false}
+        onListeningChange={onListeningChange}
+        onSend={onSend}
+      />,
+    );
+    const textarea = screen.getByLabelText("告诉狐狐要记的账或要问的账");
+    const sendButton = screen.getByRole("button", { name: "发送给狐狐" });
+
+    fireEvent.focus(textarea);
+    fireEvent.change(textarea, { target: { value: "本月餐饮花了多少" } });
+    fireEvent.blur(textarea, { relatedTarget: sendButton });
+    expect(onListeningChange.mock.calls).toEqual([[true]]);
+
+    fireEvent.click(sendButton);
+    expect(onSend).toHaveBeenCalledWith("本月餐饮花了多少");
+    expect(onListeningChange.mock.calls).toEqual([[true], [false]]);
+  });
+
   it("用户主动向上浏览后，新消息不会强制拉回底部", () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", {

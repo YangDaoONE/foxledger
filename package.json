@@ -12,6 +12,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:browser": "playwright test",
     "typecheck": "tsc --noEmit",
     "verify:v3": "node scripts/verify-v3-build.mjs"
   },
@@ -37,7 +39,9 @@
     "workbox-window": "^7.4.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.4",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^26.0.0",

@@ -2,12 +2,12 @@
 
 FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本仓库只维护 `D:\fox\foxledger` Web/PWA 前端、Supabase migrations 和 Supabase Edge Function，不包含原生 App 仓库内容。
 
-当前生产版本：**V3.1 发布候选版（真机 PWA 更新验收中）**
+当前生产版本：**V3.1 狐狐安全问账与体验统一版**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
 
-V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账和生产服务器产物核对已通过；等待用户完成真实手机安装态 PWA 更新验收后正式收口。
+V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、受控真实只读问账、生产部署、服务器产物核对和真实手机安装态 PWA 更新验收，现已正式收口。
 
 ## 当前状态
 
@@ -33,7 +33,7 @@ V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已
 - 从 Dexie 当前真实缓存重建最近 AI 批次，支持正式单笔编辑、二次确认删除和整批撤销。
 - 当前聊天跨应用内路由保留，刷新、关闭、登录失效或退出后清空，不持久化聊天。
 - 原创轻量狐狐提供 normal、listening、thinking、happy、confused 五种状态和 reduced-motion 适配。
-- 生产 V3.0 AI 文本解析由 Supabase Edge Function `parse-transaction` 完成；本地 V3.1 M3 已通过 `fox-chat` 复用同一清洗规则。两者的候选都必须用户确认后才写入 Supabase。
+- 生产 PWA 通过 Supabase Edge Function `fox-chat` 统一处理 AI 记账与安全问账；`parse-transaction` 保留为 V3.0 兼容回退能力。两者的记账候选都必须用户确认后才写入 Supabase。
 - vite-plugin-pwa / Workbox 应用外壳缓存。
 - Workbox 对 Supabase/API 敏感路径和非 GET 请求使用显式 `NetworkOnly`，只对同源静态图片使用运行时缓存。
 - Vitest + React Testing Library 覆盖关键规则、缓存、同步、批次状态机和 Chat 交互。
@@ -49,11 +49,9 @@ V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已
 当前限制：
 
 - 没有离线正式写入队列。
-- 生产站点尚无 AI 问账；本地 M3 问账代码只读取当前用户云端相关账单，不读取或上传 Dexie，并严格限制发送给第二次 AI 的字段与数量。
 - 没有自定义分类、账户、支付方式管理。
 - 没有多币种和汇率。
 - CSV 导入只追加新增，不覆盖、不合并、不自动去重。
-- 生产部署后的 Service Worker 更新、真实手机软键盘/Safe Area 和安装态 PWA 更新仍需人工验收。
 
 ## 技术栈
 
@@ -243,14 +241,14 @@ npm run functions:deploy
 - V3.1 生产部署通过：主页与 `/chat` 返回 200，主 JS/CSS 哈希匹配本地构建；manifest、Service Worker、23 个唯一预缓存资源和 NetworkOnly 边界核对通过。
 - V3.0 历史发布验收已通过：提交 `94aeba1` 的服务器产物、账单同步、M0–M5 功能和真实手机 PWA 更新均已确认。
 
-V3.1 最新静态前端已完成生产部署和服务器产物核对；真实手机安装态 PWA 更新仍待确认。后续生产状态仍必须以实际部署结果为准，不能仅凭本地构建判断。
+V3.1 最新静态前端已完成生产部署、服务器产物核对和真实手机安装态 PWA 更新验收。后续生产状态仍必须以实际部署结果为准，不能仅凭本地构建判断。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
 ## 后续边界
 
 - V3.0 已完成发布验收并正式收口；V3.1 按 `docs/V3.1_EXECUTABLE_DESIGN.md` 分批实施。
-- V3.1 M0–M4 已完成人工验收并保持独立提交；M5 本地、浏览器、受控真实问账、部署和服务器产物核对已通过。
+- V3.1 M0–M5 已完成代码、自动化、人工、生产和真机验收，并保持小步提交。
 - 生产 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复。
-- M5 只剩真实手机安装态 PWA 更新验收，完成前不正式收口、不开始 V3.2。
+- V3.1 已正式收口；不要主动开始 V3.2，等待用户明确要求。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

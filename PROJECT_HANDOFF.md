@@ -6,9 +6,9 @@
 
 ## 1. 当前状态
 
-V3.0 狐狐对话记账版已于 2026-08-13 完整收口。当前生产运行 **V3.1 发布候选版**，等待最后的真实手机安装态 PWA 更新验收。
+V3.0 狐狐对话记账版已于 2026-08-13 完整收口。当前生产运行 **V3.1 狐狐安全问账与体验统一版**；V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新验收，现已正式收口。
 
-V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 为 `e3e7614`。`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe、离线应用壳、受控真实只读问账及生产服务器产物核对已通过，移动端发送布局跳动已修复；真实手机安装态 PWA 更新验收待用户确认。
+V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 基线为 `e3e7614`，窄屏修复为 `53636ce`。`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe、离线应用壳、受控真实只读问账、生产服务器产物及真实手机安装态 PWA 更新验收均已通过。
 
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -57,7 +57,7 @@ V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 为 `e3e76
 - `chatIntent.ts` 严格解析四类 discriminated union：`record_transaction`、`query_ledger`、`clarify`、`unsupported`；拒绝混合字段、未知 key 和任意模型文案。
 - 问账只生成并通过代码校验 normalized query plan，不执行 M1 数据读取、不进行第二次 AI，也不生成自然回答。
 - 请求只允许当前 `text`、可空 `previous_context` 和可选 `forced_intent`；M2 明确拒绝非空历史上下文，强制意图只允许“记账”或“问账”。
-- `fox-chat` 没有数据库写路径、SQL、service role 或自由工具；M2 独立批次结束时 PWA 尚未调用它，后续 M3 已完成本地接入，但函数仍未部署。
+- `fox-chat` 没有数据库写路径、SQL、service role 或自由工具；M2 独立批次结束时 PWA 尚未调用它，后续 M3 已完成前端接入、函数部署和生产验收。
 
 ### 2.4 V3.1 M3 本地实现
 
@@ -84,7 +84,7 @@ V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 为 `e3e76
 - 真机验收发现设置页原生 CSV 文件控件的固有最小宽度会在窄屏撑大整页；已将控件限制在父卡片宽度内，并增加 320px 下五个主页面逐页检查。
 - Axe 发现品牌橙、支出红和底部导航文字对比度不足；已调深语义色并通过登录及五个主路由的桌面/移动端 WCAG AA 检查。
 - 当前真实账号只读问账成功返回可信范围、代码统计和五字段依据，页面控制台无应用错误；没有触发账单写入。500 条上限、RLS 完整失败、禁止字段及外部限制降级继续由既有契约测试覆盖。
-- M5 当前 `lint`、`typecheck`、33 个测试文件/157 项测试、`build`、15 条 Playwright、`verify:v3`、依赖审计、生产部署和服务器产物核对已通过；等待真机安装态 PWA 更新验收。
+- M5 当前 `lint`、`typecheck`、33 个测试文件/157 项测试、`build`、15 条 Playwright、`verify:v3`、依赖审计、生产部署、服务器产物和真机安装态 PWA 更新验收已全部通过。
 
 ## 3. 数据库与缓存契约
 
@@ -221,13 +221,13 @@ M5 已由用户完成以下人工确认：
 - 生产部署后的登录、白名单、解析、确认保存、最近批次和撤销回归。
 - 生产网络请求中 Supabase/Auth/AI 响应未进入 Cache Storage。
 
-V3.1 M0–M5 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；33 个测试文件、157 项测试和 15 条 Playwright 通过，依赖审计为 0 vulnerabilities。M3 覆盖 grounded 数字、伪造引用拒绝、prompt injection 数据边界、跨 operation 合计 500 条上限、完整查询/第二次 AI 降级、读取失败无部分统计、历史分类安全归一、normalized context、依据卡和筛选跳转；M4/M5 覆盖共享表现、财务语义色、同步诊断/重试、移动端发送、Axe 和离线应用壳。M0–M4 已完成人工验收，M5 等待生产和真机收口。
+V3.1 M0–M5 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；33 个测试文件、157 项测试和 15 条 Playwright 通过，依赖审计为 0 vulnerabilities。M3 覆盖 grounded 数字、伪造引用拒绝、prompt injection 数据边界、跨 operation 合计 500 条上限、完整查询/第二次 AI 降级、读取失败无部分统计、历史分类安全归一、normalized context、依据卡和筛选跳转；M4/M5 覆盖共享表现、财务语义色、同步诊断/重试、移动端发送、Axe 和离线应用壳。M0–M5 的人工、生产和真机验收均已完成。
 
 部署回退必须保留 Dexie v4 schema；不能直接回退到只认识 v3 的旧构建。已经远端成功的账单不能因回退或同步错误重复写入。
 
 ## 8. 后续边界
 
-V3.1 M0–M5 代码、部署和服务器产物核对已通过，只剩真机安装态 PWA 更新验收。完成前不开始 V3.2。
+V3.1 M0–M5 已全部完成并正式收口。不要主动开始 V3.2，等待用户明确要求。
 
 语音、OCR、图片、多模态和原生 App 能力不在当前 Web/PWA 范围。
 
@@ -236,9 +236,9 @@ V3.1 M0–M5 代码、部署和服务器产物核对已通过，只剩真机安�
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
 
-当前生产运行 FoxLedger Web/PWA V3.1 发布候选版；M0–M5 代码、自动化、受控真实问账、部署和服务器产物核对已通过，只剩真机安装态 PWA 更新验收。
+当前生产运行 FoxLedger Web/PWA V3.1 狐狐安全问账与体验统一版；M0–M5 代码、自动化、受控真实问账、部署、服务器产物和真实手机安装态 PWA 更新验收均已通过，V3.1 已正式收口。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS；记账只发送当前输入，问账只发送当前用户云端相关代码统计与最多 500 条五字段明细，绝不发送 Dexie 或禁止字段；用户确认后才写库，新 AI 不持久化 raw_text，只处理 Web/PWA 仓库。
 
-M5 收口前只修复验收问题，不要提前实现 V3.2，也不要把尚未部署或尚未完成真机验收的功能写成生产现状。
+不要主动实现 V3.2；只有用户明确要求启动下一阶段后，才先确认对应设计和内部批次。不要把尚未部署或尚未验收的后续功能写成生产现状。
 ```

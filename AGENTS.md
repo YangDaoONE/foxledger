@@ -6,9 +6,9 @@
 
 ## 1. 当前项目角色
 
-FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.1 发布候选版**；V3.0 已于 2026-08-13 完整收口，V3.1 等待最后的真实手机安装态 PWA 更新验收。后续修改仍不能从本地代码状态推断生产状态。
+FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.1 狐狐安全问账与体验统一版**。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
-V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账和生产服务器产物检查已通过，移动端发送布局跳动及设置页 CSV 控件窄屏撑宽已修复；真实手机安装态 PWA 更新验收待用户确认。
+V3.1 M0–M5 代码已推送到 `origin/main`，`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe 无障碍、离线应用壳、受控真实只读问账、生产服务器产物和真实手机安装态 PWA 更新检查均已通过；移动端发送布局跳动及设置页 CSV 控件窄屏撑宽已修复。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -230,28 +230,28 @@ updated_at
 
 ## 6. AI 记账与问账规则
 
-生产 V3.0 AI 业务 API：
+V3.0 兼容 AI 记账 API：
 
 ```text
 supabase/functions/parse-transaction/index.ts
 ```
 
-V3.1 M3 已部署验收、但生产前端尚未接入的统一 API：
+当前生产统一 AI 记账与问账 API：
 
 ```text
 supabase/functions/fox-chat/index.ts
 ```
 
-生产 V3.0 PWA 前端调用：
+当前生产 PWA 前端调用：
 
 ```text
-POST <SUPABASE_URL>/functions/v1/parse-transaction
+POST <SUPABASE_URL>/functions/v1/fox-chat
 Authorization: Bearer <supabase_access_token>
 apikey: <supabase_publishable_key>
 Content-Type: application/json
 ```
 
-本地 V3.1 M3 PWA 调用相同认证头的 `/functions/v1/fox-chat`；上线前必须先部署并验收该函数。
+`parse-transaction` 继续保留为 V3.0 兼容回退能力；两个函数均已部署，使用相同认证头和服务端登录校验。
 
 必须保持：
 
@@ -442,7 +442,6 @@ npm run test:e2e
 
 ## 13. 后续阶段边界
 
-- V3.1 M0–M5 代码、部署和服务器产物检查已通过，真机 PWA 更新仍需以用户实际结果为准。
-- 在真机 PWA 更新完成前，不得把 V3.1 写成正式收口。
-- M5 收口前只允许修复验收发现的问题，不提前实施 V3.2。
+- V3.1 M0–M5 代码、自动化、部署、服务器产物和真机 PWA 更新验收已全部通过，V3.1 已正式收口。
+- 不要主动实施 V3.2；只有用户明确要求启动下一阶段后，才先更新对应可执行设计并按内部批次实施。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

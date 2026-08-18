@@ -11,6 +11,8 @@ V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、受控真实只读问
 
 V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions 和静态前端生产部署，服务器产物已核对；真实手机安装态 PWA 更新验收仍待执行。
 
+2026-08-19 完成全站视觉与响应式体验重整，提交 `8f31607` 已推送到 `origin/main` 并由 Vercel 发布到生产。主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致；本次未修改数据逻辑、Supabase、Edge Function 或安全边界，真实手机安装态验收状态保持未完成。
+
 ## 当前状态
 
 已完成：
@@ -246,6 +248,7 @@ npm run functions:deploy
 - 受控真实账号只读问账通过：服务端返回可信范围、代码统计和五字段依据，未产生写操作。
 - V3.1 生产部署通过：主页与 `/chat` 返回 200，主 JS/CSS 哈希匹配本地构建；manifest、Service Worker、23 个唯一预缓存资源和 NetworkOnly 边界核对通过。
 - V3.2 生产部署通过：提交 `ccc98fb` 已推送到 `origin/main`，`parse-transaction`、`fox-chat` 和 Vercel 静态前端已发布；主页与 `/chat` 返回 200，24 个非 Service Worker 文件与本地构建逐字节一致，Service Worker 预缓存集合一致且 NetworkOnly 边界保持，未登录 Edge 请求正确返回 401。
+- 2026-08-19 视觉重整生产部署通过：提交 `8f31607` 已推送到 `origin/main`，Vercel 状态成功；主页与 `/chat` 返回 200，24 个非 Service Worker 文件与本地构建逐字节一致，Service Worker 预缓存集合及 5 条 NetworkOnly 边界一致。
 - V3.0 历史发布验收已通过：提交 `94aeba1` 的服务器产物、账单同步、M0–M5 功能和真实手机 PWA 更新均已确认。
 
 V3.2 已完成生产部署和服务器产物核对，当前生产已运行 V3.2；真实手机安装态 PWA 更新与交互验收仍待执行。

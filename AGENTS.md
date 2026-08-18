@@ -8,7 +8,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.2 狐狐对话体验收口版**。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
-V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记录提交为 `193de1d`。`parse-transaction`、`fox-chat` 和 Vercel 静态前端已部署，生产主页、`/chat`、静态资源、PWA 预缓存集合和 NetworkOnly 边界已核对。本地自动化为 34 个测试文件/174 项测试、17 条 Playwright，依赖审计为 0 vulnerabilities。真实手机安装态 PWA 更新与交互验收尚未完成，因此 V3.2 还不能写为“真机验收完成或正式收口”。
+V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记录提交为 `193de1d`。2026-08-19 的全站视觉重整提交 `8f31607` 也已推送到 `origin/main` 并由 Vercel 完成生产部署；生产主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致。本地自动化为 34 个测试文件/174 项测试、17 条 Playwright，依赖审计为 0 vulnerabilities。真实手机安装态 PWA 更新与交互验收尚未完成，因此 V3.2 还不能写为“真机验收完成或正式收口”。
 
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 

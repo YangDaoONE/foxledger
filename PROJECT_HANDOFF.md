@@ -12,6 +12,8 @@ V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 基线为 
 
 V3.2 M0–M2 已于 2026-08-18 完成实现和自动化验收，范围包含保存后正式批次直达管理、狐狐页产品文案/隐私信息层级、候选展示与 Composer 键盘体验，以及用户验收发现的“候选全部移除”结束状态与紧凑月日兼容修复。提交 `ccc98fb` 已推送到 `origin/main`，生产状态记录提交为 `193de1d`；`parse-transaction`、`fox-chat` 和 Vercel 静态前端已发布，服务器产物核对通过。真实手机安装态 PWA 更新验收仍是唯一未完成的收口项，未获得用户确认前不得将 V3.2 写为已正式收口。
 
+2026-08-19 完成全站视觉、响应式布局与交互状态重整，代码提交 `8f31607` 已推送到 `origin/main`，Vercel 生产部署成功。生产主页与 `/chat` 返回 200，24 个非 Service Worker 文件与本地构建逐字节一致，Service Worker 预缓存集合、5 条 NetworkOnly 规则和静态图片 CacheFirst 边界一致；本次未修改 Supabase、Edge Function、数据逻辑或安全边界。真实手机安装态 PWA 更新验收仍未完成，V3.2 仍不得写为正式收口。
+
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 生产部署必须继续以 GitHub/Vercel 状态和服务器实际产物为准，不能只凭本地 `dist` 推断。

@@ -36,6 +36,30 @@ describe("狐狐状态视觉", () => {
 });
 
 describe("Chat 移动端交互", () => {
+  it("空状态优先说明可以记账和问账，不展示工程协议", () => {
+    render(
+      <ChatMessageList
+        hasStaleBatchCache={false}
+        isBatchCacheSyncing={false}
+        isOnline
+        messages={[]}
+        onConfirmBatch={vi.fn()}
+        onCorrectIntent={vi.fn()}
+        onOpenCandidate={vi.fn()}
+        onOpenQueryTransactions={vi.fn()}
+        onOpenSavedBatch={vi.fn()}
+        onRemoveCandidate={vi.fn()}
+        onRetryBatchSync={vi.fn()}
+        userId="user-1"
+      />,
+    );
+
+    expect(screen.getByText("想记账或问账，都可以直接说")).toBeInTheDocument();
+    expect(screen.getByText("“午饭 32”")).toBeInTheDocument();
+    expect(screen.getByText("“这个月餐饮花了多少？”")).toBeInTheDocument();
+    expect(screen.queryByText(/500 条五字段/)).not.toBeInTheDocument();
+  });
+
   it("输入框聚焦和失焦会切换 listening 状态", () => {
     const onListeningChange = vi.fn();
     render(
@@ -78,6 +102,64 @@ describe("Chat 移动端交互", () => {
     expect(onListeningChange.mock.calls).toEqual([[true], [false]]);
   });
 
+  it("Enter 发送，Shift+Enter 保留原生换行", () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    render(<ChatComposer isOnline isParsing={false} onSend={onSend} />);
+    const textarea = screen.getByLabelText("告诉狐狐要记的账或要问的账");
+
+    fireEvent.change(textarea, { target: { value: "午饭 32" } });
+    expect(fireEvent.keyDown(textarea, { key: "Enter" })).toBe(false);
+    expect(onSend).toHaveBeenCalledWith("午饭 32");
+
+    fireEvent.change(textarea, { target: { value: "午饭 32" } });
+    expect(fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true })).toBe(true);
+    expect(onSend).toHaveBeenCalledTimes(1);
+  });
+
+  it("IME 选词期间按 Enter 不发送，composition 结束后才发送", () => {
+    const onSend = vi.fn().mockResolvedValue(undefined);
+    render(<ChatComposer isOnline isParsing={false} onSend={onSend} />);
+    const textarea = screen.getByLabelText("告诉狐狐要记的账或要问的账");
+
+    fireEvent.change(textarea, { target: { value: "午饭 32" } });
+    fireEvent.compositionStart(textarea);
+    fireEvent.keyDown(textarea, { isComposing: true, key: "Enter", keyCode: 229 });
+    expect(onSend).not.toHaveBeenCalled();
+
+    fireEvent.compositionEnd(textarea);
+    fireEvent.keyDown(textarea, { key: "Enter" });
+    expect(onSend).toHaveBeenCalledWith("午饭 32");
+  });
+
+  it("输入框在约 2–5 行之间增高，超出后内部滚动并可缩回", () => {
+    render(<ChatComposer isOnline isParsing={false} onSend={vi.fn()} />);
+    const textarea = screen.getByLabelText(
+      "告诉狐狐要记的账或要问的账",
+    ) as HTMLTextAreaElement;
+    let scrollHeight = 100;
+    Object.defineProperty(textarea, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+    textarea.style.maxHeight = "130px";
+
+    fireEvent.change(textarea, { target: { value: "第一行\n第二行\n第三行" } });
+    expect(textarea.style.height).toBe("100px");
+    expect(textarea.style.overflowY).toBe("hidden");
+
+    scrollHeight = 180;
+    fireEvent.change(textarea, {
+      target: { value: "第一行\n第二行\n第三行\n第四行\n第五行\n第六行" },
+    });
+    expect(textarea.style.height).toBe("130px");
+    expect(textarea.style.overflowY).toBe("auto");
+
+    scrollHeight = 58;
+    fireEvent.change(textarea, { target: { value: "短输入" } });
+    expect(textarea.style.height).toBe("58px");
+    expect(textarea.style.overflowY).toBe("hidden");
+  });
+
   it("用户主动向上浏览后，新消息不会强制拉回底部", () => {
     const scrollTo = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollTo", {
@@ -94,13 +176,17 @@ describe("Chat 移动端交互", () => {
       },
     ];
     const props = {
+      hasStaleBatchCache: false,
+      isBatchCacheSyncing: false,
       isOnline: true,
       onConfirmBatch: vi.fn(),
       onCorrectIntent: vi.fn(),
       onOpenCandidate: vi.fn(),
       onOpenQueryTransactions: vi.fn(),
+      onOpenSavedBatch: vi.fn(),
       onRemoveCandidate: vi.fn(),
       onRetryBatchSync: vi.fn(),
+      userId: "user-1",
     };
     const view = render(<ChatMessageList {...props} messages={firstMessages} />);
     const list = view.container.querySelector(".chat-message-list");

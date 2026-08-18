@@ -87,6 +87,170 @@ describe("V3.0/V3.1 共用交易清洗", () => {
     });
   });
 
+  it("识别交易片段开头的紧凑月日，并按唯一金额找回候选所属原文", () => {
+    const result = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({
+            amount: 76,
+            date: "2026-08-18",
+            raw_text: "吃饭花了76",
+          }),
+          createAiTransaction({
+            amount: 52,
+            date: "2026-08-18",
+            raw_text: "吃饭花了52",
+          }),
+        ],
+      },
+      "7.6吃饭花了76；7.8吃饭花了52",
+      "2026-08-18",
+    );
+
+    expect(result.transactions.map(({ amount, date, raw_text }) => ({
+      amount,
+      date,
+      raw_text,
+    }))).toEqual([
+      { amount: 76, date: "2026-07-06", raw_text: "7.6吃饭花了76" },
+      { amount: 52, date: "2026-07-08", raw_text: "7.8吃饭花了52" },
+    ]);
+  });
+
+  it("明确日期作用域下把单个紧凑小数识别为金额", () => {
+    const result = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({
+            amount: null,
+            date: "2026-07-06",
+            needs_clarification: true,
+            raw_text: "7.6吃饭",
+          }),
+          createAiTransaction({
+            amount: null,
+            category: "交通",
+            date: "2026-08-04",
+            merchant: "地铁",
+            needs_clarification: true,
+            raw_text: "8.4坐地铁",
+          }),
+        ],
+      },
+      "今天，7.6吃饭，8.4坐地铁",
+      "2026-08-18",
+    );
+
+    expect(result.transactions.map(({ amount, date, needs_clarification }) => ({
+      amount,
+      date,
+      needs_clarification,
+    }))).toEqual([
+      { amount: 7.6, date: "2026-08-18", needs_clarification: false },
+      { amount: 8.4, date: "2026-08-18", needs_clarification: false },
+    ]);
+  });
+
+  it("支持斜杠、短横线和带号的明确月日写法", () => {
+    const result = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({ amount: 76, raw_text: "7/6吃饭76" }),
+          createAiTransaction({
+            amount: 52,
+            category: "交通",
+            raw_text: "7-8坐地铁52",
+          }),
+          createAiTransaction({ amount: 20, raw_text: "7.9号买菜20" }),
+        ],
+      },
+      "7/6吃饭76；7-8坐地铁52；7.9号买菜20",
+      "2026-08-18",
+    );
+
+    expect(result.transactions.map((transaction) => transaction.date)).toEqual([
+      "2026-07-06",
+      "2026-07-08",
+      "2026-07-09",
+    ]);
+    expect(result.transactions.map((transaction) => transaction.amount)).toEqual([
+      76,
+      52,
+      20,
+    ]);
+  });
+
+  it("单独的紧凑小数和冲突日期保持核对，不静默猜测", () => {
+    const ambiguous = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [createAiTransaction({ amount: 7.6, raw_text: "7.6吃饭" })],
+      },
+      "7.6吃饭",
+      "2026-08-18",
+    );
+    const conflicting = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({ amount: 76, raw_text: "7.6吃饭花了76" }),
+        ],
+      },
+      "今天，7.6吃饭花了76",
+      "2026-08-18",
+    );
+
+    expect(ambiguous.transactions[0]).toMatchObject({
+      amount: null,
+      date: "2026-08-18",
+      needs_clarification: true,
+      type: null,
+    });
+    expect(conflicting.transactions[0]).toMatchObject({
+      amount: null,
+      date: "2026-08-18",
+      needs_clarification: true,
+      type: null,
+    });
+  });
+
+  it("相同金额且模型丢失日期片段时保持核对，不按顺序强行配对", () => {
+    const result = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({ amount: 76, raw_text: "吃饭花了76" }),
+          createAiTransaction({ amount: 76, raw_text: "吃饭花了76" }),
+        ],
+      },
+      "7.6吃饭花了76；7.8吃饭花了76",
+      "2026-08-18",
+    );
+
+    expect(result.transactions.every((transaction) =>
+      transaction.needs_clarification && transaction.amount === null
+    )).toBe(true);
+  });
+
+  it("不把带货币单位的小数金额误判成月日", () => {
+    const result = sanitizeParsedTransactionsBatch(
+      {
+        transactions: [
+          createAiTransaction({
+            amount: 7.6,
+            date: "2099-01-01",
+            raw_text: "7.6元早餐",
+          }),
+        ],
+      },
+      "7.6元早餐",
+      "2026-08-18",
+    );
+
+    expect(result.transactions[0]).toMatchObject({
+      amount: 7.6,
+      date: "2026-08-18",
+      needs_clarification: false,
+    });
+  });
+
   it("继续执行 50 条上限并标记截断", () => {
     const transactions = Array.from({ length: MAX_PARSED_TRANSACTIONS + 1 }, () =>
       createAiTransaction(),

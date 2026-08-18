@@ -21,7 +21,16 @@ export function getCandidateIssues(candidate: ChatCandidate) {
   const issues = validateConfirmTransactionDraft(candidate.draft);
 
   if (candidate.requiresReview) {
-    issues.unshift("这笔候选需要你核对后才能确认。");
+    const compactNumber = /^\s*(\d{1,2}\.\d{1,2})(?!\d)(?!\s*[元块角分])/.exec(
+      candidate.source.raw_text,
+    )?.[1];
+    const numericTokens = candidate.source.raw_text.match(/\d+(?:\.\d+)?/g) ?? [];
+
+    issues.unshift(
+      compactNumber && numericTokens.length === 1
+        ? `请确认 ${compactNumber} 是日期还是金额，并补全后完成核对。`
+        : "这笔候选需要你核对后才能确认。",
+    );
   }
 
   return issues;

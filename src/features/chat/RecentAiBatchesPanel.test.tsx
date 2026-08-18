@@ -42,6 +42,8 @@ vi.mock("@/features/sync/SyncProvider", () => ({
     isOnline: mocks.isOnline,
     isSyncing: false,
     refreshAfterWrite: mocks.refreshAfterWrite,
+    syncError: null,
+    syncMeta: { last_successful_sync_at: "2026-08-13T00:00:00.000Z" },
   }),
 }));
 
@@ -52,6 +54,7 @@ vi.mock("@/features/transactions/transactionsApi", () => ({
 }));
 
 import { RecentAiBatchesPanel } from "@/features/chat/RecentAiBatchesPanel";
+import { useAiBatchManagement } from "@/features/chat/useAiBatchManagement";
 
 const batchId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
@@ -103,8 +106,23 @@ function renderPanel(page = createPage()) {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <RecentAiBatchesPanel />
+      <PanelHarness />
     </QueryClientProvider>,
+  );
+}
+
+function PanelHarness() {
+  const management = useAiBatchManagement();
+
+  return (
+    <>
+      {management.hasStaleCacheAfterWrite ? (
+        <button type="button" onClick={() => void management.retryCacheSync()}>
+          重新同步
+        </button>
+      ) : null}
+      <RecentAiBatchesPanel management={management} />
+    </>
   );
 }
 
@@ -193,7 +211,7 @@ describe("最近 AI 批次保存后管理", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认" }));
 
     expect(
-      await screen.findByText(/账单已删除，批次合计已按剩余账单重算。.*本地缓存暂时没有刷新成功/),
+      await screen.findByText("账单已删除，批次合计已按剩余账单重算。"),
     ).toBeInTheDocument();
     expect(mocks.deleteTransaction).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "重新同步" }));

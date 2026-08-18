@@ -7,6 +7,8 @@ import type { ChatMessage } from "@/features/chat/chatTypes";
 import type { ForcedChatIntent } from "@shared/chatIntent";
 
 type ChatMessageListProps = {
+  hasStaleBatchCache: boolean;
+  isBatchCacheSyncing: boolean;
   isOnline: boolean;
   messages: ChatMessage[];
   onConfirmBatch: (messageId: string) => void;
@@ -16,20 +18,26 @@ type ChatMessageListProps = {
     candidateId: string,
     trigger: HTMLButtonElement,
   ) => void;
+  onOpenSavedBatch: (batchId: string, trigger: HTMLButtonElement) => void;
   onRemoveCandidate: (messageId: string, candidateId: string) => void;
   onOpenQueryTransactions: (messageId: string, operationIndex: number) => void;
   onRetryBatchSync: (messageId: string) => void;
+  userId: string;
 };
 
 export function ChatMessageList({
+  hasStaleBatchCache,
+  isBatchCacheSyncing,
   isOnline,
   messages,
   onConfirmBatch,
   onCorrectIntent,
   onOpenCandidate,
+  onOpenSavedBatch,
   onRemoveCandidate,
   onOpenQueryTransactions,
   onRetryBatchSync,
+  userId,
 }: ChatMessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const shouldFollowMessagesRef = useRef(true);
@@ -51,10 +59,11 @@ export function ChatMessageList({
   if (messages.length === 0) {
     return (
       <div className="chat-empty">
-        <strong>记一笔，或问问账本</strong>
-        <p>
-          记账只解析当前文字；问账会读取当前用户的云端相关统计，并向 AI 提供最多 500 条五字段明细。
-        </p>
+        <strong>想记账或问账，都可以直接说</strong>
+        <div className="chat-empty-examples" aria-label="输入示例">
+          <span>“午饭 32”</span>
+          <span>“这个月餐饮花了多少？”</span>
+        </div>
       </div>
     );
   }
@@ -75,12 +84,16 @@ export function ChatMessageList({
             <div className="chat-message assistant" key={message.id}>
               <LedgerResultCard
                 batch={message.batch}
+                hasStaleBatchCache={hasStaleBatchCache}
+                isBatchCacheSyncing={isBatchCacheSyncing}
                 isOnline={isOnline}
                 messageId={message.id}
                 onConfirm={onConfirmBatch}
                 onOpenCandidate={onOpenCandidate}
+                onOpenSavedBatch={onOpenSavedBatch}
                 onRemoveCandidate={onRemoveCandidate}
                 onRetrySync={onRetryBatchSync}
+                userId={userId}
               />
             </div>
           );

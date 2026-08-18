@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ParsedTransaction } from "@/features/ai/types";
 import {
   canConfirmCandidateBatch,
+  getCandidateIssues,
   summarizeCandidateBatch,
 } from "@/features/chat/batchCalculations";
 import {
@@ -90,6 +91,26 @@ describe("Chat 候选 reducer", () => {
     });
     expect(getBatch(state).status).toBe("draft");
     expect(canConfirmCandidateBatch(getBatch(state))).toBe(true);
+  });
+
+  it("紧凑小数无法判定日期或金额时给出针对性核对说明", () => {
+    const batch = createChatCandidateBatch(
+      [
+        {
+          ...parsedTransaction,
+          amount: null,
+          needs_clarification: true,
+          raw_text: "7.6吃饭",
+          type: null,
+        },
+      ],
+      false,
+      () => "ambiguous-candidate",
+    );
+
+    expect(getCandidateIssues(batch.candidates[0])[0]).toBe(
+      "请确认 7.6 是日期还是金额，并补全后完成核对。",
+    );
   });
 
   it("移除未补全候选后用剩余候选重新计算批次状态", () => {
@@ -235,6 +256,33 @@ describe("Chat 候选 reducer", () => {
       type: "mark_batch_undone",
     });
 
+    expect(getBatch(state).status).toBe("undone");
+  });
+
+  it("删除最后一笔后可按正式 batchId 将 saved 直接标记为 undone", () => {
+    let state = chatReducer(stateWithBatch(), {
+      messageId: "result-message",
+      request: saveRequest,
+      type: "request_save",
+    });
+    state = chatReducer(state, {
+      batchId: saveRequest.batchId,
+      messageId: "result-message",
+      transactionIds: ["transaction-1"],
+      type: "save_succeeded",
+      userId: "user-1",
+    });
+
+    const wrongIdState = chatReducer(state, {
+      batchId: getBatch(state).id,
+      type: "mark_batch_undone",
+    });
+    expect(getBatch(wrongIdState).status).toBe("saved");
+
+    state = chatReducer(state, {
+      batchId: saveRequest.batchId,
+      type: "mark_batch_undone",
+    });
     expect(getBatch(state).status).toBe("undone");
   });
 

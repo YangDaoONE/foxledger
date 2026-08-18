@@ -474,6 +474,7 @@ a {
 .chip:focus-visible,
 .metric-card:focus-visible,
 .segmented-control button:focus-visible,
+.chat-privacy-details summary:focus-visible,
 .sync-retry:focus-visible,
 .bottom-nav-item:focus-visible {
   box-shadow: 0 0 0 3px rgba(217, 119, 47, 0.2);
@@ -1080,6 +1081,49 @@ button.metric-card:hover:not(:disabled) {
   font-size: 13px;
 }
 
+.chat-privacy-details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.chat-privacy-details summary {
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.chat-privacy-details > div {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.chat-privacy-details p {
+  margin: 0;
+}
+
+.chat-privacy-link {
+  background: transparent;
+  border: 0;
+  color: var(--brand-strong);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  justify-self: start;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.chat-privacy-link:focus-visible {
+  border-radius: 4px;
+  box-shadow: 0 0 0 3px rgba(217, 119, 47, 0.2);
+  outline: 2px solid transparent;
+}
+
 .fox-mascot {
   height: 86px;
   width: 96px;
@@ -1190,6 +1234,33 @@ button.metric-card:hover:not(:disabled) {
 .chat-empty p {
   color: var(--text-muted);
   margin: 0;
+}
+
+.chat-empty-examples {
+  color: var(--text-muted);
+  display: grid;
+  gap: 6px;
+}
+
+.chat-empty-examples span {
+  overflow-wrap: anywhere;
+}
+
+.batch-management-warning {
+  align-items: center;
+  background: var(--warning-soft);
+  border: 1px solid #e7c16c;
+  border-radius: var(--radius-sm);
+  color: var(--warning);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+
+.batch-management-warning > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .chat-message-list {
@@ -1574,9 +1645,15 @@ button.metric-card:hover:not(:disabled) {
 
 .chat-composer-field textarea {
   border: 0;
+  box-sizing: border-box;
   color: var(--text);
+  height: 58px;
+  line-height: 24px;
+  max-height: 130px;
   min-height: 58px;
   outline: none;
+  overflow-y: hidden;
+  padding: 5px 2px;
   resize: none;
   width: 100%;
 }
@@ -1639,6 +1716,33 @@ button.metric-card:hover:not(:disabled) {
 
 .batch-sheet-actions {
   justify-content: space-between;
+}
+
+.saved-batch-detail-sheet {
+  gap: 12px;
+}
+
+.saved-batch-summary {
+  background: var(--surface-muted);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 10px;
+}
+
+.saved-batch-summary span {
+  color: var(--text-muted);
+  display: grid;
+  font-size: 12px;
+  gap: 3px;
+  min-width: 0;
+}
+
+.saved-batch-summary strong {
+  color: var(--text);
+  font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .recent-ai-section {
@@ -1903,6 +2007,11 @@ button.metric-card:hover:not(:disabled) {
   .recent-ai-heading,
   .recent-batch-card > summary {
     align-items: start;
+    flex-direction: column;
+  }
+
+  .batch-management-warning {
+    align-items: stretch;
     flex-direction: column;
   }
 

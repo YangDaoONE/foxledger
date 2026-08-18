@@ -58,7 +58,9 @@ test("问账只发送结构化当前请求、依据可展开且会话刷新后�
   await expect(page.getByText("本月餐饮支出 ¥32.00。", { exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("记一笔，或问问账本", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("想记账或问账，都可以直接说", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("本月餐饮支出 ¥32.00。", { exact: true })).toHaveCount(0);
 });
 
@@ -77,6 +79,51 @@ test("离线时只读缓存、禁用狐狐，恢复联网后自动同步", async
   await expect(
     page.locator(".sync-banner").getByText("已同步缓存", { exact: true }),
   ).toBeVisible();
+});
+
+test("Composer 自动增高并保持常见键盘发送行为", async ({ page }) => {
+  await login(page);
+  await page.getByRole("link", { exact: true, name: "狐狐" }).click();
+  const composer = page.getByLabel("告诉狐狐要记的账或要问的账");
+  const initialHeight = await composer.evaluate((element) =>
+    element.getBoundingClientRect().height,
+  );
+
+  await composer.fill("第一行\n第二行\n第三行");
+  const expandedHeight = await composer.evaluate((element) =>
+    element.getBoundingClientRect().height,
+  );
+  expect(expandedHeight).toBeGreaterThan(initialHeight);
+
+  await composer.fill("一\n二\n三\n四\n五\n六");
+  const overflowMetrics = await composer.evaluate((element) => {
+    const textarea = element as HTMLTextAreaElement;
+    return {
+      clientHeight: textarea.clientHeight,
+      maxHeight: Number.parseFloat(getComputedStyle(textarea).maxHeight),
+      renderedHeight: textarea.getBoundingClientRect().height,
+      scrollHeight: textarea.scrollHeight,
+    };
+  });
+  expect(overflowMetrics.renderedHeight).toBeLessThanOrEqual(overflowMetrics.maxHeight);
+  expect(overflowMetrics.scrollHeight).toBeGreaterThan(overflowMetrics.clientHeight);
+
+  await composer.fill("短输入");
+  const collapsedHeight = await composer.evaluate((element) =>
+    element.getBoundingClientRect().height,
+  );
+  expect(collapsedHeight).toBeLessThan(expandedHeight);
+
+  await composer.fill("第一行");
+  await composer.press("Shift+Enter");
+  await composer.type("第二行");
+  await expect(composer).toHaveValue("第一行\n第二行");
+  expect(foxChatRequests).toHaveLength(0);
+
+  await composer.fill("本月餐饮花了多少钱");
+  await composer.press("Enter");
+  await expect(page.getByText("本月餐饮支出 ¥32.00。", { exact: true })).toBeVisible();
+  expect(foxChatRequests).toHaveLength(1);
 });
 
 test("页面不横向溢出且键盘焦点可见", async ({ page }) => {

@@ -267,7 +267,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         if (
           action.type !== "mark_batch_undone" ||
-          message.batch.status !== "undoing"
+          (message.batch.status !== "undoing" &&
+            message.batch.status !== "saved" &&
+            message.batch.status !== "sync_warning")
         ) {
           return message;
         }

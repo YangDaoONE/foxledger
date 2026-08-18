@@ -3,6 +3,8 @@ export const queryKeys = {
   monthlySummary: (userId: string, startDate: string, endDate: string) =>
     [...queryKeys.monthlySummaries(userId), startDate, endDate] as const,
   recentAiBatches: (userId: string) => ["recentAiBatches", userId] as const,
+  recentAiBatch: (userId: string, batchId: string) =>
+    [...queryKeys.recentAiBatches(userId), "detail", batchId] as const,
   recentAiBatchPage: (userId: string, limit: number) =>
     [...queryKeys.recentAiBatches(userId), limit] as const,
   stats: (userId: string) => ["stats", userId] as const,

@@ -73,8 +73,8 @@ export function LedgerQueryResultCard({
     <article className="ledger-query-card">
       <header className="ledger-query-heading">
         <div>
-          <span>只读云端问账</span>
-          <strong>有依据的账本回答</strong>
+          <span>狐狐查到账了</span>
+          <strong>账本回答</strong>
         </div>
         <span className="batch-status ready">统计完成</span>
       </header>

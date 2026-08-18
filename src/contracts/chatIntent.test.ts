@@ -207,6 +207,12 @@ describe("fox-chat 第一次 AI 编排", () => {
     const messages = requestAi.mock.calls[0][0];
     expect(messages[0].content).toContain("MUST return intent=query_ledger");
     expect(messages[0].content).toContain("Never output SQL");
+    expect(messages[0].content).toContain(
+      '"今天，7.6吃饭" means amount 7.6 on 2026-08-13',
+    );
+    expect(messages[0].content).toContain(
+      '"7.6吃饭花了76" means date 2026-07-06 and amount 76',
+    );
     expect(JSON.parse(messages[1].content)).toEqual({
       previous_context: null,
       text: "这个月餐饮比上月多多少？",

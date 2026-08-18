@@ -76,6 +76,8 @@ describe("问账结果卡", () => {
   it("展示可信范围、筛选、统计、AI 明细口径，并由代码展开依据", () => {
     render(<LedgerQueryResultCard onOpenTransactions={vi.fn()} result={createResult()} />);
 
+    expect(screen.getByText("狐狐查到账了")).toBeInTheDocument();
+    expect(screen.getByText("账本回答")).toBeInTheDocument();
     expect(screen.getByText("本月餐饮支出 ¥32.00。")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01 至 2026-08-31")).toBeInTheDocument();
     expect(screen.getByText(/分类：餐饮/)).toBeInTheDocument();

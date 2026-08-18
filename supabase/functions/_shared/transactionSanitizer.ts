@@ -136,14 +136,29 @@ function addDaysToIsoDate(isoDate: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
-function collectDatesFromText(text: string, todayIsoDate: string) {
+type TransactionTextEvidence = {
+  amountTokens: number[];
+  date: string;
+  needsClarification: boolean;
+  resolvedAmount: number | null;
+  text: string;
+};
+
+type BareCompactDate = {
+  amountValue: number | null;
+  date: string;
+  matchedLength: number;
+  separator: "." | "/" | "-";
+};
+
+function collectStrongDatesFromText(text: string, todayIsoDate: string) {
   const dates: string[] = [];
   const fullDatePattern =
     /(?:^|[^\d])((?:19|20)\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日|号)?(?=$|[^\d])/g;
-  const explicitMonthDayPattern =
-    /(?:^|[^\d])(\d{1,2})(?:月|[./-])(\d{1,2})(?:日|号)(?=$|[^\d])/g;
-  const plainMonthDayPattern =
-    /(?:^|[\s,，.。;；:：、])(\d{1,2})(?:月|[./-])(\d{1,2})(?=$|[\s,，.。;；:：、])/g;
+  const monthDayPattern =
+    /(?:^|[^\d])(\d{1,2})月(\d{1,2})(?:日|号)?(?=$|[^\d])/g;
+  const delimitedMonthDayWithMarkerPattern =
+    /(?:^|[^\d])(\d{1,2})[./-](\d{1,2})(?:日|号)(?=$|[^\d])/g;
 
   for (const match of text.matchAll(fullDatePattern)) {
     const [, year, month, day] = match;
@@ -174,7 +189,7 @@ function collectDatesFromText(text: string, todayIsoDate: string) {
     }
   }
 
-  for (const match of text.matchAll(explicitMonthDayPattern)) {
+  for (const match of text.matchAll(monthDayPattern)) {
     const [, month, day] = match;
     const year = Number(todayIsoDate.slice(0, 4));
     const isoDate = toIsoDate(year, Number(month), Number(day));
@@ -184,7 +199,7 @@ function collectDatesFromText(text: string, todayIsoDate: string) {
     }
   }
 
-  for (const match of text.matchAll(plainMonthDayPattern)) {
+  for (const match of text.matchAll(delimitedMonthDayWithMarkerPattern)) {
     const [, month, day] = match;
     const year = Number(todayIsoDate.slice(0, 4));
     const isoDate = toIsoDate(year, Number(month), Number(day));
@@ -198,13 +213,13 @@ function collectDatesFromText(text: string, todayIsoDate: string) {
 }
 
 function resolveDateFromText(text: string, fullText: string, todayIsoDate: string) {
-  const candidateDates = collectDatesFromText(text, todayIsoDate);
+  const candidateDates = collectStrongDatesFromText(text, todayIsoDate);
 
   if (candidateDates.length > 0) {
     return candidateDates[0];
   }
 
-  const fullTextDates = collectDatesFromText(fullText, todayIsoDate);
+  const fullTextDates = collectStrongDatesFromText(fullText, todayIsoDate);
 
   if (fullTextDates.length === 1) {
     return fullTextDates[0];
@@ -213,8 +228,153 @@ function resolveDateFromText(text: string, fullText: string, todayIsoDate: strin
   return todayIsoDate;
 }
 
+function removeStrongDateExpressions(text: string) {
+  return text
+    .replace(
+      /(^|[^\d])((?:19|20)\d{2})[-/.年](\d{1,2})[-/.月](\d{1,2})(?:日|号)?(?=$|[^\d])/g,
+      "$1",
+    )
+    .replace(
+      /(^|[^\d])(\d{1,2})月(\d{1,2})(?:日|号)?(?=$|[^\d])/g,
+      "$1",
+    )
+    .replace(
+      /(^|[^\d])(\d{1,2})[./-](\d{1,2})(?:日|号)(?=$|[^\d])/g,
+      "$1",
+    )
+    .replace(/今天|今日|昨天|昨日|前天/g, "");
+}
+
 function getDigitLikeAmountTokens(text: string) {
-  return text.match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
+  return removeStrongDateExpressions(text).match(/[+-]?\d+(?:\.\d+)?/g) ?? [];
+}
+
+function parseAmountTokens(text: string) {
+  return getDigitLikeAmountTokens(text)
+    .map((token) => Math.abs(Number(token)))
+    .filter((amount) => Number.isFinite(amount));
+}
+
+function findBareCompactDate(
+  dateFreeText: string,
+  todayIsoDate: string,
+): BareCompactDate | null {
+  const match = /^\s*(\d{1,2})([./-])(\d{1,2})(?!\d)(?!\s*[元块角分])/.exec(
+    dateFreeText,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const [, month, separator, day] = match;
+  const date = toIsoDate(
+    Number(todayIsoDate.slice(0, 4)),
+    Number(month),
+    Number(day),
+  );
+
+  if (!date) {
+    return null;
+  }
+
+  return {
+    amountValue: separator === "." ? Number(`${month}.${day}`) : null,
+    date,
+    matchedLength: match[0].length,
+    separator: separator as BareCompactDate["separator"],
+  };
+}
+
+function isDateOnlyFragment(fragment: string) {
+  return removeStrongDateExpressions(fragment)
+    .replace(/[\s,，.。;；:：、]/g, "")
+    .length === 0;
+}
+
+function analyzeTransactionText(
+  rawText: string,
+  todayIsoDate: string,
+): TransactionTextEvidence[] {
+  const fragments = rawText
+    .split(/[\n,，;；:：、]+/)
+    .map((fragment) => fragment.trim())
+    .filter(Boolean);
+  const evidence: TransactionTextEvidence[] = [];
+  let activeDate: { date: string; locked: boolean } | null = null;
+
+  for (const fragment of fragments) {
+    const strongDates = collectStrongDatesFromText(fragment, todayIsoDate);
+
+    if (strongDates.length === 1 && isDateOnlyFragment(fragment)) {
+      activeDate = { date: strongDates[0], locked: true };
+      continue;
+    }
+
+    let needsClarification = strongDates.length > 1;
+    const localStrongDate = strongDates[0] ?? null;
+    let resolvedDate: string | null = localStrongDate ?? activeDate?.date ?? null;
+    let inferredCompactDate: string | null = null;
+    let resolvedAmount: number | null = null;
+    const dateFreeText = removeStrongDateExpressions(fragment);
+    const compactDate = findBareCompactDate(dateFreeText, todayIsoDate);
+    let amountTokens: number[];
+
+    if (compactDate) {
+      const remainingText = dateFreeText.slice(compactDate.matchedLength);
+      const remainingAmounts = parseAmountTokens(remainingText);
+      const compactIsContextualAmount =
+        compactDate.separator === "." &&
+        remainingAmounts.length === 0 &&
+        resolvedDate !== null;
+
+      if (compactIsContextualAmount) {
+        resolvedAmount = compactDate.amountValue;
+        amountTokens = resolvedAmount === null ? [] : [resolvedAmount];
+      } else if (
+        compactDate.separator === "." &&
+        remainingAmounts.length === 0 &&
+        resolvedDate === null
+      ) {
+        amountTokens = [];
+        needsClarification = true;
+      } else {
+        inferredCompactDate = compactDate.date;
+        amountTokens = remainingAmounts;
+
+        const conflictsWithLocalStrongDate =
+          localStrongDate !== null && localStrongDate !== inferredCompactDate;
+        const conflictsWithLockedDateScope =
+          localStrongDate === null &&
+          activeDate?.locked === true &&
+          activeDate.date !== inferredCompactDate;
+
+        if (conflictsWithLocalStrongDate || conflictsWithLockedDateScope) {
+          needsClarification = true;
+        } else {
+          resolvedDate = inferredCompactDate;
+        }
+      }
+    } else {
+      amountTokens = parseAmountTokens(dateFreeText);
+    }
+
+    if (strongDates.length === 1) {
+      activeDate = { date: strongDates[0], locked: false };
+    } else if (inferredCompactDate && !needsClarification) {
+      activeDate = { date: inferredCompactDate, locked: false };
+    }
+
+    evidence.push({
+      amountTokens,
+      date: resolvedDate ?? todayIsoDate,
+      needsClarification,
+      resolvedAmount,
+      text: fragment,
+    });
+  }
+
+  return evidence;
 }
 
 function textContainsAmountToken(text: string, amount: number) {
@@ -341,7 +501,15 @@ export function parseAiJson(content: string) {
   throw new Error("AI 返回内容不是有效 JSON。");
 }
 
-function getCandidateRawText(aiValue: Record<string, unknown>, rawText: string) {
+function getCandidateRawText(
+  aiValue: Record<string, unknown>,
+  rawText: string,
+  evidence: TransactionTextEvidence | null,
+) {
+  if (evidence) {
+    return evidence.text;
+  }
+
   const candidateRawText = toNullableString(aiValue.raw_text);
 
   if (candidateRawText && rawText.includes(candidateRawText)) {
@@ -351,25 +519,84 @@ function getCandidateRawText(aiValue: Record<string, unknown>, rawText: string) 
   return rawText;
 }
 
-export function sanitizeParsedTransaction(
+function amountsMatch(left: number, right: number) {
+  return Math.abs(Math.abs(left) - Math.abs(right)) < 0.000001;
+}
+
+function selectTransactionEvidence(
+  aiValue: unknown,
+  evidence: TransactionTextEvidence[],
+  usedEvidenceIndexes: Set<number>,
+) {
+  if (!isRecord(aiValue)) {
+    return null;
+  }
+
+  const available = evidence
+    .map((item, index) => ({ index, item }))
+    .filter(({ index }) => !usedEvidenceIndexes.has(index));
+  const candidateRawText = toNullableString(aiValue.raw_text);
+
+  if (candidateRawText) {
+    const sourceMatches = available.filter(
+      ({ item }) =>
+        item.text.includes(candidateRawText) || candidateRawText.includes(item.text),
+    );
+
+    if (sourceMatches.length === 1) {
+      return sourceMatches[0];
+    }
+  }
+
+  const amount = toFiniteNumber(aiValue.amount);
+
+  if (amount !== null) {
+    const amountMatches = available.filter(({ item }) =>
+      item.amountTokens.some((token) => amountsMatch(token, amount)),
+    );
+
+    if (amountMatches.length === 1) {
+      return amountMatches[0];
+    }
+  }
+
+  return available.length === 1 ? available[0] : null;
+}
+
+function sanitizeParsedTransactionWithEvidence(
   aiValue: unknown,
   rawText: string,
   todayIsoDate: string,
+  evidence: TransactionTextEvidence | null,
+  forceClarification: boolean,
 ): ParsedTransaction {
   if (!isRecord(aiValue)) {
     throw new Error("AI 返回 JSON 必须是对象。");
   }
 
-  const needsClarification = aiValue.needs_clarification === true;
-  const candidateRawText = getCandidateRawText(aiValue, rawText);
-  const amount = toFiniteNumber(aiValue.amount);
+  const evidenceAmount = evidence?.resolvedAmount ?? null;
+  const modelNeedsClarification = aiValue.needs_clarification === true;
+  const needsClarification =
+    evidenceAmount !== null && !evidence?.needsClarification
+      ? false
+      : modelNeedsClarification;
+  const candidateRawText = getCandidateRawText(aiValue, rawText, evidence);
+  const amount = evidenceAmount ?? toFiniteNumber(aiValue.amount);
   const hasValidAmount = amount !== null && Number.isFinite(amount) && amount !== 0;
   const normalizedAmount = amount === null ? null : Math.abs(amount);
   const amountCameFromText = hasValidAmount
-    ? textContainsAmountToken(candidateRawText, amount)
+    ? evidence
+      ? evidence.amountTokens.some((token) => amountsMatch(token, amount))
+      : textContainsAmountToken(candidateRawText, amount)
     : false;
-  const shouldClarify = needsClarification || !hasValidAmount || !amountCameFromText;
-  const safeDate = resolveDateFromText(candidateRawText, rawText, todayIsoDate);
+  const shouldClarify =
+    forceClarification ||
+    evidence?.needsClarification === true ||
+    needsClarification ||
+    !hasValidAmount ||
+    !amountCameFromText;
+  const safeDate =
+    evidence?.date ?? resolveDateFromText(candidateRawText, rawText, todayIsoDate);
   const safeType =
     typeof aiValue.type === "string" && isTransactionType(aiValue.type)
       ? aiValue.type
@@ -393,6 +620,23 @@ export function sanitizeParsedTransaction(
   };
 }
 
+export function sanitizeParsedTransaction(
+  aiValue: unknown,
+  rawText: string,
+  todayIsoDate: string,
+): ParsedTransaction {
+  const evidence = analyzeTransactionText(rawText, todayIsoDate);
+  const selected = selectTransactionEvidence(aiValue, evidence, new Set<number>());
+
+  return sanitizeParsedTransactionWithEvidence(
+    aiValue,
+    rawText,
+    todayIsoDate,
+    selected?.item ?? null,
+    evidence.length > 1 && !selected,
+  );
+}
+
 export function sanitizeParsedTransactionsBatch(
   aiValue: unknown,
   rawText: string,
@@ -407,13 +651,31 @@ export function sanitizeParsedTransactionsBatch(
   }
 
   const slicedTransactions = aiValue.transactions.slice(0, MAX_PARSED_TRANSACTIONS);
+  const evidence = analyzeTransactionText(rawText, todayIsoDate);
+  const usedEvidenceIndexes = new Set<number>();
 
   return {
     max_input_chars: MAX_PARSE_INPUT_CHARS,
     max_transactions: MAX_PARSED_TRANSACTIONS,
-    transactions: slicedTransactions.map((transaction) =>
-      sanitizeParsedTransaction(transaction, rawText, todayIsoDate),
-    ),
+    transactions: slicedTransactions.map((transaction) => {
+      const selected = selectTransactionEvidence(
+        transaction,
+        evidence,
+        usedEvidenceIndexes,
+      );
+
+      if (selected) {
+        usedEvidenceIndexes.add(selected.index);
+      }
+
+      return sanitizeParsedTransactionWithEvidence(
+        transaction,
+        rawText,
+        todayIsoDate,
+        selected?.item ?? null,
+        evidence.length > 1 && !selected,
+      );
+    }),
     truncated: aiValue.transactions.length > MAX_PARSED_TRANSACTIONS,
   };
 }

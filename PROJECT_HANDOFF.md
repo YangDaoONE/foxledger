@@ -1,6 +1,6 @@
 # PROJECT_HANDOFF.md
 
-本文件用于把 FoxLedger Web/PWA 当前状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，必须先阅读 `AGENTS.md`、`README.md`、本文件和 `docs/V3.0_EXECUTABLE_DESIGN.md`。
+本文件用于把 FoxLedger Web/PWA 当前状态交接给下一轮 ChatGPT / Codex 对话。新对话开始前，必须先阅读 `AGENTS.md`、`README.md`、本文件和 `docs/V3.0_EXECUTABLE_DESIGN.md`、`docs/V3.1_EXECUTABLE_DESIGN.md`、`docs/V3.2_EXECUTABLE_DESIGN.md`。
 
 本仓库只维护 `D:\fox\foxledger` Web/PWA、Supabase migrations 和 Supabase Edge Function，不包含平级 App 仓库进度。
 
@@ -9,6 +9,8 @@
 V3.0 狐狐对话记账版已于 2026-08-13 完整收口。当前生产运行 **V3.1 狐狐安全问账与体验统一版**；V3.1 已于 2026-08-17 完成 M0–M5 代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新验收，现已正式收口。
 
 V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 基线为 `e3e7614`，窄屏修复为 `53636ce`。`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe、离线应用壳、受控真实只读问账、生产服务器产物及真实手机安装态 PWA 更新验收均已通过。
+
+V3.2 M0–M2 已于 2026-08-18 完成本地实现和自动化验收，范围包含保存后正式批次直达管理、狐狐页产品文案/隐私信息层级、候选展示与 Composer 键盘体验，以及用户验收发现的紧凑月日兼容修复。V3.2 尚未部署生产，也未完成真实手机安装态 PWA 更新验收；当前生产版本仍是 V3.1。
 
 生产入口：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
@@ -86,6 +88,17 @@ V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 基线为 
 - 当前真实账号只读问账成功返回可信范围、代码统计和五字段依据，页面控制台无应用错误；没有触发账单写入。500 条上限、RLS 完整失败、禁止字段及外部限制降级继续由既有契约测试覆盖。
 - M5 当前 `lint`、`typecheck`、33 个测试文件/157 项测试、`build`、15 条 Playwright、`verify:v3`、依赖审计、生产部署、服务器产物和真机安装态 PWA 更新验收已全部通过。
 
+### 2.7 V3.2 M0–M2 本地实现
+
+- M0：保存后的 `LedgerResultCard` 使用既有 `saveRequest.batchId` 读取当前用户 Dexie 正式批次，不再把聊天候选当作保存后事实源；可在原聊天路径打开正式详情、编辑单笔、二次确认删除单笔和撤销当前剩余整批。
+- 正式管理写操作统一收口到页面级 `useAiBatchManagement`，原聊天详情和 `RecentAiBatchesPanel` 共享远端写入、写后 `refreshAfterWrite()`、失败提示和“远端已成功但缓存待同步”锁，避免两套并行生命周期。
+- 单笔删除或编辑后按同步后的 Dexie 当前行重算；删掉批次最后一笔时，原聊天卡进入已撤销状态；整批撤销只使用当时正式批次的当前剩余 transaction IDs。离线允许查看正式详情，编辑、删除和撤销保持禁用。
+- M1：狐狐页首屏改为“记一笔，也可以问问账本”的产品表达，空状态和问账结果标题降低工程说明感；安全与数据用途放入默认折叠且始终可访问的“数据与隐私”，设置页完整说明继续保留，V3.1 问账计划、统计、依据和跳转没有改动。
+- M2：候选主标题优先显示非空 `merchant`，缺失时回退分类；交易类型复用共享规则显示支出、收入、转账。Composer 支持约 2–5 行自动增高、超出内部滚动、清空后缩回，Enter 发送、Shift+Enter 换行，并同时防护 `isComposing`、composition 生命周期和 keyCode 229。
+- 用户验收修复：共享 `transactionSanitizer` 对当前输入执行两遍确定性分析，先从独立的今天/昨天/明确日期片段建立日期作用域，再按上下文、同片段另一金额和货币单位判定紧凑数字。`今天，7.6吃饭`按今天 ¥7.60，`7.6吃饭花了76`按 7 月 6 日 ¥76；`M/D`、`M-D` 和带日期标记的写法继续作为日期，`7.6元`作为金额。模型省略日期时只按原文或唯一金额安全绑定，单独 `7.6吃饭`、日期冲突或相同金额无法绑定时保持 `needs_clarification`，前端显示针对性核对提示。
+- 未修改数据库 schema、RLS、`fox-chat` 协议、统计口径、AI 数据边界、写入确认机制或 PWA 缓存边界；未增加环境变量、语音、OCR、图片或多模态能力。
+- 当前自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；34 个测试文件/174 项测试、17 条 Playwright 通过；`npm audit --audit-level=moderate` 为 0 vulnerabilities。生产部署、服务器产物和真机安装态验收仍待执行。
+
 ## 3. 数据库与缓存契约
 
 远端仍只有核心表：
@@ -132,6 +145,8 @@ src/app/AppShell.tsx                         登录后 Sync + Chat Provider 生�
 src/app/router.tsx                           含懒加载 /chat
 src/app/queryKeys.ts                         transactions/stats/recent batch 查询键
 src/features/chat/                           Chat 状态机、UI、最近批次和保存后管理
+src/features/chat/useAiBatchManagement.ts    正式批次共用写入、同步和 stale 锁
+src/features/chat/SavedBatchDetailSheet.tsx  原聊天路径的 Dexie 正式批次详情
 src/features/stats/statsDrilldown.ts          统计页 drilldown 纯参数契约
 src/features/ai/aiBatchSave.ts               固定 batch/transaction IDs
 src/features/transactions/transactionsApi.ts RLS 下显式用户约束、写入协调、编辑删除
@@ -221,24 +236,28 @@ M5 已由用户完成以下人工确认：
 - 生产部署后的登录、白名单、解析、确认保存、最近批次和撤销回归。
 - 生产网络请求中 Supabase/Auth/AI 响应未进入 Cache Storage。
 
-V3.1 M0–M5 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；33 个测试文件、157 项测试和 15 条 Playwright 通过，依赖审计为 0 vulnerabilities。M3 覆盖 grounded 数字、伪造引用拒绝、prompt injection 数据边界、跨 operation 合计 500 条上限、完整查询/第二次 AI 降级、读取失败无部分统计、历史分类安全归一、normalized context、依据卡和筛选跳转；M4/M5 覆盖共享表现、财务语义色、同步诊断/重试、移动端发送、Axe 和离线应用壳。M0–M5 的人工、生产和真机验收均已完成。
+V3.1 收口时的自动化、人工、生产和真机验收均已完成，其中 M3 覆盖 grounded 数字、伪造引用拒绝、prompt injection 数据边界、跨 operation 合计 500 条上限、完整查询/第二次 AI 降级、读取失败无部分统计、历史分类安全归一、normalized context、依据卡和筛选跳转；M4/M5 覆盖共享表现、财务语义色、同步诊断/重试、移动端发送、Axe 和离线应用壳。
+
+V3.2 M0–M2 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；34 个测试文件、174 项测试和 17 条 Playwright 通过，依赖审计为 0 vulnerabilities。新增覆盖原聊天保存后直达正式批次、编辑、单删、按剩余真实行撤销、最后一笔删除、未保存候选全部移除后的结束状态、离线只读、单弹层约束、隐私折叠、产品文案、商家/中文类型、Composer 自动增高与 IME 键盘行为，以及日期作用域、紧凑月日、斜杠/短横线日期、小数金额、日期冲突和相同金额无法安全绑定等反例。V3.2 未做生产部署、服务器产物核对或真实手机安装态验收。
 
 部署回退必须保留 Dexie v4 schema；不能直接回退到只认识 v3 的旧构建。已经远端成功的账单不能因回退或同步错误重复写入。
 
 ## 8. 后续边界
 
-V3.1 M0–M5 已全部完成并正式收口。不要主动开始 V3.2，等待用户明确要求。
+V3.1 M0–M5 已全部完成并正式收口。V3.2 M0–M2 已完成本地实现和自动化验收，下一步只在用户明确要求后执行生产部署、服务器产物核对和真实手机安装态 PWA 更新验收；不要擅自扩展 V3.2 或启动后续版本。
 
 语音、OCR、图片、多模态和原生 App 能力不在当前 Web/PWA 范围。
 
 ## 9. 新对话启动 Prompt
 
 ```text
-请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md 和 docs/V3.1_EXECUTABLE_DESIGN.md。
+请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md、docs/V3.1_EXECUTABLE_DESIGN.md 和 docs/V3.2_EXECUTABLE_DESIGN.md。
 
 当前生产运行 FoxLedger Web/PWA V3.1 狐狐安全问账与体验统一版；M0–M5 代码、自动化、受控真实问账、部署、服务器产物和真实手机安装态 PWA 更新验收均已通过，V3.1 已正式收口。
 
+V3.2 M0–M2 已完成本地实现和自动化验收，但尚未部署生产，也未完成服务器产物和真实手机安装态 PWA 更新验收；不要把 V3.2 写成生产现状。
+
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS；记账只发送当前输入，问账只发送当前用户云端相关代码统计与最多 500 条五字段明细，绝不发送 Dexie 或禁止字段；用户确认后才写库，新 AI 不持久化 raw_text，只处理 Web/PWA 仓库。
 
-不要主动实现 V3.2；只有用户明确要求启动下一阶段后，才先确认对应设计和内部批次。不要把尚未部署或尚未验收的后续功能写成生产现状。
+下一步只在用户明确要求后执行 V3.2 发布验收；不要扩展 V3.2 范围或主动开始后续版本。不要把尚未部署或尚未验收的功能写成生产现状。
 ```

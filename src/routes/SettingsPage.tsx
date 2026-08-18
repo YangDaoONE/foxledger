@@ -35,7 +35,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="view-stack">
+    <div className="view-stack settings-page">
       <PageIntro
         description="管理登录、隐私说明和 CSV 导入，不在浏览器保存聊天内容。"
         eyebrow="设置"
@@ -44,18 +44,25 @@ export function SettingsPage() {
       />
 
       <SectionBlock
+        className="settings-account"
         description="缓存行数来自当前用户最近一次完整同步。"
         eyebrow="账号"
         title="登录信息"
       >
-        <div className="account-panel">
-          <span>当前邮箱</span>
-          <strong>{user?.email ?? "未知"}</strong>
-          <span>缓存行数</span>
-          <strong>{syncMeta?.row_count ?? 0}</strong>
-          <span>最近同步</span>
-          <strong>{formatDateTime(syncMeta?.last_successful_sync_at ?? null)}</strong>
-        </div>
+        <dl className="account-panel">
+          <div>
+            <dt>当前邮箱</dt>
+            <dd>{user?.email ?? "未知"}</dd>
+          </div>
+          <div>
+            <dt>缓存行数</dt>
+            <dd>{syncMeta?.row_count ?? 0}</dd>
+          </div>
+          <div>
+            <dt>最近同步</dt>
+            <dd>{formatDateTime(syncMeta?.last_successful_sync_at ?? null)}</dd>
+          </div>
+        </dl>
         {message ? <p className="form-message danger">{message}</p> : null}
         <AppButton
           disabled={isSigningOut}
@@ -68,7 +75,11 @@ export function SettingsPage() {
         </AppButton>
       </SectionBlock>
 
-      <SectionBlock eyebrow="AI 与隐私" title="狐狐如何使用账本数据">
+      <SectionBlock
+        className="settings-privacy"
+        eyebrow="AI 与隐私"
+        title="狐狐如何使用账本数据"
+      >
         <p className="settings-help-text">
           记账时只发送当前输入文字。问账时，服务端会在当前用户 RLS 边界内读取云端相关账单，向当前配置的 AI 服务发送代码计算的完整相关统计，以及最多 500 条仅含日期、类型、金额、分类和商家的相关明细。Dexie 本地缓存、备注、账户、支付方式、原文、用户 ID 和交易 ID 不会发送给 AI。
         </p>

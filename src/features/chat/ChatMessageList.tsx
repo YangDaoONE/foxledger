@@ -48,11 +48,24 @@ export function ChatMessageList({
     }
 
     const list = listRef.current;
+    const latestMessage = messages[messages.length - 1];
+    const latestElement = list?.lastElementChild as HTMLElement | null;
     const prefersReducedMotion =
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const shouldAlignLongResult =
+      list !== null &&
+      latestElement !== null &&
+      (latestMessage?.type === "ledger_result" ||
+        latestMessage?.type === "query_result") &&
+      latestElement.offsetHeight > list.clientHeight - 32;
+    const targetScrollTop =
+      shouldAlignLongResult && list && latestElement
+        ? Math.max(0, latestElement.offsetTop - list.offsetTop)
+        : (list?.scrollHeight ?? 0);
+
     list?.scrollTo?.({
       behavior: prefersReducedMotion ? "auto" : "smooth",
-      top: list.scrollHeight,
+      top: targetScrollTop,
     });
   }, [messages]);
 

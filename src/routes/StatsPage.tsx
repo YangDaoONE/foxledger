@@ -87,7 +87,7 @@ export function StatsPage() {
   const stats = statsQuery.data;
 
   return (
-    <div className="view-stack">
+    <div className="view-stack stats-page">
       <PageIntro
         description="所有正式数字由代码基于当前用户缓存计算，不交给 AI 统计。"
         eyebrow="统计"
@@ -96,22 +96,7 @@ export function StatsPage() {
       />
 
       <SectionBlock
-        description="选择范围后可点击支出、收入、分类或日期下钻到账单。"
-        eyebrow="范围"
-        title="日期范围"
-      >
-        <div className="toolbar-row">
-          <div className="chip-row">
-            {rangeOptions.map((option) => (
-              <Chip
-                active={rangeKey === option.key}
-                key={option.key}
-                onClick={() => setRangeKey(option.key)}
-              >
-                {option.label}
-              </Chip>
-            ))}
-          </div>
+        action={
           <AppButton
             disabled={!isOnline || isSyncing}
             icon={<RefreshCw className={isSyncing ? "spin" : undefined} size={16} />}
@@ -121,6 +106,22 @@ export function StatsPage() {
           >
             {isSyncing ? "同步中" : "刷新"}
           </AppButton>
+        }
+        className="stats-range-panel"
+        description="选择范围后可点击支出、收入、分类或日期下钻到账单。"
+        eyebrow="范围"
+        title="日期范围"
+      >
+        <div className="chip-row">
+          {rangeOptions.map((option) => (
+            <Chip
+              active={rangeKey === option.key}
+              key={option.key}
+              onClick={() => setRangeKey(option.key)}
+            >
+              {option.label}
+            </Chip>
+          ))}
         </div>
 
         {rangeKey === "custom" ? (
@@ -156,7 +157,7 @@ export function StatsPage() {
 
       {stats ? (
         <>
-          <section className="metric-grid">
+          <section className="metric-grid stats-metrics">
             <MetricCard
               label="总支出"
               onClick={() => drilldown({ type: "expense" })}
@@ -185,7 +186,7 @@ export function StatsPage() {
             />
           </section>
 
-          <SectionBlock eyebrow="排行" title="分类支出">
+          <SectionBlock className="stats-ranking" eyebrow="排行" title="分类支出">
             {stats.categorySpend.length === 0 ? (
               <StateBlock title="暂无支出">当前范围没有支出账单。</StateBlock>
             ) : (
@@ -206,7 +207,7 @@ export function StatsPage() {
             )}
           </SectionBlock>
 
-          <SectionBlock eyebrow="趋势" title="每日支出">
+          <SectionBlock className="stats-trend" eyebrow="趋势" title="每日支出">
             {stats.dailySpend.length === 0 ? (
               <StateBlock title="暂无趋势">当前范围没有每日支出数据。</StateBlock>
             ) : (

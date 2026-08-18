@@ -46,7 +46,7 @@ export function HomePage() {
   const summary = summaryQuery.data?.summary;
 
   return (
-    <div className="view-stack">
+    <div className="view-stack home-page">
       <PageIntro
         description="手动记账、狐狐问账与离线缓存，都从同一本可靠账本出发。"
         eyebrow="今日账本"
@@ -55,6 +55,7 @@ export function HomePage() {
       />
 
       <SectionBlock
+        className="home-summary"
         description={`${monthRange.startDate} 至 ${monthRange.endDate}`}
         eyebrow="本月"
         title="收支概览"
@@ -79,6 +80,7 @@ export function HomePage() {
       </SectionBlock>
 
       <SectionBlock
+        className="home-manual"
         description="保存后会立即刷新云端数据和本地只读缓存。"
         eyebrow="手动"
         title="新增账单"

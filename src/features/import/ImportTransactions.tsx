@@ -60,7 +60,7 @@ export function ImportTransactions({ isOnline, onImported, userId }: ImportTrans
   }
 
   return (
-    <SectionBlock eyebrow="CSV" title="导入账单">
+    <SectionBlock className="settings-import" eyebrow="CSV" title="导入账单">
       <label className="file-input">
         <span>选择 CSV 文件</span>
         <input

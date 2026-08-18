@@ -153,7 +153,7 @@ export function TransactionsPage() {
   }
 
   return (
-    <div className="view-stack">
+    <div className="view-stack transactions-page">
       <PageIntro
         description="搜索、筛选和管理当前用户已完整同步的账单缓存。"
         eyebrow="账单"
@@ -162,29 +162,31 @@ export function TransactionsPage() {
       />
 
       <SectionBlock
+        action={
+          <div className="toolbar-row">
+            <AppButton
+              disabled={!isOnline || isSyncing}
+              icon={<RefreshCw className={isSyncing ? "spin" : undefined} size={16} />}
+              type="button"
+              variant="secondary"
+              onClick={() => void syncNow().catch(() => undefined)}
+            >
+              {isSyncing ? "同步中" : "刷新"}
+            </AppButton>
+            <AppButton
+              type="button"
+              variant={manageMode ? "primary" : "secondary"}
+              onClick={toggleManageMode}
+            >
+              {manageMode ? "完成" : "管理"}
+            </AppButton>
+          </div>
+        }
+        className="transactions-filter-panel"
         description="筛选只影响当前列表，不会修改云端账单。"
         eyebrow="查找"
         title="筛选和汇总"
       >
-        <div className="toolbar-row">
-          <AppButton
-            disabled={!isOnline || isSyncing}
-            icon={<RefreshCw className={isSyncing ? "spin" : undefined} size={16} />}
-            type="button"
-            variant="secondary"
-            onClick={() => void syncNow().catch(() => undefined)}
-          >
-            {isSyncing ? "同步中" : "刷新"}
-          </AppButton>
-          <AppButton
-            type="button"
-            variant={manageMode ? "primary" : "secondary"}
-            onClick={toggleManageMode}
-          >
-            {manageMode ? "完成" : "管理"}
-          </AppButton>
-        </div>
-
         <form
           className="search-row"
           onSubmit={(event) => {

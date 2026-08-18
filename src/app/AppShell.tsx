@@ -1,4 +1,5 @@
-import { Outlet } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { Outlet, useRouterState } from "@tanstack/react-router";
 
 import { BottomNav } from "@/components/BottomNav";
 import { ChatSessionProvider } from "@/features/chat/ChatSessionProvider";
@@ -7,6 +8,11 @@ import { SyncProvider, useSyncState } from "@/features/sync/SyncProvider";
 
 function AppShellContent() {
   const { isOnline, isSyncing, syncError, syncMeta, syncNow, syncPhase } = useSyncState();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  useEffect(() => {
+    window.scrollTo({ behavior: "auto", left: 0, top: 0 });
+  }, [pathname]);
 
   return (
     <>

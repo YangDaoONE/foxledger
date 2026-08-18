@@ -33,7 +33,9 @@ export function TransactionCard({
   const sign = transaction.type === "income" ? "+" : transaction.type === "expense" ? "-" : "";
 
   return (
-    <article className={`transaction-card ${transaction.type}`}>
+    <article
+      className={`transaction-card ${transaction.type} ${manageMode ? "managing" : ""} ${isSelected ? "selected" : ""}`.trim()}
+    >
       {manageMode ? (
         <input
           aria-label="选择账单"

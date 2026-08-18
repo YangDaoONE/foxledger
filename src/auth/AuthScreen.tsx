@@ -52,9 +52,9 @@ export function AuthScreen({ initialError }: { initialError: string | null }) {
             <span>清楚记录每一笔，也能有依据地问账。</span>
           </div>
           <ul className="auth-benefits" aria-label="产品特性">
-            <li><Check size={15} aria-hidden="true" />当前用户数据由 RLS 隔离</li>
-            <li><Check size={15} aria-hidden="true" />离线时只读上次完整缓存</li>
-            <li><Check size={15} aria-hidden="true" />AI 候选确认后才写入</li>
+            <li><Check size={15} aria-hidden="true" />每笔数据只属于当前账号</li>
+            <li><Check size={15} aria-hidden="true" />没网时也能查看最近账本</li>
+            <li><Check size={15} aria-hidden="true" />狐狐会等你确认后再记下</li>
           </ul>
         </div>
 

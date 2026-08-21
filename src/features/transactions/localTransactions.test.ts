@@ -1,13 +1,24 @@
-import { describe, expect, it } from "vitest";
+import Dexie from "dexie";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   applyTransactionFilters,
+  listAllCachedTransactions,
   summarizeTransactions,
 } from "@/features/transactions/localTransactions";
 import type {
   CachedTransaction,
   TransactionFilters,
 } from "@/features/transactions/types";
+import { FoxLedgerDb } from "@/lib/localDb";
+
+const ledgerId = "33333333-3333-4333-8333-333333333333";
+const otherLedgerId = "44444444-4444-4444-8444-444444444444";
+const databaseNames: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(databaseNames.splice(0).map((name) => Dexie.delete(name)));
+});
 
 function createTransaction(
   overrides: Partial<CachedTransaction> & Pick<CachedTransaction, "id">,
@@ -20,6 +31,7 @@ function createTransaction(
     created_at: "2026-08-01T00:00:00.000Z",
     currency: "CNY",
     date: "2026-08-01",
+    ledger_id: ledgerId,
     merchant: null,
     note: null,
     payment_method: null,
@@ -95,5 +107,25 @@ describe("账单筛选、排序和汇总", () => {
     ]);
 
     expect(summary).toEqual({ count: 3, expense: 20, income: 100 });
+  });
+});
+
+describe("账本作用域缓存读取", () => {
+  it("复合索引同时隔离当前用户和当前账本", async () => {
+    const name = `foxledger-transactions-${crypto.randomUUID()}`;
+    databaseNames.push(name);
+    const db = new FoxLedgerDb(name);
+    await db.open();
+    await db.transactions_cache.bulkPut([
+      createTransaction({ id: "active-ledger" }),
+      createTransaction({ id: "other-ledger", ledger_id: otherLedgerId }),
+      createTransaction({ id: "other-user", user_id: "user-2" }),
+    ]);
+
+    await expect(
+      listAllCachedTransactions("user-1", ledgerId, db),
+    ).resolves.toEqual([expect.objectContaining({ id: "active-ledger" })]);
+
+    db.close();
   });
 });

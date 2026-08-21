@@ -10,9 +10,11 @@ const mocks = vi.hoisted(() => ({
   getRecentAiBatch: vi.fn(),
   insertAiBatchTransactionsForUser: vi.fn(),
   isOnline: true,
+  ledgerId: "33333333-3333-4333-8333-333333333333",
   listRecentAiBatches: vi.fn(),
   refreshAfterWrite: vi.fn(),
   sendFoxChatMessage: vi.fn(),
+  setActiveLedgerId: vi.fn(),
   updateTransaction: vi.fn(),
 }));
 
@@ -23,6 +25,39 @@ vi.mock("@/auth/AuthProvider", () => ({
 vi.mock("@/features/chat/foxChatApi", () => ({
   MAX_FOX_CHAT_INPUT_CHARS: 3000,
   sendFoxChatMessage: mocks.sendFoxChatMessage,
+}));
+
+vi.mock("@/features/ledgers/LedgerProvider", () => ({
+  useActiveLedger: () => ({
+    cache_key: `user-1:${mocks.ledgerId}`,
+    created_at: "2026-08-18T00:00:00.000Z",
+    id: mocks.ledgerId,
+    name: "默认账本",
+    updated_at: "2026-08-18T00:00:00.000Z",
+    user_id: "user-1",
+  }),
+  useLedgerState: () => ({
+    activeLedger: {
+      cache_key: `user-1:${mocks.ledgerId}`,
+      created_at: "2026-08-18T00:00:00.000Z",
+      id: mocks.ledgerId,
+      name: "默认账本",
+      updated_at: "2026-08-18T00:00:00.000Z",
+      user_id: "user-1",
+    },
+    activeLedgerId: mocks.ledgerId,
+    ledgers: [
+      {
+        cache_key: `user-1:${mocks.ledgerId}`,
+        created_at: "2026-08-18T00:00:00.000Z",
+        id: mocks.ledgerId,
+        name: "默认账本",
+        updated_at: "2026-08-18T00:00:00.000Z",
+        user_id: "user-1",
+      },
+    ],
+    setActiveLedgerId: mocks.setActiveLedgerId,
+  }),
 }));
 
 vi.mock("@/features/sync/SyncProvider", () => ({
@@ -299,6 +334,9 @@ describe("ChatPage 候选闭环", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认记账" }));
 
     await screen.findByRole("button", { name: "详情" });
+    expect(
+      screen.getByRole("button", { name: /收起本次记账结果/ }),
+    ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByText("已经记好了，共 2 笔。")).toBeInTheDocument();
 
     mocks.isOnline = false;
@@ -355,7 +393,7 @@ describe("ChatPage 候选闭环", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "确认" }));
 
-    await waitFor(() => expect(screen.getByText("整批已撤销")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("这次记录已撤销")).toBeInTheDocument());
     expect(mocks.deleteTransactionsByIds).toHaveBeenCalledWith("user-1", [
       "transaction-1",
     ]);
@@ -390,6 +428,7 @@ function createFormalBatch(batchId: string): RecentAiBatch {
     batchId,
     expense: 50,
     income: 0,
+    ledgerId: mocks.ledgerId,
     latestCreatedAt: "2026-08-18T01:01:00.000Z",
     transactionCount: 2,
     transactions: [
@@ -417,6 +456,7 @@ function createCachedTransaction(
     currency: "CNY" as const,
     date: "2026-08-18",
     id,
+    ledger_id: mocks.ledgerId,
     merchant,
     note: null,
     payment_method: null,

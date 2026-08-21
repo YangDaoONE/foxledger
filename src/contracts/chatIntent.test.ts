@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
+const LEDGER_ID = "33333333-3333-4333-8333-333333333333";
+
 import {
   ChatIntentContractError,
   buildFoxChatIntentPrompt,
@@ -53,11 +55,13 @@ describe("fox-chat M3 请求契约", () => {
     expect(
       validateFoxChatRequestBody({
         forced_intent: "query_ledger",
+        ledger_id: LEDGER_ID,
         previous_context: previousContext,
         text: "本月餐饮花了多少？",
       }),
     ).toEqual({
       forced_intent: "query_ledger",
+      ledger_id: LEDGER_ID,
       previous_context: previousContext,
       text: "本月餐饮花了多少？",
     });
@@ -68,16 +72,22 @@ describe("fox-chat M3 请求契约", () => {
       validateFoxChatRequestBody({ text: "本月支出", user_id: "user-2" }),
     ).toThrow(InputValidationError);
     expect(() =>
-      validateFoxChatRequestBody({ forced_intent: "delete", text: "午饭 32" }),
+      validateFoxChatRequestBody({
+        forced_intent: "delete",
+        ledger_id: LEDGER_ID,
+        text: "午饭 32",
+      }),
     ).toThrow(/forced_intent/);
     expect(() =>
       validateFoxChatRequestBody({
+        ledger_id: LEDGER_ID,
         previous_context: { old_message: "历史账单" },
         text: "那上个月呢？",
       }),
     ).toThrow(/previous_context/);
     expect(() =>
       validateFoxChatRequestBody({
+        ledger_id: LEDGER_ID,
         previous_context: {
           date_anchor: today,
           intent: "query_ledger",
@@ -196,6 +206,7 @@ describe("fox-chat 第一次 AI 编排", () => {
     const result = await runFoxChatFirstStage({
       body: {
         forced_intent: "query_ledger",
+        ledger_id: LEDGER_ID,
         text: "这个月餐饮比上月多多少？",
       },
       requestAi,
@@ -219,6 +230,7 @@ describe("fox-chat 第一次 AI 编排", () => {
       today,
     });
     expect(messages[1].content).not.toContain("history");
+    expect(messages[1].content).not.toContain(LEDGER_ID);
   });
 
   it("连续追问只向第一次 AI 提供归一化计划与日期锚点", async () => {
@@ -232,7 +244,11 @@ describe("fox-chat 第一次 AI 编排", () => {
     );
 
     await runFoxChatFirstStage({
-      body: { previous_context: previousContext, text: "那上个月呢？" },
+      body: {
+        ledger_id: LEDGER_ID,
+        previous_context: previousContext,
+        text: "那上个月呢？",
+      },
       requestAi,
       todayIsoDate: today,
     });
@@ -250,7 +266,7 @@ describe("fox-chat 第一次 AI 编排", () => {
 
   it("prompt 明确四类边界，不提供数据库写工具", () => {
     const messages = buildFoxChatIntentPrompt(
-      { previous_context: null, text: "午饭 32" },
+      { ledger_id: LEDGER_ID, previous_context: null, text: "午饭 32" },
       today,
     );
 

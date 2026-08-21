@@ -5,6 +5,7 @@ import type { ParsedTransactionBatch } from "@/features/ai/types";
 
 const mocks = vi.hoisted(() => ({
   insertAiBatchTransactionsForUser: vi.fn(),
+  ledgerId: "33333333-3333-4333-8333-333333333333",
   refreshAfterWrite: vi.fn(),
   sendFoxChatMessage: vi.fn(),
   userId: "user-1",
@@ -17,6 +18,20 @@ vi.mock("@/auth/AuthProvider", () => ({
 vi.mock("@/features/chat/foxChatApi", () => ({
   MAX_FOX_CHAT_INPUT_CHARS: 3000,
   sendFoxChatMessage: mocks.sendFoxChatMessage,
+}));
+
+vi.mock("@/features/ledgers/LedgerProvider", () => ({
+  useLedgerState: () => ({
+    activeLedgerId: mocks.ledgerId,
+    ledgers: [
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+      },
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+      },
+    ],
+  }),
 }));
 
 vi.mock("@/features/sync/SyncProvider", () => ({
@@ -136,6 +151,7 @@ function createQueryResult(label = "本月") {
 describe("ChatSessionProvider", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.ledgerId = "33333333-3333-4333-8333-333333333333";
     mocks.userId = "user-1";
     mocks.sendFoxChatMessage.mockResolvedValue({
       intent: "record_transaction",
@@ -167,8 +183,8 @@ describe("ChatSessionProvider", () => {
     await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(2));
 
     expect(mocks.sendFoxChatMessage.mock.calls).toEqual([
-      [{ previousContext: null, text: "午饭 32" }],
-      [{ previousContext: null, text: "地铁 6" }],
+      [{ ledgerId: mocks.ledgerId, previousContext: null, text: "午饭 32" }],
+      [{ ledgerId: mocks.ledgerId, previousContext: null, text: "地铁 6" }],
     ]);
     expect(localStorageSpy).not.toHaveBeenCalled();
   });
@@ -213,10 +229,40 @@ describe("ChatSessionProvider", () => {
     await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(2));
 
     expect(mocks.sendFoxChatMessage.mock.calls[1][0]).toEqual({
+      ledgerId: mocks.ledgerId,
       previousContext: firstResult.context,
       text: "地铁 6",
     });
     expect(localStorage.getItem("fox-chat-context")).toBeNull();
+  });
+
+  it("切换账本后不复用上一账本的 normalized context", async () => {
+    const firstResult = createQueryResult();
+    mocks.sendFoxChatMessage
+      .mockResolvedValueOnce(firstResult)
+      .mockResolvedValueOnce(createQueryResult("上月"));
+    const view = render(
+      <ChatSessionProvider>
+        <SessionProbe />
+      </ChatSessionProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "发送午饭" }));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(1));
+    mocks.ledgerId = "44444444-4444-4444-8444-444444444444";
+    view.rerender(
+      <ChatSessionProvider>
+        <SessionProbe />
+      </ChatSessionProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "发送地铁" }));
+    await waitFor(() => expect(mocks.sendFoxChatMessage).toHaveBeenCalledTimes(2));
+
+    expect(mocks.sendFoxChatMessage.mock.calls[1][0]).toEqual({
+      ledgerId: "44444444-4444-4444-8444-444444444444",
+      previousContext: null,
+      text: "地铁 6",
+    });
   });
 
   it("空解析只显示确定性错误，不创建空结果卡", async () => {
@@ -234,6 +280,7 @@ describe("ChatSessionProvider", () => {
 
     await waitFor(() => expect(screen.getByTestId("message-count")).toHaveTextContent("2"));
     expect(mocks.sendFoxChatMessage).toHaveBeenCalledWith({
+      ledgerId: mocks.ledgerId,
       previousContext: null,
       text: "午饭 32",
     });

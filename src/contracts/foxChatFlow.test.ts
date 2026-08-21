@@ -6,6 +6,7 @@ import { runFoxChatFlow } from "@shared/foxChatFlow";
 import type { LedgerReadClient, LedgerReadQuery } from "@shared/ledgerRead";
 
 const today = "2026-08-13";
+const ledgerId = "33333333-3333-4333-8333-333333333333";
 const readEnv: EdgeEnvReader = (name) =>
   ({
     SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
@@ -38,9 +39,9 @@ function createPlan() {
   };
 }
 
-function createClientFactory(options?: { failRead?: boolean }) {
+function createClientFactory(options?: { denyLedger?: boolean; failRead?: boolean }) {
   const client: LedgerReadClient = {
-    from() {
+    from(table) {
       const query = {
         eq() {
           return query;
@@ -61,6 +62,15 @@ function createClientFactory(options?: { failRead?: boolean }) {
           return query;
         },
         then(onFulfilled: (value: unknown) => unknown) {
+          if (table === "ledgers") {
+            return Promise.resolve({
+              data: options?.denyLedger
+                ? []
+                : [{ id: ledgerId, user_id: "user-1" }],
+              error: null,
+            }).then(onFulfilled);
+          }
+
           return Promise.resolve(
             options?.failRead
               ? { data: null, error: { message: "RLS read failed" } }
@@ -71,6 +81,7 @@ function createClientFactory(options?: { failRead?: boolean }) {
                       category: "餐饮",
                       date: today,
                       id: "transaction-1",
+                      ledger_id: ledgerId,
                       merchant: "小狐餐厅",
                       type: "expense",
                       user_id: "user-1",
@@ -108,7 +119,11 @@ describe("fox-chat M3 完整只读编排", () => {
       );
     const result = await runFoxChatFlow({
       accessToken: "user-token",
-      body: { previous_context: null, text: "本月餐饮花了多少？" },
+      body: {
+        ledger_id: ledgerId,
+        previous_context: null,
+        text: "本月餐饮花了多少？",
+      },
       createClient: createClientFactory(),
       readEnv,
       requestAi,
@@ -132,6 +147,7 @@ describe("fox-chat M3 完整只读编排", () => {
       merchant: "小狐餐厅",
       type: "expense",
     });
+    expect(JSON.stringify(requestAi.mock.calls)).not.toContain(ledgerId);
   });
 
   it("第二次 AI 或 grounded 校验失败时保留完整代码统计并明确降级", async () => {
@@ -141,7 +157,7 @@ describe("fox-chat M3 完整只读编排", () => {
       .mockRejectedValueOnce(new Error("AI timeout"));
     const result = await runFoxChatFlow({
       accessToken: "user-token",
-      body: { text: "本月餐饮花了多少？" },
+      body: { ledger_id: ledgerId, text: "本月餐饮花了多少？" },
       createClient: createClientFactory(),
       readEnv,
       requestAi,
@@ -166,7 +182,7 @@ describe("fox-chat M3 完整只读编排", () => {
     await expect(
       runFoxChatFlow({
         accessToken: "user-token",
-        body: { text: "本月餐饮花了多少？" },
+        body: { ledger_id: ledgerId, text: "本月餐饮花了多少？" },
         createClient: createClientFactory({ failRead: true }),
         readEnv,
         requestAi,
@@ -175,5 +191,22 @@ describe("fox-chat M3 完整只读编排", () => {
       }),
     ).rejects.toThrow("未生成部分统计");
     expect(requestAi).toHaveBeenCalledOnce();
+  });
+
+  it("账本不属于当前用户时在第一次 AI 前拒绝请求", async () => {
+    const requestAi = vi.fn();
+
+    await expect(
+      runFoxChatFlow({
+        accessToken: "user-token",
+        body: { ledger_id: ledgerId, text: "午饭 32" },
+        createClient: createClientFactory({ denyLedger: true }),
+        readEnv,
+        requestAi,
+        todayIsoDate: today,
+        verifiedUserId: "user-1",
+      }),
+    ).rejects.toThrow("这个账本不存在，或当前账号没有权限");
+    expect(requestAi).not.toHaveBeenCalled();
   });
 });

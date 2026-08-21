@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SupabaseClientFactory } from "@shared/auth";
 import type { EdgeEnvReader } from "@shared/edgeEnv";
 import {
+  assertLedgerOwnedByUser,
   executeLedgerQueryPlan,
   LEDGER_READ_PAGE_SIZE,
   LEDGER_READ_SELECT,
@@ -26,6 +27,7 @@ type RemoteRow = {
   category: string;
   date: string;
   id: string;
+  ledger_id: string;
   merchant: string | null;
   type: "expense" | "income" | "transfer";
   user_id: string;
@@ -36,6 +38,8 @@ const readEnv: EdgeEnvReader = (name) =>
     SUPABASE_PUBLISHABLE_KEY: "test-publishable-key",
     SUPABASE_URL: "https://project.supabase.co",
   })[name] ?? null;
+
+const LEDGER_ID = "33333333-3333-4333-8333-333333333333";
 
 function createPlan(overrides?: Record<string, unknown>) {
   return {
@@ -80,6 +84,7 @@ function createRow(index: number, overrides: Partial<RemoteRow> = {}): RemoteRow
     category: "餐饮",
     date: `2026-${month}-${day}`,
     id: `transaction-${String(index).padStart(4, "0")}`,
+    ledger_id: LEDGER_ID,
     merchant: index % 2 === 0 ? "小狐餐厅" : "另一家",
     type: "expense",
     user_id: "user-1",
@@ -164,6 +169,7 @@ describe("RLS 完整分页读取与统计", () => {
       createClient: factory,
       plan: createPlan(),
       readEnv,
+      verifiedLedgerId: LEDGER_ID,
       verifiedUserId: "user-1",
     });
     const operation = result.operations[0];
@@ -188,7 +194,11 @@ describe("RLS 完整分页读取与统计", () => {
 
     for (const request of fake.requests) {
       expect(request.select).toBe(LEDGER_READ_SELECT);
-      expect(request.eq).toEqual([["user_id", "user-1"]]);
+      expect(request.eq).toContainEqual(["ledger_id", LEDGER_ID]);
+      expect(request.eq).toEqual([
+        ["user_id", "user-1"],
+        ["ledger_id", LEDGER_ID],
+      ]);
       expect(request.orders).toEqual([
         ["date", { ascending: true }],
         ["id", { ascending: true }],
@@ -231,6 +241,7 @@ describe("RLS 完整分页读取与统计", () => {
       createClient: createFactory(fake.client),
       plan,
       readEnv,
+      verifiedLedgerId: LEDGER_ID,
       verifiedUserId: "user-1",
     });
 
@@ -263,6 +274,7 @@ describe("RLS 完整分页读取与统计", () => {
       createClient: createFactory(fake.client),
       plan: createPlan(),
       readEnv,
+      verifiedLedgerId: LEDGER_ID,
       verifiedUserId: "user-1",
     });
 
@@ -302,6 +314,7 @@ describe("RLS 完整分页读取与统计", () => {
         },
       }),
       readEnv,
+      verifiedLedgerId: LEDGER_ID,
       verifiedUserId: "user-1",
     });
 
@@ -316,6 +329,73 @@ describe("RLS 完整分页读取与统计", () => {
     });
     expect(result.operations[0].compareStats?.summary.expense).toBe(100);
     expect(result.operations[0].matchedTransactionCount).toBe(2);
+  });
+});
+
+describe("Edge 账本所有权校验", () => {
+  it("使用用户 token 并同时约束 ledger id 与验证用户", async () => {
+    const eqCalls: Array<[string, string]> = [];
+    const query = {
+      eq(column: string, value: string) {
+        eqCalls.push([column, value]);
+        return query;
+      },
+      select(columns: string) {
+        expect(columns).toBe("id,user_id");
+        return query;
+      },
+      then(onFulfilled: (value: unknown) => unknown) {
+        return Promise.resolve({
+          data: [{ id: LEDGER_ID, user_id: "user-1" }],
+          error: null,
+        }).then(onFulfilled);
+      },
+    } as unknown as LedgerReadQuery;
+    const client: LedgerReadClient = {
+      from(table) {
+        expect(table).toBe("ledgers");
+        return query;
+      },
+    };
+
+    await expect(
+      assertLedgerOwnedByUser({
+        accessToken: "user-token",
+        createClient: createFactory(client),
+        ledgerId: LEDGER_ID,
+        readEnv,
+        verifiedUserId: "user-1",
+      }),
+    ).resolves.toBeUndefined();
+    expect(eqCalls).toEqual([
+      ["id", LEDGER_ID],
+      ["user_id", "user-1"],
+    ]);
+  });
+
+  it("RLS 未返回唯一当前用户账本时拒绝继续", async () => {
+    const query = {
+      eq() {
+        return query;
+      },
+      select() {
+        return query;
+      },
+      then(onFulfilled: (value: unknown) => unknown) {
+        return Promise.resolve({ data: [], error: null }).then(onFulfilled);
+      },
+    } as unknown as LedgerReadQuery;
+    const client: LedgerReadClient = { from: () => query };
+
+    await expect(
+      assertLedgerOwnedByUser({
+        accessToken: "user-token",
+        createClient: createFactory(client),
+        ledgerId: LEDGER_ID,
+        readEnv,
+        verifiedUserId: "user-1",
+      }),
+    ).rejects.toThrow("这个账本不存在，或当前账号没有权限");
   });
 });
 
@@ -336,6 +416,7 @@ describe("完整性失败边界", () => {
         createClient: createFactory(fake.client),
         plan: createPlan(),
         readEnv,
+        verifiedLedgerId: LEDGER_ID,
         verifiedUserId: "user-1",
       }),
     ).rejects.toThrow("未生成部分统计");
@@ -356,6 +437,7 @@ describe("完整性失败边界", () => {
           createClient: createFactory(fake.client),
           plan: createPlan(),
           readEnv,
+          verifiedLedgerId: LEDGER_ID,
           verifiedUserId: "user-1",
         }),
       ).rejects.toThrow("未生成部分统计");
@@ -379,6 +461,7 @@ describe("完整性失败边界", () => {
           createClient: createFactory(fake.client),
           plan: createPlan(),
           readEnv,
+          verifiedLedgerId: LEDGER_ID,
           verifiedUserId: "user-1",
         }),
       ).rejects.toThrow(field);
@@ -397,6 +480,7 @@ describe("完整性失败边界", () => {
         createClient: createFactory(fake.client),
         plan: createPlan(),
         readEnv,
+        verifiedLedgerId: LEDGER_ID,
         verifiedUserId: "user-1",
       });
       const operation = result.operations[0];

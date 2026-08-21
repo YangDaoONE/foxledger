@@ -24,6 +24,7 @@ function toAiBatchTransactionInsert(
     currency: transaction.currency,
     date: transaction.date,
     id: transactionId,
+    ledger_id: transaction.ledger_id,
     merchant: transaction.merchant,
     note: transaction.note,
     payment_method: transaction.payment_method,

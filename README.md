@@ -13,6 +13,8 @@ V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions �
 
 2026-08-19 完成全站视觉与响应式体验重整，提交 `8f31607` 已推送到 `origin/main` 并由 Vercel 发布到生产。主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致；本次未修改数据逻辑、Supabase、Edge Function 或安全边界。该版本的真实手机安装态验收已于 2026-08-21 完成。
 
+V3.3 M0–M2 已于 2026-08-22 完成本地代码与自动化：聊天记账结果自动收起、问账回答先行，以及带完整 RLS/迁移/缓存/Edge 作用域的多账本。**当前处于生产分阶段发布中**：`005_add_ledgers.sql` 已执行并通过数据/RLS 契约检查，`fox-chat` version 5 已部署且未登录请求正确返回 401；Vercel 尚未发布本次前端，服务器产物与真实手机安装态 PWA 尚未验收，因此用户可见生产前端仍为 V3.2。
+
 ## 当前状态
 
 已完成：
@@ -22,9 +24,9 @@ V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions �
 - 页面按路由懒加载，React、TanStack、Supabase 和本地存储依赖独立分包。
 - TanStack Query 查询、刷新和同步状态管理。
 - Supabase Auth 邮箱密码登录、注册、会话恢复和退出。
-- Supabase Postgres `public.transactions` 当前用户读写，继续依赖 RLS 并显式约束当前用户。
-- Dexie v4 / IndexedDB 离线只读缓存，按 `user_id` 隔离，并缓存 AI 批次标识。
-- 远端全量分页同步，全部页面拉取和校验通过后才替换当前用户本地缓存。
+- Supabase Postgres 当前用户读写继续依赖 RLS 并显式约束当前用户；V3.3 本地 migration 新增 `public.ledgers`，并让每条 transaction 必须归属当前用户的一个账本。
+- Dexie v5 / IndexedDB 同时缓存账本与正式账单，按 `user_id + ledger_id` 隔离，并保留 AI 批次标识。
+- 远端全量分页同步升级为账本与交易一致同步，全部页面拉取和交叉校验通过后才在同一个 Dexie transaction 中替换当前用户缓存。
 - 首页本月概览、手动记账入口、“和狐狐记一笔”入口。
 - 账单搜索、筛选、排序、加载更多、编辑、单条删除、当前已加载账单多选删除。
 - 账单搜索只在点击“搜索”或按回车后应用，不逐字刷新。
@@ -52,6 +54,10 @@ V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions �
 - V3.2 M1 已把狐狐页主文案收口为记账/问账产品入口，安全与数据用途移入默认折叠的“数据与隐私”，问账统计和依据架构保持不变。
 - V3.2 M2 已让候选优先显示商家并使用中文交易类型；Composer 支持约 2–5 行自动增高、Enter 发送、Shift+Enter 换行和 IME 选词保护。
 - V3.2 已部署修复让记账服务先建立整句日期作用域，再判定片段中的紧凑数字：`今天，7.6吃饭`按今天 ¥7.60，`7.6吃饭花了76`按 7 月 6 日 ¥76；`M/D`、`M-D` 和带日期标记的写法继续作为日期，带货币单位的小数作为金额，真正歧义时要求用户核对。
+- V3.3 M0 本地实现让保存后的聊天记账结果在稳定保存后自动收起为一行，可随时展开并继续进入正式批次详情；错误、同步警告和用户交互保持展开。
+- V3.3 M1 本地实现把问账结果收口为“直接回答 + 相关指标”，更多统计和依据按需展开；自然语言解释不可用时仍展示代码统计。
+- V3.3 M2 本地实现真正多账本：全局轻量切换器控制首页、账单、统计和问账作用域；手动、CSV 与整批 AI 候选可选择非当前目标账本且不改变浏览范围；设置页支持创建、重命名和删除空账本。
+- V3.3 Edge 本地协议要求 `ledger_id`，使用用户 JWT + RLS 验证账本所有权并逐页 `.eq("ledger_id")`；账本 UUID/名称不发送给模型，第二次 AI 明细白名单仍只有 `date/type/amount/category/merchant`。
 - Vercel 已按 Vite 静态前端部署，线上不再依赖旧 Next `/api/parse-transaction`。
 
 当前限制：
@@ -149,7 +155,7 @@ ALLOWED_EMAILS
 
 ## 数据和安全规则
 
-核心远端表仍是 `public.transactions`。V3.0 已增加最小字段：
+当前生产远端已包含 `public.ledgers`，并已为 `public.transactions` 增加必填 `ledger_id`；用户可见前端仍待发布 V3.3。V3.0 已增加最小字段：
 
 ```text
 ai_batch_id uuid null
@@ -164,8 +170,9 @@ ai_batch_id uuid null
 - 不绕过 RLS。
 - 前端只能使用 publishable key。
 - 查询、更新、删除除了依赖 RLS，也要显式约束当前用户。
+- V3.3 transaction 写入的 `ledger_id` 必须属于同一当前用户；数据库复合外键与 RLS 同时保护，删除账本绝不级联删除交易。
 - 记账 AI 只解析当前输入文本；问账第一阶段只接收当前问题和可选 normalized plan 上下文。
-- 问账服务端只在当前用户 JWT + RLS 边界内读取与计划相关的云端账单；第二次 AI 只接收代码计算的完整相关统计及最多 500 条 `date/type/amount/category/merchant` 明细，不接收 Dexie、本地缓存或禁止字段。
+- 问账服务端只在当前用户 JWT + RLS 和已验证当前账本边界内读取与计划相关的云端账单；第二次 AI 只接收代码计算的完整相关统计及最多 500 条 `date/type/amount/category/merchant` 明细，不接收 Dexie、本地缓存、账本 UUID/名称或禁止字段。
 - AI 不直接写数据库，也不生成正式统计；正式数字始终由代码计算并通过 metric ref 服务端替换。
 - AI 结果必须用户确认后才入库。
 - 新 V3.0 AI 账单不持久化 `raw_text`；它只在当前内存候选核对期间存在。
@@ -175,8 +182,9 @@ Dexie DB：
 
 ```text
 name: foxledger
-version: 4
+version: 5
 stores:
+  ledgers_cache
   transactions_cache
   sync_meta
 ```
@@ -187,6 +195,7 @@ stores:
 cache_key
 id
 user_id
+ledger_id
 type
 amount
 currency
@@ -218,6 +227,8 @@ npm run typecheck
 npm run test
 npm run build
 npm run verify:v3
+npm run test:e2e
+npm audit --audit-level=moderate
 ```
 
 预览生产构建：
@@ -240,10 +251,10 @@ npm run functions:deploy
 
 - `npm run lint`：通过。
 - `npm run typecheck`：通过。
-- `npm run test`：34 个测试文件、174 项测试通过。
+- `npm run test`：44 个测试文件、213 项测试通过。
 - `npm run build`：通过；Chat 页面与公共依赖独立分包，无 chunk size 提示。
 - `npm run verify:v3`：通过；PWA NetworkOnly/本地图片边界正常。
-- `npm run test:e2e`：17 条系统 Chrome 桌面、Pixel 7、Axe 与 PWA 流程通过。
+- `npm run test:e2e`：29 条系统 Chrome 桌面、Pixel 7、Axe 与 PWA 流程通过。
 - `npm audit --audit-level=moderate`：0 vulnerabilities。
 - 受控真实账号只读问账通过：服务端返回可信范围、代码统计和五字段依据，未产生写操作。
 - V3.1 生产部署通过：主页与 `/chat` 返回 200，主 JS/CSS 哈希匹配本地构建；manifest、Service Worker、23 个唯一预缓存资源和 NetworkOnly 边界核对通过。
@@ -253,6 +264,8 @@ npm run functions:deploy
 
 V3.2 已完成代码、自动化、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，当前生产运行 V3.2，版本已正式收口。
 
+V3.3 M0–M2 已完成本地实现与自动化门禁，生产 migration 与 Edge 已完成；静态前端发布、服务器产物核对和真机 PWA 验收仍待执行，不能把本地 `dist` 视为生产状态。
+
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
 ## 后续边界
@@ -261,5 +274,6 @@ V3.2 已完成代码、自动化、生产部署、服务器产物核对和真实
 - V3.1 M0–M5 已完成代码、自动化、人工、生产和真机验收，并保持小步提交。
 - 生产 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复。
 - V3.2 M0–M2 与全站视觉重整已按实际代码完成实现、自动化验收、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，V3.2 已正式收口。
-- V3.2 收口不代表自动启动下一版本；只有用户明确要求后，才以当时代码为准编写下一版本可执行设计。
+- V3.3 M0–M2 已按 `docs/V3.3_PR.md` 完成本地实现和自动化，生产发布与真机验收仍待用户后续明确推进。
+- V3.3 未生产收口前，不得把本地多账本 schema 或 Edge 协议写成线上已生效能力。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

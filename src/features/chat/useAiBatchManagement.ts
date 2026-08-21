@@ -134,7 +134,10 @@ export function useAiBatchManagement(): AiBatchManagement {
     (transactionId: string, values: TransactionFormValues) =>
       runManagedWrite({
         actionKey: `edit:${transactionId}`,
-        remoteWrite: () => updateRemoteTransaction(user.id, transactionId, values),
+        remoteWrite: () =>
+          updateRemoteTransaction(user.id, transactionId, values, {
+            allowLedgerMove: false,
+          }),
       }),
     [runManagedWrite, user.id],
   );

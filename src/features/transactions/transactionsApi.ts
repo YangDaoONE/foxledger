@@ -17,6 +17,7 @@ import {
 export const TRANSACTION_CACHE_SELECT = [
   "id",
   "user_id",
+  "ledger_id",
   "ai_batch_id",
   "type",
   "amount",
@@ -61,6 +62,7 @@ export type EditableTransactionValues = {
   amount: string;
   category: string;
   date: string;
+  ledger_id: string;
   merchant: string;
   note: string;
   payment_method: string;
@@ -74,6 +76,10 @@ export function normalizeRemoteCacheRow(row: RemoteCacheRow, userId: string): Ca
 
   if (!isTransactionType(row.type)) {
     throw new Error("远端账单类型异常。");
+  }
+
+  if (!isValidUuid(row.ledger_id)) {
+    throw new Error("远端账单 ledger_id 格式异常。");
   }
 
   const amount = Number(row.amount);
@@ -107,6 +113,7 @@ export async function createManualTransaction(
     category: normalizeDefaultCategory(values.category),
     currency: DEFAULT_CURRENCY,
     date: values.date,
+    ledger_id: values.ledger_id,
     merchant: toNullableText(values.merchant),
     note: toNullableText(values.note),
     payment_method: toNullableText(values.payment_method),
@@ -126,11 +133,15 @@ export async function updateTransaction(
   userId: string,
   transactionId: string,
   values: EditableTransactionValues,
+  options: { allowLedgerMove?: boolean } = {},
 ) {
   const payload = {
     amount: Math.abs(Number(values.amount)),
     category: normalizeDefaultCategory(values.category),
     date: values.date,
+    ...(options.allowLedgerMove === false
+      ? {}
+      : { ledger_id: values.ledger_id }),
     merchant: toNullableText(values.merchant),
     note: toNullableText(values.note),
     payment_method: toNullableText(values.payment_method),
@@ -219,7 +230,7 @@ export async function insertAiBatchTransactionsForUser(
   userId: string,
   transactions: AiBatchTransactionInsert[],
 ): Promise<AiBatchInsertResult> {
-  const { batchId, expectedIds } = validateAiBatchInsert(transactions);
+  const { batchId, expectedIds, ledgerId } = validateAiBatchInsert(transactions);
   const safeTransactions = transactions.map<TransactionInsertPayload>((transaction) => ({
     account: transaction.account,
     ai_batch_id: transaction.ai_batch_id,
@@ -229,6 +240,7 @@ export async function insertAiBatchTransactionsForUser(
     currency: transaction.currency,
     date: transaction.date,
     id: transaction.id,
+    ledger_id: transaction.ledger_id,
     merchant: transaction.merchant,
     note: transaction.note,
     payment_method: transaction.payment_method,
@@ -246,7 +258,11 @@ export async function insertAiBatchTransactionsForUser(
       transactionIds,
     };
   } catch (insertError) {
-    const remoteIds = await getRemoteAiBatchTransactionIds(userId, batchId);
+    const remoteIds = await getRemoteAiBatchTransactionIds(
+      userId,
+      batchId,
+      ledgerId,
+    );
 
     if (remoteIds.length === 0) {
       throw insertError instanceof Error
@@ -323,15 +339,20 @@ function validateReturnedTransactionIds(
   return returnedIds;
 }
 
-function validateAiBatchInsert(transactions: AiBatchTransactionInsert[]) {
+export function validateAiBatchInsert(transactions: AiBatchTransactionInsert[]) {
   if (transactions.length === 0) {
     throw new Error("没有可保存的 AI 候选。");
   }
 
   const batchId = transactions[0].ai_batch_id;
+  const ledgerId = transactions[0].ledger_id;
 
   if (!isValidUuid(batchId)) {
     throw new Error("AI 批次 ID 格式不正确。");
+  }
+
+  if (!isValidUuid(ledgerId)) {
+    throw new Error("AI 批次账本 ID 格式不正确。");
   }
 
   const expectedIds = transactions.map((transaction) => {
@@ -341,6 +362,10 @@ function validateAiBatchInsert(transactions: AiBatchTransactionInsert[]) {
 
     if (transaction.ai_batch_id !== batchId) {
       throw new Error("同一次确认的 AI 候选必须使用相同批次 ID。");
+    }
+
+    if (transaction.ledger_id !== ledgerId) {
+      throw new Error("同一个 AI 批次的所有账单必须属于同一个账本。");
     }
 
     if (!isValidUuid(transaction.id)) {
@@ -354,13 +379,17 @@ function validateAiBatchInsert(transactions: AiBatchTransactionInsert[]) {
     throw new Error("AI 批次包含重复账单 ID。");
   }
 
-  return { batchId, expectedIds };
+  return { batchId, expectedIds, ledgerId };
 }
 
-async function getRemoteAiBatchTransactionIds(userId: string, batchId: string) {
+async function getRemoteAiBatchTransactionIds(
+  userId: string,
+  batchId: string,
+  ledgerId: string,
+) {
   const { data, error } = await supabase
     .from("transactions")
-    .select("id")
+    .select("id,ledger_id")
     .eq("user_id", userId)
     .eq("ai_batch_id", batchId);
 
@@ -376,7 +405,15 @@ async function getRemoteAiBatchTransactionIds(userId: string, batchId: string) {
     );
   }
 
-  const ids = data.map((row) => row?.id);
+  const ids = data.map((row) => {
+    if (row?.ledger_id !== ledgerId) {
+      throw new AiBatchSaveStateError(
+        "远端 AI 批次账本不一致，已禁止自动补写。请重新同步并人工核对账单。",
+      );
+    }
+
+    return row?.id;
+  });
 
   if (ids.some((id) => typeof id !== "string" || !id.trim())) {
     throw new AiBatchSaveStateError(

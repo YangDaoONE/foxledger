@@ -6,6 +6,7 @@ import type { AiBatchTransactionInput } from "@/features/transactions/types";
 const batchId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const transactionIdOne = "11111111-1111-4111-8111-111111111111";
 const transactionIdTwo = "22222222-2222-4222-8222-222222222222";
+const ledgerId = "33333333-3333-4333-8333-333333333333";
 
 const input: AiBatchTransactionInput = {
   account: null,
@@ -14,6 +15,7 @@ const input: AiBatchTransactionInput = {
   category: "餐饮",
   currency: "CNY",
   date: "2026-08-13",
+  ledger_id: ledgerId,
   merchant: "小狐餐厅",
   note: null,
   payment_method: null,
@@ -38,6 +40,9 @@ describe("AI 批次固定 ID", () => {
       request.transactions.every((transaction) => transaction.ai_batch_id === batchId),
     ).toBe(true);
     expect(request.transactions.every((transaction) => transaction.source === "ai")).toBe(true);
+    expect(request.transactions.every((transaction) => transaction.ledger_id === ledgerId)).toBe(
+      true,
+    );
   });
 
   it("即使运行时输入夹带 raw_text，也不会进入最终 AI 写入对象", () => {

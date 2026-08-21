@@ -19,7 +19,9 @@ import {
 } from "./ledgerContracts.ts";
 import { readRuntimeEnv, type EdgeEnvReader } from "./edgeEnv.ts";
 
-export const LEDGER_READ_SELECT = "id,user_id,date,type,amount,category,merchant";
+export const LEDGER_READ_SELECT =
+  "id,user_id,ledger_id,date,type,amount,category,merchant";
+export const LEDGER_OWNERSHIP_SELECT = "id,user_id";
 export const LEDGER_READ_PAGE_SIZE = 500;
 export const MAX_AI_LEDGER_DETAILS = 500;
 const MAX_LEDGER_READ_PAGES = 1000;
@@ -48,6 +50,7 @@ export type LedgerQueryExecutionResult = {
 
 type LedgerReadRow = LedgerStatsTransaction & {
   id: string;
+  ledger_id: string;
   merchant: string | null;
   user_id: string;
 };
@@ -70,8 +73,15 @@ export type LedgerReadQuery = PromiseLike<LedgerReadResponse> & {
 };
 
 export type LedgerReadClient = {
-  from: (table: "transactions") => LedgerReadQuery;
+  from: (table: "ledgers" | "transactions") => LedgerReadQuery;
 };
+
+export class LedgerOwnershipError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "LedgerOwnershipError";
+  }
+}
 
 function isAllowedTransactionType(value: unknown): value is LedgerTransactionType {
   return (
@@ -96,7 +106,11 @@ function normalizeLedgerCategory(value: unknown) {
   return isAllowedCategory(category) ? category : "其他";
 }
 
-function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerReadRow {
+function normalizeLedgerReadRow(
+  value: unknown,
+  verifiedUserId: string,
+  verifiedLedgerId: string,
+): LedgerReadRow {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("账单查询返回了无效行，未生成部分统计。");
   }
@@ -115,6 +129,10 @@ function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerR
 
   if (row.user_id !== verifiedUserId) {
     throw new Error("账单查询返回了不属于当前用户的数据，未生成部分统计。");
+  }
+
+  if (row.ledger_id !== verifiedLedgerId) {
+    throw new Error("账单查询返回了不属于当前账本的数据，未生成部分统计。");
   }
 
   if (typeof row.date !== "string" || !isLedgerIsoDate(row.date)) {
@@ -140,6 +158,7 @@ function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerR
     category,
     date: row.date,
     id: row.id,
+    ledger_id: verifiedLedgerId,
     merchant: row.merchant?.trim() || null,
     type: row.type,
     user_id: verifiedUserId,
@@ -149,6 +168,7 @@ function normalizeLedgerReadRow(value: unknown, verifiedUserId: string): LedgerR
 async function readCompleteRange(params: {
   client: LedgerReadClient;
   range: LedgerDateRange;
+  verifiedLedgerId: string;
   verifiedUserId: string;
 }) {
   const rows: LedgerReadRow[] = [];
@@ -161,6 +181,7 @@ async function readCompleteRange(params: {
       .from("transactions")
       .select(LEDGER_READ_SELECT)
       .eq("user_id", params.verifiedUserId)
+      .eq("ledger_id", params.verifiedLedgerId)
       .gte("date", params.range.startDate)
       .lte("date", params.range.endDate)
       .order("date", { ascending: true })
@@ -178,7 +199,11 @@ async function readCompleteRange(params: {
     }
 
     const pageRows = response.data.map((row) =>
-      normalizeLedgerReadRow(row, params.verifiedUserId),
+      normalizeLedgerReadRow(
+        row,
+        params.verifiedUserId,
+        params.verifiedLedgerId,
+      ),
     );
 
     for (const row of pageRows) {
@@ -357,6 +382,7 @@ export async function executeLedgerQueryPlan(params: {
   createClient: SupabaseClientFactory<LedgerReadClient>;
   plan: unknown;
   readEnv?: EdgeEnvReader;
+  verifiedLedgerId: string;
   verifiedUserId: string;
 }): Promise<LedgerQueryExecutionResult> {
   const plan = parseLedgerQueryPlan(params.plan);
@@ -372,6 +398,7 @@ export async function executeLedgerQueryPlan(params: {
       await readCompleteRange({
         client,
         range: operation.range,
+        verifiedLedgerId: params.verifiedLedgerId,
         verifiedUserId: params.verifiedUserId,
       }),
       operation.filters,
@@ -385,6 +412,7 @@ export async function executeLedgerQueryPlan(params: {
         await readCompleteRange({
           client,
           range: operation.compareRange,
+          verifiedLedgerId: params.verifiedLedgerId,
           verifiedUserId: params.verifiedUserId,
         }),
         operation.filters,
@@ -406,4 +434,45 @@ export async function executeLedgerQueryPlan(params: {
   }
 
   return { operations, plan };
+}
+
+export async function assertLedgerOwnedByUser(params: {
+  accessToken: string;
+  createClient: SupabaseClientFactory<LedgerReadClient>;
+  ledgerId: string;
+  readEnv?: EdgeEnvReader;
+  verifiedUserId: string;
+}) {
+  const client = createUserScopedSupabaseClient(
+    params.accessToken,
+    params.createClient,
+    params.readEnv ?? readRuntimeEnv,
+  );
+  const response = await client
+    .from("ledgers")
+    .select(LEDGER_OWNERSHIP_SELECT)
+    .eq("id", params.ledgerId)
+    .eq("user_id", params.verifiedUserId);
+
+  if (response.error) {
+    throw new LedgerOwnershipError(
+      `无法验证账本权限：${response.error.message ?? "未知错误"}。`,
+    );
+  }
+
+  if (!Array.isArray(response.data) || response.data.length !== 1) {
+    throw new LedgerOwnershipError("这个账本不存在，或当前账号没有权限。");
+  }
+
+  const ledger = response.data[0];
+
+  if (
+    typeof ledger !== "object" ||
+    ledger === null ||
+    Array.isArray(ledger) ||
+    (ledger as Record<string, unknown>).id !== params.ledgerId ||
+    (ledger as Record<string, unknown>).user_id !== params.verifiedUserId
+  ) {
+    throw new LedgerOwnershipError("账本权限验证返回异常，已停止问账。");
+  }
 }

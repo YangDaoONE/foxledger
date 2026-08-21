@@ -10,6 +10,7 @@ import { Chip } from "@/components/ui/Chip";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
+import { useActiveLedger, useLedgerState } from "@/features/ledgers/LedgerProvider";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import {
   TransactionForm,
@@ -39,6 +40,8 @@ const transactionsRouteApi = getRouteApi("/transactions");
 
 export function TransactionsPage() {
   const user = useAuthUser();
+  const activeLedger = useActiveLedger();
+  const { ledgers } = useLedgerState();
   const search = transactionsRouteApi.useSearch();
   const { isOnline, isSyncing, refreshAfterWrite, syncNow } = useSyncState();
   const searchType = search.type as TransactionFilters["type"];
@@ -72,16 +75,30 @@ export function TransactionsPage() {
     setSelectedIds(new Set());
   }, [search.scope, search.category, search.endDate, search.search, search.sort, search.startDate, search.type]);
 
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+    setManageMode(false);
+    setSelectedIds(new Set());
+    setEditingTransaction(null);
+    setMessage(null);
+  }, [activeLedger.id]);
+
   const filtersKey = useMemo(() => JSON.stringify(filters), [filters]);
   const transactionsQuery = useQuery({
     queryFn: () =>
       listCachedTransactionsPage({
         filters,
+        ledgerId: activeLedger.id,
         limit: visibleCount,
         offset: 0,
         userId: user.id,
       }),
-    queryKey: queryKeys.transactionPage(user.id, filtersKey, visibleCount),
+    queryKey: queryKeys.transactionPage(
+      user.id,
+      activeLedger.id,
+      filtersKey,
+      visibleCount,
+    ),
   });
 
   const updateMutation = useMutation({
@@ -90,7 +107,9 @@ export function TransactionsPage() {
         throw new Error("没有正在编辑的账单。");
       }
 
-      await updateTransaction(user.id, editingTransaction.id, values);
+      await updateTransaction(user.id, editingTransaction.id, values, {
+        allowLedgerMove: editingTransaction.source === "manual",
+      });
       await refreshAfterWrite();
     },
     onSuccess: () => setEditingTransaction(null),
@@ -301,8 +320,11 @@ export function TransactionsPage() {
       {editingTransaction ? (
         <SectionBlock eyebrow="编辑" title="修改账单">
           <TransactionForm
+            defaultLedgerId={editingTransaction.ledger_id}
             initialTransaction={editingTransaction}
             isSubmitting={updateMutation.isPending}
+            ledgerReadOnly={editingTransaction.source === "ai"}
+            ledgers={ledgers}
             onCancel={() => setEditingTransaction(null)}
             onSubmit={(values) => updateMutation.mutateAsync(values)}
             submitLabel="保存修改"

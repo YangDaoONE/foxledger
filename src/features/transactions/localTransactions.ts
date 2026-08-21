@@ -1,4 +1,8 @@
-import { localDb, type CacheSyncMeta } from "@/lib/localDb";
+import {
+  localDb,
+  type CacheSyncMeta,
+  type FoxLedgerDb,
+} from "@/lib/localDb";
 
 import type {
   CachedTransaction,
@@ -6,29 +10,6 @@ import type {
   TransactionFilters,
   TransactionPageResult,
 } from "@/features/transactions/types";
-
-export async function replaceCachedTransactionsForUser(params: {
-  transactions: CachedTransaction[];
-  userId: string;
-}): Promise<CacheSyncMeta> {
-  const now = new Date().toISOString();
-  const meta: CacheSyncMeta = {
-    last_error: null,
-    last_successful_sync_at: now,
-    row_count: params.transactions.length,
-    sync_state: "synced",
-    updated_at: now,
-    user_id: params.userId,
-  };
-
-  await localDb.transaction("rw", localDb.transactions_cache, localDb.sync_meta, async () => {
-    await localDb.transactions_cache.where("user_id").equals(params.userId).delete();
-    await localDb.transactions_cache.bulkPut(params.transactions);
-    await localDb.sync_meta.put(meta);
-  });
-
-  return meta;
-}
 
 export async function markSyncFailed(userId: string, message: string) {
   const previous = await localDb.sync_meta.get(userId);
@@ -50,17 +31,29 @@ export function getCachedSyncMeta(userId: string) {
   return localDb.sync_meta.get(userId).then((meta) => meta ?? null);
 }
 
-export async function listAllCachedTransactions(userId: string) {
-  return localDb.transactions_cache.where("user_id").equals(userId).toArray();
+export async function listAllCachedTransactions(
+  userId: string,
+  ledgerId: string,
+  cache: FoxLedgerDb = localDb,
+) {
+  return cache.transactions_cache
+    .where("[user_id+ledger_id]")
+    .equals([userId, ledgerId])
+    .toArray();
 }
 
 export async function listCachedTransactionsPage(params: {
   filters: TransactionFilters;
+  ledgerId: string;
   limit: number;
   offset: number;
   userId: string;
-}): Promise<TransactionPageResult> {
-  const rows = await listAllCachedTransactions(params.userId);
+}, cache: FoxLedgerDb = localDb): Promise<TransactionPageResult> {
+  const rows = await listAllCachedTransactions(
+    params.userId,
+    params.ledgerId,
+    cache,
+  );
   const filtered = applyTransactionFilters(rows, params.filters);
   const summary = summarizeTransactions(filtered);
   const start = Math.max(params.offset, 0);

@@ -2,14 +2,22 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   abortSignal: vi.fn(),
+  ensureDefaultLedgerForUser: vi.fn(),
   from: vi.fn(),
   markSyncFailed: vi.fn(),
-  replaceCachedTransactionsForUser: vi.fn(),
+  replaceCachedLedgerDataForUser: vi.fn(),
 }));
 
 vi.mock("@/features/transactions/localTransactions", () => ({
   markSyncFailed: mocks.markSyncFailed,
-  replaceCachedTransactionsForUser: mocks.replaceCachedTransactionsForUser,
+}));
+
+vi.mock("@/features/ledgers/ledgerApi", () => ({
+  ensureDefaultLedgerForUser: mocks.ensureDefaultLedgerForUser,
+}));
+
+vi.mock("@/features/ledgers/localLedgers", () => ({
+  replaceCachedLedgerDataForUser: mocks.replaceCachedLedgerDataForUser,
 }));
 
 vi.mock("@/lib/networkStatus", () => ({
@@ -21,6 +29,15 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import { syncTransactionsCacheFromRemote } from "@/features/transactions/transactionSync";
+
+const ledgerId = "33333333-3333-4333-8333-333333333333";
+const ledger = {
+  created_at: "2026-08-13T00:00:00.000Z",
+  id: ledgerId,
+  name: "默认账本",
+  updated_at: "2026-08-13T00:00:00.000Z",
+  user_id: "success-user",
+};
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -46,6 +63,9 @@ function createRemoteQuery(result: unknown) {
 
 describe("全量同步缓存边界", () => {
   it("远端页失败时记录失败但不替换上次完整缓存", async () => {
+    mocks.ensureDefaultLedgerForUser.mockResolvedValue([
+      { ...ledger, user_id: "failure-user" },
+    ]);
     createRemoteQuery({
       data: null,
       error: { message: "permission denied for table transactions" },
@@ -56,11 +76,12 @@ describe("全量同步缓存边界", () => {
       syncTransactionsCacheFromRemote("failure-user"),
     ).rejects.toThrow("当前账号没有读取账单的权限");
     expect(mocks.markSyncFailed).toHaveBeenCalledOnce();
-    expect(mocks.replaceCachedTransactionsForUser).not.toHaveBeenCalled();
+    expect(mocks.replaceCachedLedgerDataForUser).not.toHaveBeenCalled();
   });
 
   it("成功页把 ai_batch_id 一并交给原子缓存替换", async () => {
     const aiBatchId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    mocks.ensureDefaultLedgerForUser.mockResolvedValue([ledger]);
     createRemoteQuery({
       data: [
         {
@@ -71,6 +92,7 @@ describe("全量同步缓存边界", () => {
           currency: "CNY",
           date: "2026-08-13",
           id: "transaction-1",
+          ledger_id: ledgerId,
           merchant: null,
           note: null,
           payment_method: null,
@@ -82,7 +104,7 @@ describe("全量同步缓存边界", () => {
       ],
       error: null,
     });
-    mocks.replaceCachedTransactionsForUser.mockResolvedValue({
+    mocks.replaceCachedLedgerDataForUser.mockResolvedValue({
       last_error: null,
       last_successful_sync_at: "2026-08-13T01:00:00.000Z",
       row_count: 1,
@@ -93,7 +115,8 @@ describe("全量同步缓存边界", () => {
 
     await syncTransactionsCacheFromRemote("success-user");
 
-    expect(mocks.replaceCachedTransactionsForUser).toHaveBeenCalledWith({
+    expect(mocks.replaceCachedLedgerDataForUser).toHaveBeenCalledWith({
+      ledgers: [ledger],
       transactions: [expect.objectContaining({ ai_batch_id: aiBatchId })],
       userId: "success-user",
     });

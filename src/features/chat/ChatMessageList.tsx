@@ -4,12 +4,14 @@ import { LedgerResultCard } from "@/features/chat/LedgerResultCard";
 import { LedgerQueryResultCard } from "@/features/chat/LedgerQueryResultCard";
 import { AppButton } from "@/components/ui/AppButton";
 import type { ChatMessage } from "@/features/chat/chatTypes";
+import type { CachedLedger } from "@/features/ledgers/types";
 import type { ForcedChatIntent } from "@shared/chatIntent";
 
 type ChatMessageListProps = {
   hasStaleBatchCache: boolean;
   isBatchCacheSyncing: boolean;
   isOnline: boolean;
+  ledgers: CachedLedger[];
   messages: ChatMessage[];
   onConfirmBatch: (messageId: string) => void;
   onCorrectIntent: (text: string, intent: ForcedChatIntent) => void;
@@ -18,10 +20,15 @@ type ChatMessageListProps = {
     candidateId: string,
     trigger: HTMLButtonElement,
   ) => void;
-  onOpenSavedBatch: (batchId: string, trigger: HTMLButtonElement) => void;
+  onOpenSavedBatch: (
+    batchId: string,
+    ledgerId: string,
+    trigger: HTMLButtonElement,
+  ) => void;
   onRemoveCandidate: (messageId: string, candidateId: string) => void;
   onOpenQueryTransactions: (messageId: string, operationIndex: number) => void;
   onRetryBatchSync: (messageId: string) => void;
+  onUpdateBatchLedger: (messageId: string, ledgerId: string) => void;
   userId: string;
 };
 
@@ -29,6 +36,7 @@ export function ChatMessageList({
   hasStaleBatchCache,
   isBatchCacheSyncing,
   isOnline,
+  ledgers,
   messages,
   onConfirmBatch,
   onCorrectIntent,
@@ -37,6 +45,7 @@ export function ChatMessageList({
   onRemoveCandidate,
   onOpenQueryTransactions,
   onRetryBatchSync,
+  onUpdateBatchLedger,
   userId,
 }: ChatMessageListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -100,12 +109,14 @@ export function ChatMessageList({
                 hasStaleBatchCache={hasStaleBatchCache}
                 isBatchCacheSyncing={isBatchCacheSyncing}
                 isOnline={isOnline}
+                ledgers={ledgers}
                 messageId={message.id}
                 onConfirm={onConfirmBatch}
                 onOpenCandidate={onOpenCandidate}
                 onOpenSavedBatch={onOpenSavedBatch}
                 onRemoveCandidate={onRemoveCandidate}
                 onRetrySync={onRetryBatchSync}
+                onUpdateLedger={onUpdateBatchLedger}
                 userId={userId}
               />
             </div>
@@ -116,6 +127,10 @@ export function ChatMessageList({
           return (
             <div className="chat-message assistant" key={message.id}>
               <LedgerQueryResultCard
+                ledgerName={
+                  ledgers.find((ledger) => ledger.id === message.ledgerId)?.name ??
+                  "原账本"
+                }
                 result={message.result}
                 onOpenTransactions={(operationIndex) =>
                   onOpenQueryTransactions(message.id, operationIndex)

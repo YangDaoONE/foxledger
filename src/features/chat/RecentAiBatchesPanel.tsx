@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Pencil, Trash2, Undo2 } from "lucide-react";
 
@@ -13,6 +13,7 @@ import {
   type RecentAiBatch,
 } from "@/features/chat/recentAiBatches";
 import { SavedTransactionEditor } from "@/features/chat/SavedTransactionEditor";
+import { useActiveLedger } from "@/features/ledgers/LedgerProvider";
 import type { AiBatchManagement } from "@/features/chat/useAiBatchManagement";
 import type { TransactionFormValues } from "@/features/transactions/TransactionForm";
 import type { CachedTransaction } from "@/features/transactions/types";
@@ -35,16 +36,33 @@ type RecentAiBatchesPanelProps = {
 
 export function RecentAiBatchesPanel({ management }: RecentAiBatchesPanelProps) {
   const user = useAuthUser();
+  const activeLedger = useActiveLedger();
   const [visibleLimit, setVisibleLimit] = useState(DEFAULT_RECENT_AI_BATCH_LIMIT);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<CachedTransaction | null>(null);
   const [actionMessage, setActionMessage] = useState<ActionMessage | null>(null);
   const lastManagementTriggerRef = useRef<HTMLButtonElement | null>(null);
   const batchesQuery = useQuery({
-    queryFn: () => listRecentAiBatches({ limit: visibleLimit, userId: user.id }),
-    queryKey: queryKeys.recentAiBatchPage(user.id, visibleLimit),
+    queryFn: () =>
+      listRecentAiBatches({
+        ledgerId: activeLedger.id,
+        limit: visibleLimit,
+        userId: user.id,
+      }),
+    queryKey: queryKeys.recentAiBatchPage(
+      user.id,
+      activeLedger.id,
+      visibleLimit,
+    ),
   });
   const { actionsDisabled, busyAction, isOnline } = management;
+
+  useEffect(() => {
+    setVisibleLimit(DEFAULT_RECENT_AI_BATCH_LIMIT);
+    setConfirmation(null);
+    setEditingTransaction(null);
+    setActionMessage(null);
+  }, [activeLedger.id]);
 
   function restoreManagementFocus() {
     requestAnimationFrame(() => lastManagementTriggerRef.current?.focus());

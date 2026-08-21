@@ -1,4 +1,4 @@
-import type { MouseEvent } from "react";
+import { type MouseEvent, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -16,8 +16,11 @@ import {
   getCandidateIssues,
   summarizeCandidateBatch,
 } from "@/features/chat/batchCalculations";
+import { ChatResultDisclosure } from "@/features/chat/ChatResultDisclosure";
 import type { ChatCandidateBatch } from "@/features/chat/chatTypes";
 import { getRecentAiBatch } from "@/features/chat/recentAiBatches";
+import { LedgerSelectField } from "@/features/ledgers/LedgerSelectField";
+import type { CachedLedger } from "@/features/ledgers/types";
 import { getTransactionTypeLabel } from "@/features/transactions/transactionRules";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
@@ -27,6 +30,7 @@ type LedgerResultCardProps = {
   hasStaleBatchCache: boolean;
   isBatchCacheSyncing: boolean;
   isOnline: boolean;
+  ledgers: CachedLedger[];
   messageId: string;
   onConfirm: (messageId: string) => void;
   onOpenCandidate: (
@@ -34,9 +38,14 @@ type LedgerResultCardProps = {
     candidateId: string,
     trigger: HTMLButtonElement,
   ) => void;
-  onOpenSavedBatch: (batchId: string, trigger: HTMLButtonElement) => void;
+  onOpenSavedBatch: (
+    batchId: string,
+    ledgerId: string,
+    trigger: HTMLButtonElement,
+  ) => void;
   onRemoveCandidate: (messageId: string, candidateId: string) => void;
   onRetrySync: (messageId: string) => void;
+  onUpdateLedger: (messageId: string, ledgerId: string) => void;
   userId: string;
 };
 
@@ -45,16 +54,19 @@ export function LedgerResultCard({
   hasStaleBatchCache,
   isBatchCacheSyncing,
   isOnline,
+  ledgers,
   messageId,
   onConfirm,
   onOpenCandidate,
   onOpenSavedBatch,
   onRemoveCandidate,
   onRetrySync,
+  onUpdateLedger,
   userId,
 }: LedgerResultCardProps) {
   const summary = summarizeCandidateBatch(batch.candidates);
-  const canConfirm = canConfirmCandidateBatch(batch);
+  const targetLedger = ledgers.find((ledger) => ledger.id === batch.ledgerId) ?? null;
+  const canConfirm = canConfirmCandidateBatch(batch) && targetLedger !== null;
   const isEditable = batch.status === "draft" || batch.status === "needs_attention";
   const isEmptyDraft = isEditable && batch.candidates.length === 0;
   const hasRemoteResult =
@@ -67,12 +79,39 @@ export function LedgerResultCard({
   const shouldReadSavedBatch = batch.status === "saved" && Boolean(savedBatchId);
   const savedBatchQuery = useQuery({
     enabled: shouldReadSavedBatch,
-    queryFn: () => getRecentAiBatch(userId, savedBatchId),
-    queryKey: queryKeys.recentAiBatch(userId, savedBatchId),
+    queryFn: () => getRecentAiBatch(userId, batch.ledgerId, savedBatchId),
+    queryKey: queryKeys.recentAiBatch(userId, batch.ledgerId, savedBatchId),
   });
   const savedBatch = savedBatchQuery.data ?? null;
+  const canShowSavedDisclosure =
+    batch.status === "saved" &&
+    savedBatch !== null &&
+    !hasStaleBatchCache;
+  const previousStatusRef = useRef(batch.status);
+  const pendingSavedRevealRef = useRef(false);
+  const hasPresentedSavedRef = useRef(false);
+  const [autoCollapseSignal, setAutoCollapseSignal] = useState(0);
 
-  return (
+  useLayoutEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = batch.status;
+
+    if (
+      batch.status === "saved" &&
+      previousStatus !== "saved" &&
+      (!hasPresentedSavedRef.current || previousStatus === "sync_warning")
+    ) {
+      pendingSavedRevealRef.current = true;
+    }
+
+    if (canShowSavedDisclosure && pendingSavedRevealRef.current) {
+      pendingSavedRevealRef.current = false;
+      hasPresentedSavedRef.current = true;
+      setAutoCollapseSignal((current) => current + 1);
+    }
+  }, [batch.status, canShowSavedDisclosure]);
+
+  const card = (
     <article className="ledger-result-card">
       <header className="ledger-result-heading">
         <div>
@@ -92,6 +131,22 @@ export function LedgerResultCard({
           {statusPresentation.label}
         </span>
       </header>
+
+      {!hasRemoteResult && !isEmptyDraft ? (
+        <LedgerSelectField
+          disabled={!isEditable}
+          ledgers={ledgers}
+          readOnly={!isEditable}
+          value={batch.ledgerId}
+          onChange={(ledgerId) => onUpdateLedger(messageId, ledgerId)}
+        />
+      ) : null}
+
+      {!targetLedger && !isEmptyDraft ? (
+        <p className="batch-warning" role="alert">
+          目标账本已不存在，请重新选择账本后再确认。
+        </p>
+      ) : null}
 
       {!hasRemoteResult ? (
         <div className="ledger-summary-grid">
@@ -255,7 +310,11 @@ export function LedgerResultCard({
           type="button"
           variant="secondary"
           onClick={(event: MouseEvent<HTMLButtonElement>) =>
-            onOpenSavedBatch(savedBatch.batchId, event.currentTarget)
+            onOpenSavedBatch(
+              savedBatch.batchId,
+              batch.ledgerId,
+              event.currentTarget,
+            )
           }
         >
           详情
@@ -276,6 +335,68 @@ export function LedgerResultCard({
       ) : null}
     </article>
   );
+
+  if (batch.status === "undone") {
+    return (
+      <ChatResultDisclosure
+        className="saved-ledger-disclosure undone"
+        compactContent={
+          <>
+            <span className="chat-result-disclosure-icon" aria-hidden="true">
+              <CheckCircle2 size={17} strokeWidth={2.3} />
+            </span>
+            <span className="chat-result-disclosure-summary">这次记录已撤销</span>
+          </>
+        }
+        label="本次已撤销的记账结果"
+      />
+    );
+  }
+
+  if (canShowSavedDisclosure) {
+    const compactSummary = getSavedBatchCompactSummary(savedBatch);
+
+    return (
+      <ChatResultDisclosure
+        autoCollapseSignal={autoCollapseSignal || null}
+        className="saved-ledger-disclosure"
+        compactContent={
+          <>
+            <span className="chat-result-disclosure-icon" aria-hidden="true">
+              <CheckCircle2 size={17} strokeWidth={2.3} />
+            </span>
+            <span className="chat-result-disclosure-text">
+              <span className="chat-result-disclosure-summary">{compactSummary}</span>
+              <span className="ledger-badge">{targetLedger?.name ?? "原账本"}</span>
+            </span>
+          </>
+        }
+        label={`本次记账结果：${compactSummary}`}
+      >
+        {card}
+      </ChatResultDisclosure>
+    );
+  }
+
+  return card;
+}
+
+function getSavedBatchCompactSummary(savedBatch: {
+  expense: number;
+  income: number;
+  transactionCount: number;
+}) {
+  const parts = [`已记录 ${savedBatch.transactionCount} 笔`];
+
+  if (savedBatch.expense > 0) {
+    parts.push(`支出 ${formatCurrency(savedBatch.expense)}`);
+  }
+
+  if (savedBatch.income > 0) {
+    parts.push(`收入 ${formatCurrency(savedBatch.income)}`);
+  }
+
+  return parts.join(" · ");
 }
 
 function getStatusPresentation(batch: ChatCandidateBatch, canConfirm: boolean) {

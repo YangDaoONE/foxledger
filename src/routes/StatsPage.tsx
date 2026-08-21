@@ -11,6 +11,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
+import { useActiveLedger } from "@/features/ledgers/LedgerProvider";
 import { getStatsForRange } from "@/features/stats/statsApi";
 import {
   createStatsDrilldownParams,
@@ -36,6 +37,7 @@ const rangeOptions: Array<{ key: StatsRangeKey; label: string }> = [
 
 export function StatsPage() {
   const user = useAuthUser();
+  const activeLedger = useActiveLedger();
   const navigate = useNavigate();
   const { isOnline, isSyncing, syncNow } = useSyncState();
   const [rangeKey, setRangeKey] = useState<StatsRangeKey>("month");
@@ -64,9 +66,10 @@ export function StatsPage() {
 
   const statsQuery = useQuery({
     enabled: Boolean(range),
-    queryFn: () => getStatsForRange(user.id, range!),
+    queryFn: () => getStatsForRange(user.id, activeLedger.id, range!),
     queryKey: queryKeys.statsRange(
       user.id,
+      activeLedger.id,
       range?.key,
       range?.startDate,
       range?.endDate,

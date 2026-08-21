@@ -10,6 +10,18 @@ import { ChatMessageList } from "@/features/chat/ChatMessageList";
 import { FoxMascot, type FoxMascotState } from "@/features/chat/FoxMascot";
 import type { ChatMessage } from "@/features/chat/chatTypes";
 
+const LEDGER_ID = "33333333-3333-4333-8333-333333333333";
+const ledgers = [
+  {
+    cache_key: `user-1:${LEDGER_ID}`,
+    created_at: "2026-08-22T00:00:00.000Z",
+    id: LEDGER_ID,
+    name: "默认账本",
+    updated_at: "2026-08-22T00:00:00.000Z",
+    user_id: "user-1",
+  },
+];
+
 afterEach(() => {
   vi.restoreAllMocks();
   delete (HTMLElement.prototype as { scrollTo?: HTMLElement["scrollTo"] }).scrollTo;
@@ -42,6 +54,7 @@ describe("Chat 移动端交互", () => {
         hasStaleBatchCache={false}
         isBatchCacheSyncing={false}
         isOnline
+        ledgers={ledgers}
         messages={[]}
         onConfirmBatch={vi.fn()}
         onCorrectIntent={vi.fn()}
@@ -50,6 +63,7 @@ describe("Chat 移动端交互", () => {
         onOpenSavedBatch={vi.fn()}
         onRemoveCandidate={vi.fn()}
         onRetryBatchSync={vi.fn()}
+        onUpdateBatchLedger={vi.fn()}
         userId="user-1"
       />,
     );
@@ -179,6 +193,7 @@ describe("Chat 移动端交互", () => {
       hasStaleBatchCache: false,
       isBatchCacheSyncing: false,
       isOnline: true,
+      ledgers,
       onConfirmBatch: vi.fn(),
       onCorrectIntent: vi.fn(),
       onOpenCandidate: vi.fn(),
@@ -186,6 +201,7 @@ describe("Chat 移动端交互", () => {
       onOpenSavedBatch: vi.fn(),
       onRemoveCandidate: vi.fn(),
       onRetryBatchSync: vi.fn(),
+      onUpdateBatchLedger: vi.fn(),
       userId: "user-1",
     };
     const view = render(<ChatMessageList {...props} messages={firstMessages} />);

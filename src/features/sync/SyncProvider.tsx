@@ -64,6 +64,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     },
     onSettled: () => {
       void Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.ledgers(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.syncMeta(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.transactions(userId) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.stats(userId) }),

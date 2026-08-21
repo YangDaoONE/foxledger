@@ -1,5 +1,6 @@
 import Dexie, { type Table } from "dexie";
 
+import type { CachedLedger } from "@/features/ledgers/types";
 import type { CachedTransaction } from "@/features/transactions/types";
 
 export type CacheSyncMeta = {
@@ -12,6 +13,7 @@ export type CacheSyncMeta = {
 };
 
 export class FoxLedgerDb extends Dexie {
+  ledgers_cache!: Table<CachedLedger, string>;
   sync_meta!: Table<CacheSyncMeta, string>;
   transactions_cache!: Table<CachedTransaction, string>;
 
@@ -29,14 +31,29 @@ export class FoxLedgerDb extends Dexie {
       transactions_cache:
         "cache_key, user_id, id, date, created_at, updated_at, type, category, ai_batch_id, [user_id+date], [user_id+ai_batch_id]",
     });
+
+    this.version(5).stores({
+      ledgers_cache:
+        "cache_key, user_id, id, name, updated_at, [user_id+id]",
+      sync_meta: "user_id, sync_state, updated_at",
+      transactions_cache:
+        "cache_key, user_id, id, ledger_id, date, created_at, updated_at, type, category, ai_batch_id, [user_id+date], [user_id+ledger_id], [user_id+ledger_id+date], [user_id+ai_batch_id]",
+    });
   }
 }
 
 export const localDb = new FoxLedgerDb();
 
 export async function clearCachedDataForUser(userId: string) {
-  await localDb.transaction("rw", localDb.transactions_cache, localDb.sync_meta, async () => {
-    await localDb.transactions_cache.where("user_id").equals(userId).delete();
-    await localDb.sync_meta.delete(userId);
-  });
+  await localDb.transaction(
+    "rw",
+    localDb.ledgers_cache,
+    localDb.transactions_cache,
+    localDb.sync_meta,
+    async () => {
+      await localDb.ledgers_cache.where("user_id").equals(userId).delete();
+      await localDb.transactions_cache.where("user_id").equals(userId).delete();
+      await localDb.sync_meta.delete(userId);
+    },
+  );
 }

@@ -8,6 +8,7 @@ import {
 import { requestOpenAiChatContent } from "../_shared/aiClient.ts";
 import { ChatIntentContractError } from "../_shared/chatIntent.ts";
 import { runFoxChatFlow } from "../_shared/foxChatFlow.ts";
+import { LedgerOwnershipError } from "../_shared/ledgerRead.ts";
 import { LedgerContractError } from "../_shared/ledgerContracts.ts";
 import {
   InputValidationError,
@@ -79,6 +80,10 @@ Deno.serve(async (request) => {
     }
 
     if (error instanceof ForbiddenEmailError) {
+      return errorResponse(error.message, 403);
+    }
+
+    if (error instanceof LedgerOwnershipError) {
       return errorResponse(error.message, 403);
     }
 

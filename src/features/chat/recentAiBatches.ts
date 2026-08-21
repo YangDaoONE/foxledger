@@ -1,4 +1,4 @@
-import Dexie, { type Table } from "dexie";
+import type { Table } from "dexie";
 
 import type { CachedTransaction } from "@/features/transactions/types";
 import { localDb } from "@/lib/localDb";
@@ -11,6 +11,7 @@ export type RecentAiBatch = {
   batchId: string;
   expense: number;
   income: number;
+  ledgerId: string;
   latestCreatedAt: string;
   transactionCount: number;
   transactions: CachedTransaction[];
@@ -29,11 +30,16 @@ type AiBatchCacheReader = {
 export function groupRecentAiBatches(
   rows: CachedTransaction[],
   userId: string,
+  ledgerId: string,
 ): RecentAiBatch[] {
   const groupedRows = new Map<string, CachedTransaction[]>();
 
   for (const row of rows) {
-    if (row.user_id !== userId || typeof row.ai_batch_id !== "string") {
+    if (
+      row.user_id !== userId ||
+      row.ledger_id !== ledgerId ||
+      typeof row.ai_batch_id !== "string"
+    ) {
       continue;
     }
 
@@ -49,7 +55,7 @@ export function groupRecentAiBatches(
   }
 
   return Array.from(groupedRows, ([batchId, batchRows]) =>
-    createRecentAiBatch(batchId, batchRows),
+    createRecentAiBatch(batchId, ledgerId, batchRows),
   ).sort(
     (first, second) =>
       second.latestCreatedAt.localeCompare(first.latestCreatedAt) ||
@@ -76,16 +82,17 @@ export function paginateRecentAiBatches(
 export async function listRecentAiBatches(
   params: {
     limit?: number;
+    ledgerId: string;
     offset?: number;
     userId: string;
   },
   cache: AiBatchCacheReader = localDb,
 ) {
   const rows = await cache.transactions_cache
-    .where("[user_id+ai_batch_id]")
-    .between([params.userId, Dexie.minKey], [params.userId, Dexie.maxKey])
+    .where("[user_id+ledger_id]")
+    .equals([params.userId, params.ledgerId])
     .toArray();
-  const batches = groupRecentAiBatches(rows, params.userId);
+  const batches = groupRecentAiBatches(rows, params.userId, params.ledgerId);
 
   return paginateRecentAiBatches(
     batches,
@@ -96,6 +103,7 @@ export async function listRecentAiBatches(
 
 export async function getRecentAiBatch(
   userId: string,
+  ledgerId: string,
   batchId: string,
   cache: AiBatchCacheReader = localDb,
 ) {
@@ -110,11 +118,16 @@ export async function getRecentAiBatch(
     .equals([userId, normalizedBatchId])
     .toArray();
 
-  return groupRecentAiBatches(rows, userId)[0] ?? null;
+  if (rows.some((row) => row.ledger_id !== ledgerId)) {
+    throw new Error("同一个 AI 批次不能跨越多个账本。");
+  }
+
+  return groupRecentAiBatches(rows, userId, ledgerId)[0] ?? null;
 }
 
 function createRecentAiBatch(
   batchId: string,
+  ledgerId: string,
   rows: CachedTransaction[],
 ): RecentAiBatch {
   const transactions = [...rows].sort(
@@ -141,6 +154,7 @@ function createRecentAiBatch(
     batchId,
     expense,
     income,
+    ledgerId,
     latestCreatedAt: transactions[transactions.length - 1].created_at,
     transactionCount: transactions.length,
     transactions,

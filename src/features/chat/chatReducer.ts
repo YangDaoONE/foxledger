@@ -22,6 +22,7 @@ export type ChatAction =
     }
   | {
       previousContext?: LedgerConversationContext;
+      previousContextLedgerId?: string;
       resultMessage: ChatMessage;
       type: "parse_succeeded";
       userId: string;
@@ -43,6 +44,7 @@ export type ChatAction =
       type: "complete_candidate_review";
     }
   | { candidateId: string; messageId: string; type: "remove_candidate" }
+  | { ledgerId: string; messageId: string; type: "update_batch_ledger" }
   | {
       messageId: string;
       request: AiBatchInsertRequest;
@@ -78,6 +80,7 @@ export function createInitialChatState(userId: string): ChatState {
     isParsing: false,
     messages: [],
     previousContext: null,
+    previousContextLedgerId: null,
     userId,
   };
 }
@@ -85,6 +88,7 @@ export function createInitialChatState(userId: string): ChatState {
 export function createChatCandidateBatch(
   transactions: ParsedTransaction[],
   truncated: boolean,
+  ledgerId: string,
   createId: () => string = () => crypto.randomUUID(),
 ): ChatCandidateBatch {
   const candidates = transactions.map((transaction) => ({
@@ -99,6 +103,7 @@ export function createChatCandidateBatch(
     candidates,
     error: null,
     id: createId(),
+    ledgerId,
     saveRequest: null,
     status: getCandidateBatchStatus(candidates),
     statusBeforeUndo: null,
@@ -137,6 +142,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         action.resultMessage,
       ],
       previousContext: action.previousContext ?? state.previousContext,
+      previousContextLedgerId:
+        action.previousContextLedgerId ?? state.previousContextLedgerId,
     };
   }
 
@@ -295,6 +302,13 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ? { ...candidate, draft: { ...candidate.draft, ...action.patch } }
           : candidate,
       ),
+    }));
+  }
+
+  if (action.type === "update_batch_ledger") {
+    return updateEditableBatch(state, action.messageId, (batch) => ({
+      ...batch,
+      ledgerId: action.ledgerId,
     }));
   }
 

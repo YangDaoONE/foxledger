@@ -84,6 +84,6 @@ describe("SyncProvider", () => {
 
     await waitFor(() => expect(screen.getByTestId("is-syncing")).toHaveTextContent("false"));
     expect(screen.getByTestId("row-count")).toHaveTextContent("3");
-    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(5);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledTimes(6);
   });
 });

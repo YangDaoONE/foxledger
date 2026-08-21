@@ -17,6 +17,8 @@ import type {
   ParsedTransaction,
 } from "@/features/ai/types";
 import type { AiBatchTransactionInput } from "@/features/transactions/types";
+import { useActiveLedger, useLedgerState } from "@/features/ledgers/LedgerProvider";
+import { LedgerSelectField } from "@/features/ledgers/LedgerSelectField";
 import {
   DEFAULT_CURRENCY,
   defaultCategories,
@@ -50,6 +52,8 @@ export function ConfirmTransactionBatch({
   transactions,
   userId,
 }: ConfirmTransactionBatchProps) {
+  const activeLedger = useActiveLedger();
+  const { ledgers } = useLedgerState();
   const initialCandidates = useMemo<CandidateState[]>(
     () =>
       transactions.map((transaction, index) => ({
@@ -64,6 +68,7 @@ export function ConfirmTransactionBatch({
   const [message, setMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hasPendingBatch, setHasPendingBatch] = useState(false);
+  const [ledgerId, setLedgerId] = useState(activeLedger.id);
   const pendingBatchRef = useRef<AiBatchInsertRequest | null>(null);
   const saveInFlightRef = useRef(false);
 
@@ -71,9 +76,10 @@ export function ConfirmTransactionBatch({
     setCandidates(initialCandidates);
     setMessage(null);
     setHasPendingBatch(false);
+    setLedgerId(activeLedger.id);
     pendingBatchRef.current = null;
     onPendingChange(false);
-  }, [initialCandidates, onPendingChange]);
+  }, [activeLedger.id, initialCandidates, onPendingChange]);
 
   function updateDraft(index: number, nextDraft: Partial<ConfirmTransactionDraft>) {
     if (pendingBatchRef.current) {
@@ -135,6 +141,7 @@ export function ConfirmTransactionBatch({
             category,
             currency: DEFAULT_CURRENCY,
             date: candidate.draft.date,
+            ledger_id: ledgerId,
             merchant: toNullableText(candidate.draft.merchant),
             note: toNullableText(candidate.draft.note),
             payment_method: toNullableText(candidate.draft.payment_method),
@@ -167,6 +174,12 @@ export function ConfirmTransactionBatch({
 
   return (
     <div className="candidate-list">
+      <LedgerSelectField
+        disabled={hasPendingBatch || isSaving}
+        ledgers={ledgers}
+        value={ledgerId}
+        onChange={setLedgerId}
+      />
       <div className="candidate-toolbar">
         <strong>候选账单</strong>
         <span>{candidates.filter((candidate) => candidate.selected).length} / {candidates.length}</span>

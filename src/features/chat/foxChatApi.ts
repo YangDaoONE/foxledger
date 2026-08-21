@@ -241,6 +241,7 @@ function parseFoxChatResponse(value: unknown): FoxChatClientResult {
 
 export async function sendFoxChatMessage(params: {
   forcedIntent?: ForcedChatIntent;
+  ledgerId: string;
   previousContext: LedgerConversationContext | null;
   text: string;
 }): Promise<FoxChatClientResult> {
@@ -260,6 +261,7 @@ export async function sendFoxChatMessage(params: {
   const response = await fetch(foxChatApiUrl, {
     body: JSON.stringify({
       ...(params.forcedIntent ? { forced_intent: params.forcedIntent } : {}),
+      ledger_id: params.ledgerId,
       previous_context: params.previousContext,
       text: params.text,
     }),

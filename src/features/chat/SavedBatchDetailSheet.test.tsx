@@ -4,12 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { RecentAiBatch } from "@/features/chat/recentAiBatches";
 import { SavedBatchDetailSheet } from "@/features/chat/SavedBatchDetailSheet";
 
+const ledgerId = "33333333-3333-4333-8333-333333333333";
+
 const batch: RecentAiBatch = {
   balance: -50,
   batchCreatedAt: "2026-08-18T01:00:00.000Z",
   batchId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   expense: 50,
   income: 0,
+  ledgerId,
   latestCreatedAt: "2026-08-18T01:01:00.000Z",
   transactionCount: 2,
   transactions: [
@@ -22,6 +25,7 @@ const batch: RecentAiBatch = {
       currency: "CNY",
       date: "2026-08-18",
       id: "transaction-1",
+      ledger_id: ledgerId,
       merchant: "麦当劳",
       note: null,
       payment_method: null,
@@ -39,6 +43,7 @@ const batch: RecentAiBatch = {
       currency: "CNY",
       date: "2026-08-18",
       id: "transaction-2",
+      ledger_id: ledgerId,
       merchant: "滴滴",
       note: null,
       payment_method: null,

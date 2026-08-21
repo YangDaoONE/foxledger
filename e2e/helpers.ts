@@ -2,6 +2,8 @@ import type { Page } from "@playwright/test";
 
 export const TEST_USER_EMAIL = "m5-browser@example.com";
 export const TEST_USER_ID = "11111111-2222-4333-8444-555555555555";
+export const DEFAULT_LEDGER_ID = "33333333-3333-4333-8333-333333333333";
+export const TRAVEL_LEDGER_ID = "44444444-4444-4444-8444-444444444444";
 
 const issuedAt = Math.floor(Date.now() / 1000);
 
@@ -38,6 +40,11 @@ const user = {
   updated_at: "2026-08-13T00:00:00.000Z",
   user_metadata: {},
 };
+
+const ledgers = [
+  createLedger(DEFAULT_LEDGER_ID, "默认账本", "2026-08-13T00:00:00.000Z"),
+  createLedger(TRAVEL_LEDGER_ID, "旅行账本", "2026-08-13T00:01:00.000Z"),
+];
 
 const transactions = [
   createTransaction({
@@ -82,12 +89,23 @@ function createTransaction(input: {
     currency: "CNY",
     date: input.date,
     id: input.id,
+    ledger_id: DEFAULT_LEDGER_ID,
     merchant: input.merchant,
     note: null,
     payment_method: null,
     source: "manual",
     type: input.type,
     updated_at: `${input.date}T08:00:00.000Z`,
+    user_id: TEST_USER_ID,
+  };
+}
+
+function createLedger(id: string, name: string, createdAt: string) {
+  return {
+    created_at: createdAt,
+    id,
+    name,
+    updated_at: createdAt,
     user_id: TEST_USER_ID,
   };
 }
@@ -160,8 +178,60 @@ function createQueryResponse() {
   };
 }
 
+function createRecordResponse() {
+  return {
+    intent: "record_transaction",
+    ledger_result: {
+      max_input_chars: 3000,
+      max_transactions: 50,
+      transactions: [
+        {
+          account: null,
+          ai_confidence: 0.96,
+          amount: 25,
+          category: "餐饮",
+          currency: "CNY",
+          date: "2026-08-13",
+          merchant: "吃饭",
+          needs_clarification: false,
+          note: null,
+          payment_method: null,
+          raw_text: "今天吃饭25",
+          source: "ai",
+          tag: null,
+          type: "expense",
+        },
+        {
+          account: null,
+          ai_confidence: 0.96,
+          amount: 40,
+          category: "交通",
+          currency: "CNY",
+          date: "2026-08-13",
+          merchant: "打车",
+          needs_clarification: false,
+          note: null,
+          payment_method: null,
+          raw_text: "打车40",
+          source: "ai",
+          tag: null,
+          type: "expense",
+        },
+      ],
+      truncated: false,
+    },
+  };
+}
+
 export async function installSupabaseMocks(page: Page) {
   const foxChatRequests: Array<Record<string, unknown>> = [];
+  const transactionWrites: Array<Array<Record<string, unknown>>> = [];
+  const mockTransactions: Array<Record<string, unknown>> = transactions.map(
+    (transaction) => ({ ...transaction }),
+  );
+  const mockLedgers: Array<Record<string, unknown>> = ledgers.map(
+    (ledger) => ({ ...ledger }),
+  );
 
   await page.route("**/auth/v1/token**", async (route) => {
     await route.fulfill({
@@ -182,16 +252,122 @@ export async function installSupabaseMocks(page: Page) {
     await route.fulfill({ status: 204 });
   });
 
+  await page.route("**/rest/v1/ledgers**", async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const ledgerId = url.searchParams.get("id")?.replace(/^eq\./, "") ?? null;
+
+    if (request.method() === "GET") {
+      await route.fulfill({
+        body: JSON.stringify(mockLedgers),
+        contentType: "application/json",
+        status: 200,
+      });
+      return;
+    }
+
+    if (request.method() === "POST") {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      const index = mockLedgers.length + 5;
+      const id = `${index}${index}${index}${index}${index}${index}${index}${index}-${index}${index}${index}${index}-4${index}${index}${index}-8${index}${index}${index}-${String(index).padStart(12, "0")}`;
+      const created = createLedger(
+        id,
+        String(body.name),
+        `2026-08-13T00:${String(index).padStart(2, "0")}:00.000Z`,
+      );
+      mockLedgers.push(created);
+      await route.fulfill({
+        body: JSON.stringify(created),
+        contentType: "application/json",
+        status: 201,
+      });
+      return;
+    }
+
+    if (request.method() === "PATCH" && ledgerId) {
+      const body = request.postDataJSON() as Record<string, unknown>;
+      const ledger = mockLedgers.find((item) => item.id === ledgerId);
+
+      if (ledger) {
+        ledger.name = body.name;
+        ledger.updated_at = "2026-08-13T10:00:00.000Z";
+      }
+
+      await route.fulfill({
+        body: JSON.stringify(ledger ?? null),
+        contentType: "application/json",
+        status: 200,
+      });
+      return;
+    }
+
+    if (request.method() === "DELETE" && ledgerId) {
+      const hasTransactions = mockTransactions.some(
+        (transaction) => transaction.ledger_id === ledgerId,
+      );
+
+      if (hasTransactions) {
+        await route.fulfill({
+          body: JSON.stringify({ message: "foreign key violation" }),
+          contentType: "application/json",
+          status: 409,
+        });
+        return;
+      }
+
+      const index = mockLedgers.findIndex((ledger) => ledger.id === ledgerId);
+      const deleted = index >= 0 ? mockLedgers.splice(index, 1)[0] : null;
+      await route.fulfill({
+        body: JSON.stringify(deleted ? { id: deleted.id } : null),
+        contentType: "application/json",
+        status: 200,
+      });
+      return;
+    }
+
+    await route.fulfill({ body: "[]", contentType: "application/json", status: 200 });
+  });
+
   await page.route("**/rest/v1/transactions**", async (route) => {
     const request = route.request();
 
     if (request.method() === "GET") {
       await route.fulfill({
-        body: JSON.stringify(transactions),
+        body: JSON.stringify(mockTransactions),
         contentType: "application/json",
         headers: {
-          "Content-Range": `0-${transactions.length - 1}/${transactions.length}`,
+          "Content-Range": `0-${mockTransactions.length - 1}/${mockTransactions.length}`,
         },
+        status: 200,
+      });
+      return;
+    }
+
+    if (request.method() === "POST") {
+      const body = request.postDataJSON() as
+        | Array<Record<string, unknown>>
+        | Record<string, unknown>;
+      const rows = Array.isArray(body) ? body : [body];
+      transactionWrites.push(rows.map((row) => ({ ...row })));
+      const now = "2026-08-13T09:00:00.000Z";
+      const inserted = rows.map<Record<string, unknown>>((transaction) => ({
+        ...transaction,
+        ai_batch_id: transaction.ai_batch_id ?? null,
+        created_at: now,
+        id:
+          transaction.id ??
+          `dddddddd-${String(mockTransactions.length + 1).padStart(4, "0")}-4ddd-8ddd-${String(mockTransactions.length + 1).padStart(12, "0")}`,
+        updated_at: now,
+      }));
+      mockTransactions.push(...inserted);
+      const wantsSingle = request.headers().accept?.includes("vnd.pgrst.object") ?? false;
+      await route.fulfill({
+        body: JSON.stringify(
+          wantsSingle
+            ? { id: inserted[0].id }
+            : inserted.map((transaction) => ({ id: transaction.id })),
+        ),
+        contentType: "application/json",
         status: 200,
       });
       return;
@@ -208,13 +384,17 @@ export async function installSupabaseMocks(page: Page) {
     const body = route.request().postDataJSON() as Record<string, unknown>;
     foxChatRequests.push(body);
     await route.fulfill({
-      body: JSON.stringify(createQueryResponse()),
+      body: JSON.stringify(
+        body.text === "今天吃饭25，打车40"
+          ? createRecordResponse()
+          : createQueryResponse(),
+      ),
       contentType: "application/json",
       status: 200,
     });
   });
 
-  return { foxChatRequests };
+  return { foxChatRequests, transactionWrites };
 }
 
 export async function login(page: Page) {

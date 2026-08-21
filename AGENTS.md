@@ -6,7 +6,7 @@
 
 ## 1. 当前项目角色
 
-FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.2 狐狐对话体验收口版**。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 正式收口；V3.2 已于 2026-08-21 完成代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收，现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
+FoxLedger / 狐狐记账 Web/PWA 当前用户可见生产前端仍运行 **V3.2 狐狐对话体验收口版**。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 正式收口；V3.2 已于 2026-08-21 完成代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收，现已正式收口。V3.3 M0–M2 已于 2026-08-22 完成本地实现和自动化；生产 `005_add_ledgers.sql` 与 `fox-chat` version 5 已部署并通过数据库契约及未登录 401 验证，Vercel 前端、服务器产物和真机 PWA 尚未验收。后续修改仍不能从本地代码状态推断生产状态。
 
 V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记录提交为 `193de1d`。2026-08-19 的全站视觉重整提交 `8f31607` 也已推送到 `origin/main` 并由 Vercel 完成生产部署；生产主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致。本地自动化为 34 个测试文件/174 项测试、17 条 Playwright，依赖审计为 0 vulnerabilities。用户已于 2026-08-21 确认真实手机安装态 PWA 更新与交互验收完成，V3.2 已正式收口。
 
@@ -36,6 +36,9 @@ V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记
 - V3.2 狐狐页已收口为记账/问账产品表达，数据与隐私说明下沉到默认折叠区；候选优先显示 merchant 并使用中文类型。
 - V3.2 Composer 支持约 2–5 行自动增高、Enter 发送、Shift+Enter 换行和 IME composing 保护。
 - V3.2 记账清洗使用确定性日期作用域处理紧凑月日与小数金额；未保存候选全部移除后直接结束，不再显示空账单核对提示。
+- V3.3 保存后的记账结果自动收起、问账回答先行与按请求指标展示已在本地完成。
+- V3.3 本地新增真实多账本：全局当前账本控制首页、账单、统计与问账；手动、CSV 和 AI batch 可选择非当前目标账本而不切换浏览范围。
+- V3.3 本地新增账本 RLS/历史回填 migration、Dexie v5 账本与交易原子同步、Edge 账本所有权和逐页 ledger scope；生产仍待验收。
 - 当前聊天只存内存：跨内部路由保留，刷新、关闭、登录失效或退出后清空。
 - 原创轻量狐狐 normal、listening、thinking、happy、confused 五种状态。
 - CSV 导入。
@@ -85,9 +88,10 @@ V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记
 
 ## 3. 数据规则
 
-核心表：
+V3.3 本地目标核心表（生产仍待执行 005 migration）：
 
 ```text
+public.ledgers
 public.transactions
 ```
 
@@ -112,6 +116,7 @@ ai_confidence
 created_at
 updated_at
 ai_batch_id
+ledger_id
 ```
 
 规则：
@@ -124,6 +129,8 @@ ai_batch_id
 - 非默认分类归一为 `其他`。
 - `source` 只能是 `manual` 或 `ai`。
 - `ai_batch_id` 可以为空；不为空时 `source` 必须为 `ai`，同次确认的 AI 账单使用同一 UUID。
+- `ledger_id` 不能为空；每条账单必须且只能属于当前用户的一个 `public.ledgers` 行。
+- 一个 `ai_batch_id` 下的全部账单必须使用同一个 `ledger_id`；V3.3 不开放 AI 正式单笔换账本。
 - `ai_confidence` 可以为空，不为空时必须在 0 到 1 之间。
 - `transfer` 暂不计入收入、支出和结余。
 - 不要随意新增表或修改 schema。
@@ -174,7 +181,10 @@ supabase/migrations/001_create_transactions.sql
 supabase/migrations/002_grant_transactions_permissions.sql
 supabase/migrations/003_add_ai_batch_id.sql
 supabase/migrations/004_restrict_transactions_permissions.sql
+supabase/migrations/005_add_ledgers.sql
 ```
+
+`005_add_ledgers.sql` 已于 2026-08-22 在生产执行并通过历史数量、非空 `ledger_id`、跨用户归属、RLS、权限和 trigger 检查。
 
 如果出现 `permission denied for table transactions`，优先检查 `002_grant_transactions_permissions.sql` 是否已经在 Supabase SQL Editor 执行。
 
@@ -186,8 +196,9 @@ supabase/migrations/004_restrict_transactions_permissions.sql
 
 ```text
 name: foxledger
-version: 4
+version: 5
 stores:
+  ledgers_cache
   transactions_cache
   sync_meta
 ```
@@ -198,6 +209,7 @@ stores:
 cache_key
 id
 user_id
+ledger_id
 type
 amount
 currency
@@ -205,16 +217,19 @@ category
 merchant
 payment_method
 date
-  note
-  source
-  ai_batch_id
-  created_at
+note
+source
+ai_batch_id
+created_at
 updated_at
 ```
+
+`ledgers_cache` 只缓存 `cache_key/id/user_id/name/created_at/updated_at`。
 
 必须保持：
 
 - 本地正式账单缓存必须按 `user_id` 隔离。
+- 本地正式账单读取必须按 `user_id + ledger_id` 隔离；账本与交易必须在同一个 Dexie transaction 中完整替换。
 - 未登录时不要显示任何本地账单缓存。
 - Supabase 全量同步成功后，替换当前用户本地缓存。
 - 全量同步用于正确反映云端删除，不要擅自改成只增量同步。
@@ -269,6 +284,8 @@ Content-Type: application/json
 - 记账路径只能解析当前输入文本，不读取历史账单或统计。
 - 问账第一次 AI 只能接收当前问题、服务端日期与可选的 normalized query context；context 不得包含旧消息、旧回答、统计或明细。
 - 问账数据源只能是当前用户 JWT + publishable key + RLS 下的云端相关账单，不能读取或上传 Dexie。
+- V3.3 问账请求必须带当前 `ledger_id`；Edge 在第一次 AI 前验证账本属于当前用户，并在每一页账单读取中约束该账本。
+- `ledger_id` 和账本名称不发送给 AI，也不扩大第二次 AI 五字段明细白名单。
 - 第二次 AI 只允许接收代码计算的完整相关统计和最多 500 条 `date/type/amount/category/merchant` 明细；不得发送 `id/user_id/raw_text/note/account/payment_method/tag/ai_confidence/created_at/updated_at`。
 - AI 返回的问账数字必须引用服务端允许的 metric ref，经存在性和模板一致性验证后由代码替换；未引用数字、未知 metric/evidence ref 必须拒绝。
 - AI 返回结果必须先 `JSON.parse`。
@@ -337,6 +354,7 @@ supabase/functions/fox-chat/index.ts
 规则：
 
 - 统计基于当前用户 Dexie 本地缓存账单计算。
+- 首页、账单页与统计页只读取当前 active ledger；当前版本不提供“全部账本”合计。
 - `expense` 计入支出。
 - `income` 计入收入。
 - `balance = income - expense`。
@@ -364,6 +382,7 @@ supabase/functions/fox-chat/index.ts
 - 优先移动端可用性。
 - UI 参考 App v0.9 的信息架构、页面流程、基础控件和缓存状态文案。
 - 不引入大型 UI 框架，除非用户明确要求。
+- App Header 的轻量账本切换器控制浏览 scope；移动端使用 bottom sheet，设置页以列表行管理账本，不做后台表格。
 - 当前使用 `lucide-react` 图标，新增图标优先继续用它。
 - 表单简单、清晰、可用。
 - 按钮有明确禁用态和加载态。
@@ -394,6 +413,7 @@ supabase/functions/fox-chat/index.ts
 
 - Vite PWA 部署为静态前端。
 - AI API 部署到 Supabase Edge Functions `parse-transaction` 与 `fox-chat`；V3.1 前端切换前必须先部署并验收 `fox-chat`。
+- V3.3 生产发布必须按 `005 migration → fox-chat Edge → Vercel 前端 → 服务器产物 → 真机 PWA` 顺序推进，当前均未执行。
 - 线上 PWA 不需要旧 Next `/api/parse-transaction` rewrite。
 - 修改 Supabase Edge Function secrets 后，需要重新部署或确认函数使用最新 secrets。
 - 不要把 `.env.local` 提交到 GitHub。
@@ -450,5 +470,6 @@ npm run test:e2e
 
 - V3.1 M0–M5 代码、自动化、部署、服务器产物和真机 PWA 更新验收已全部通过，V3.1 已正式收口。
 - V3.2 M0–M2、全站视觉重整、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收已全部通过，V3.2 已正式收口。
+- V3.3 M0–M2 本地代码与自动化已完成，生产发布和真机验收待用户明确推进；不得提前写成正式收口。
 - 不得从 V3.2 文档自行推断或实施下一版本；只有用户明确要求启动下一版本后，才先以当时代码为准编写新版本可执行设计，再按小步批次实施。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

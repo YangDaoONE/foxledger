@@ -2,9 +2,15 @@ import { listAllCachedTransactions } from "@/features/transactions/localTransact
 
 import { calculateStatsForTransactions } from "@/features/stats/statsCalculator";
 import type { StatsDateRange } from "@/features/stats/types";
+import type { FoxLedgerDb } from "@/lib/localDb";
 
-export async function getStatsForRange(userId: string, range: StatsDateRange) {
-  const rows = await listAllCachedTransactions(userId);
+export async function getStatsForRange(
+  userId: string,
+  ledgerId: string,
+  range: StatsDateRange,
+  cache?: FoxLedgerDb,
+) {
+  const rows = await listAllCachedTransactions(userId, ledgerId, cache);
   const transactions = rows.filter(
     (row) => row.date >= range.startDate && row.date <= range.endDate,
   );

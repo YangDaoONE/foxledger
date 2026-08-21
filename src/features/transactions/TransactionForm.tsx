@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AppButton } from "@/components/ui/AppButton";
 import { Chip } from "@/components/ui/Chip";
 import { TextField } from "@/components/ui/TextField";
+import { LedgerSelectField } from "@/features/ledgers/LedgerSelectField";
+import type { CachedLedger } from "@/features/ledgers/types";
 import type {
   CachedTransaction,
   TransactionType,
@@ -19,6 +21,7 @@ export type TransactionFormValues = {
   amount: string;
   category: string;
   date: string;
+  ledger_id: string;
   merchant: string;
   note: string;
   payment_method: string;
@@ -26,16 +29,22 @@ export type TransactionFormValues = {
 };
 
 type TransactionFormProps = {
+  defaultLedgerId: string;
   initialTransaction?: CachedTransaction | null;
   isSubmitting: boolean;
+  ledgerReadOnly?: boolean;
+  ledgers: CachedLedger[];
   onCancel?: () => void;
   onSubmit: (values: TransactionFormValues) => Promise<void>;
   submitLabel: string;
 };
 
 export function TransactionForm({
+  defaultLedgerId,
   initialTransaction,
   isSubmitting,
+  ledgerReadOnly = false,
+  ledgers,
   onCancel,
   onSubmit,
   submitLabel,
@@ -45,12 +54,13 @@ export function TransactionForm({
       amount: initialTransaction ? String(initialTransaction.amount) : "",
       category: initialTransaction?.category ?? "餐饮",
       date: initialTransaction?.date ?? getTodayLocalIsoDate(),
+      ledger_id: initialTransaction?.ledger_id ?? defaultLedgerId,
       merchant: initialTransaction?.merchant ?? "",
       note: initialTransaction?.note ?? "",
       payment_method: initialTransaction?.payment_method ?? "",
       type: initialTransaction?.type ?? "expense",
     }),
-    [initialTransaction],
+    [defaultLedgerId, initialTransaction],
   );
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +80,10 @@ export function TransactionForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const messages = validateTransactionDraft(values);
+
+    if (!ledgers.some((ledger) => ledger.id === values.ledger_id)) {
+      messages.push("请选择有效账本。");
+    }
 
     if (messages.length > 0) {
       setError(messages.join(" "));
@@ -96,6 +110,14 @@ export function TransactionForm({
 
   return (
     <form className="form-stack" onSubmit={handleSubmit}>
+      <LedgerSelectField
+        disabled={isSubmitting}
+        ledgers={ledgers}
+        readOnly={ledgerReadOnly}
+        value={values.ledger_id}
+        onChange={(ledgerId) => updateValue("ledger_id", ledgerId)}
+      />
+
       <div className="chip-row" aria-label="账单类型">
         {transactionTypeOptions.map((option) => (
           <Chip

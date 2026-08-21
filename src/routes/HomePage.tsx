@@ -10,6 +10,7 @@ import { MetricCard } from "@/components/ui/MetricCard";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { StateBlock } from "@/components/ui/StateBlock";
+import { useActiveLedger, useLedgerState } from "@/features/ledgers/LedgerProvider";
 import { getStatsForRange } from "@/features/stats/statsApi";
 import { getPresetStatsRange } from "@/features/stats/statsRanges";
 import { useSyncState } from "@/features/sync/SyncProvider";
@@ -22,14 +23,17 @@ import { formatCurrency } from "@/lib/format";
 
 export function HomePage() {
   const user = useAuthUser();
+  const activeLedger = useActiveLedger();
+  const { ledgers } = useLedgerState();
   const { isOnline, refreshAfterWrite } = useSyncState();
   const [isManualOpen, setIsManualOpen] = useState(false);
   const monthRange = useMemo(() => getPresetStatsRange("month"), []);
 
   const summaryQuery = useQuery({
-    queryFn: () => getStatsForRange(user.id, monthRange),
+    queryFn: () => getStatsForRange(user.id, activeLedger.id, monthRange),
     queryKey: queryKeys.monthlySummary(
       user.id,
+      activeLedger.id,
       monthRange.startDate,
       monthRange.endDate,
     ),
@@ -93,7 +97,9 @@ export function HomePage() {
 
         {isManualOpen ? (
           <TransactionForm
+            defaultLedgerId={activeLedger.id}
             isSubmitting={createMutation.isPending}
+            ledgers={ledgers}
             onCancel={() => setIsManualOpen(false)}
             onSubmit={(values) => createMutation.mutateAsync(values)}
             submitLabel="保存账单"

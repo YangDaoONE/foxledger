@@ -28,6 +28,9 @@ export const CHAT_UNSUPPORTED_REASON_KEYS = [
   "unsupported_capability",
 ] as const;
 
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export type ForcedChatIntent = (typeof FORCED_CHAT_INTENTS)[number];
 export type ChatClarificationKey = (typeof CHAT_CLARIFICATION_KEYS)[number];
 export type ChatUnsupportedReasonKey = (typeof CHAT_UNSUPPORTED_REASON_KEYS)[number];
@@ -40,6 +43,7 @@ export type LedgerConversationContext = {
 
 export type FoxChatRequest = {
   forced_intent?: ForcedChatIntent;
+  ledger_id: string;
   previous_context: LedgerConversationContext | null;
   text: string;
 };
@@ -126,6 +130,7 @@ export function validateFoxChatRequestBody(body: unknown): FoxChatRequest {
   try {
     request = readStrictObject(body, "request", [
       "forced_intent",
+      "ledger_id",
       "previous_context",
       "text",
     ]);
@@ -136,7 +141,12 @@ export function validateFoxChatRequestBody(body: unknown): FoxChatRequest {
   }
   const text = validateAiTextRequestBody(request);
 
+  if (typeof request.ledger_id !== "string" || !uuidPattern.test(request.ledger_id)) {
+    throw new InputValidationError("request.ledger_id 必须是有效 UUID。");
+  }
+
   const result: FoxChatRequest = {
+    ledger_id: request.ledger_id,
     previous_context: null,
     text,
   };

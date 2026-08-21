@@ -150,9 +150,10 @@ describe("V3.1 安全只读数据层基线", () => {
 
   it("只读取字段白名单，并在每一页显式约束验证用户", () => {
     expect(ledgerReadModule).toContain(
-      'LEDGER_READ_SELECT = "id,user_id,date,type,amount,category,merchant"',
+      '"id,user_id,ledger_id,date,type,amount,category,merchant"',
     );
     expect(ledgerReadModule).toContain('.eq("user_id", params.verifiedUserId)');
+    expect(ledgerReadModule).toContain('.eq("ledger_id", params.verifiedLedgerId)');
     expect(ledgerReadModule).toContain('.order("date", { ascending: true })');
     expect(ledgerReadModule).toContain('.order("id", { ascending: true })');
   });

@@ -7,6 +7,7 @@ import {
 } from "@/features/transactions/TransactionForm";
 import type { CachedTransaction } from "@/features/transactions/types";
 import { useModalDialog } from "@/features/chat/useModalDialog";
+import { useLedgerState } from "@/features/ledgers/LedgerProvider";
 
 type SavedTransactionEditorProps = {
   isSubmitting: boolean;
@@ -21,6 +22,7 @@ export function SavedTransactionEditor({
   onSubmit,
   transaction,
 }: SavedTransactionEditorProps) {
+  const { ledgers } = useLedgerState();
   const { dialogRef, initialFocusRef } = useModalDialog({
     closeDisabled: isSubmitting,
     onClose,
@@ -61,8 +63,11 @@ export function SavedTransactionEditor({
         </header>
 
         <TransactionForm
+          defaultLedgerId={transaction.ledger_id}
           initialTransaction={transaction}
           isSubmitting={isSubmitting}
+          ledgerReadOnly
+          ledgers={ledgers}
           onCancel={isSubmitting ? undefined : onClose}
           onSubmit={onSubmit}
           submitLabel="保存修改"

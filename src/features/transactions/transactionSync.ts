@@ -1,9 +1,8 @@
 import { getNetworkOnlineState } from "@/lib/networkStatus";
 
-import {
-  markSyncFailed,
-  replaceCachedTransactionsForUser,
-} from "@/features/transactions/localTransactions";
+import { ensureDefaultLedgerForUser } from "@/features/ledgers/ledgerApi";
+import { replaceCachedLedgerDataForUser } from "@/features/ledgers/localLedgers";
+import { markSyncFailed } from "@/features/transactions/localTransactions";
 import type { CachedTransaction } from "@/features/transactions/types";
 import type { CacheSyncMeta } from "@/lib/localDb";
 import {
@@ -66,6 +65,18 @@ async function syncTransactionsCacheFromRemoteInternal(
     throw new Error(message);
   }
 
+  let ledgers;
+
+  try {
+    onPhaseChange?.("fetching-remote");
+    ledgers = await ensureDefaultLedgerForUser(userId);
+  } catch (error) {
+    const message = getRemoteRequestErrorMessage(toRemoteRequestError(error));
+    onPhaseChange?.("recording-failure");
+    await markSyncFailed(userId, message);
+    throw new Error(message);
+  }
+
   const transactions: CachedTransaction[] = [];
 
   for (let pageIndex = 0; pageIndex < REMOTE_SYNC_MAX_PAGES; pageIndex += 1) {
@@ -96,7 +107,11 @@ async function syncTransactionsCacheFromRemoteInternal(
 
       if (rows.length < REMOTE_SYNC_PAGE_SIZE) {
         onPhaseChange?.("replacing-cache");
-        return replaceCachedTransactionsForUser({ transactions, userId });
+        return replaceCachedLedgerDataForUser({
+          ledgers,
+          transactions,
+          userId,
+        });
       }
     } catch (error) {
       const message = "远端账单数据格式异常，本次未替换缓存。";

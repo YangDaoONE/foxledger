@@ -6,12 +6,16 @@ import { AppButton } from "@/components/ui/AppButton";
 import { PageIntro } from "@/components/ui/PageIntro";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { ImportTransactions } from "@/features/import/ImportTransactions";
+import { useActiveLedger, useLedgerState } from "@/features/ledgers/LedgerProvider";
+import { LedgerManagement } from "@/features/ledgers/LedgerManagement";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { formatDateTime } from "@/lib/format";
 
 export function SettingsPage() {
   const { signOut, user } = useAuth();
+  const activeLedger = useActiveLedger();
+  const { ledgers } = useLedgerState();
   const { isOnline, refreshAfterWrite, syncMeta } = useSyncState();
   const [message, setMessage] = useState<string | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -75,6 +79,8 @@ export function SettingsPage() {
         </AppButton>
       </SectionBlock>
 
+      <LedgerManagement />
+
       <SectionBlock
         className="settings-privacy"
         eyebrow="AI 与隐私"
@@ -90,7 +96,9 @@ export function SettingsPage() {
 
       {user ? (
         <ImportTransactions
+          defaultLedgerId={activeLedger.id}
           isOnline={isOnline}
+          ledgers={ledgers}
           onImported={refreshAfterWrite}
           userId={user.id}
         />

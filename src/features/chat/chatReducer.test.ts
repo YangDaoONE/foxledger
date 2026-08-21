@@ -16,6 +16,8 @@ import type {
   ChatState,
 } from "@/features/chat/chatTypes";
 
+const LEDGER_ID = "33333333-3333-4333-8333-333333333333";
+
 const parsedTransaction: ParsedTransaction = {
   account: null,
   ai_confidence: 0.9,
@@ -39,7 +41,12 @@ const saveRequest = {
 };
 
 function createResultMessage(
-  batch = createChatCandidateBatch([parsedTransaction], false, () => "fixed-id"),
+  batch = createChatCandidateBatch(
+    [parsedTransaction],
+    false,
+    LEDGER_ID,
+    () => "fixed-id",
+  ),
 ): ChatLedgerResultMessage {
   return {
     batch,
@@ -69,6 +76,7 @@ describe("Chat 候选 reducer", () => {
         },
       ],
       false,
+      LEDGER_ID,
       () => "candidate-id",
     );
     let state = stateWithBatch(batch);
@@ -105,6 +113,7 @@ describe("Chat 候选 reducer", () => {
         },
       ],
       false,
+      LEDGER_ID,
       () => "ambiguous-candidate",
     );
 
@@ -121,6 +130,7 @@ describe("Chat 候选 reducer", () => {
         { ...parsedTransaction, amount: null, needs_clarification: true },
       ],
       false,
+      LEDGER_ID,
       () => ids.shift()!,
     );
     const state = chatReducer(stateWithBatch(batch), {
@@ -137,6 +147,7 @@ describe("Chat 候选 reducer", () => {
     const blockedBatch = createChatCandidateBatch(
       [{ ...parsedTransaction, needs_clarification: true }],
       false,
+      LEDGER_ID,
       () => "blocked",
     );
     const blockedState = chatReducer(stateWithBatch(blockedBatch), {
@@ -327,6 +338,7 @@ describe("内存候选批次汇总", () => {
         { ...parsedTransaction, amount: 20, type: "transfer" },
       ],
       false,
+      LEDGER_ID,
       () => ids.shift()!,
     );
 

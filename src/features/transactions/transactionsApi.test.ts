@@ -28,6 +28,9 @@ afterEach(() => {
   fromMock.mockReset();
 });
 
+const ledgerId = "33333333-3333-4333-8333-333333333333";
+const otherLedgerId = "44444444-4444-4444-8444-444444444444";
+
 const remoteRow: Parameters<typeof normalizeRemoteCacheRow>[0] = {
   ai_batch_id: null,
   amount: "12.50",
@@ -36,6 +39,7 @@ const remoteRow: Parameters<typeof normalizeRemoteCacheRow>[0] = {
   currency: "CNY",
   date: "2026-08-13",
   id: "transaction-1",
+  ledger_id: ledgerId,
   merchant: "小狐餐厅",
   note: null,
   payment_method: null,
@@ -50,6 +54,7 @@ const insertPayload: TransactionInsertPayload = {
   category: "餐饮",
   currency: "CNY",
   date: "2026-08-13",
+  ledger_id: ledgerId,
   merchant: null,
   note: null,
   payment_method: null,
@@ -71,6 +76,7 @@ function createAiBatchTransaction(
     currency: "CNY",
     date: "2026-08-13",
     id: transactionIdOne,
+    ledger_id: ledgerId,
     merchant: null,
     note: null,
     payment_method: null,
@@ -85,6 +91,7 @@ describe("远端缓存契约", () => {
     expect(TRANSACTION_CACHE_SELECT.split(",")).toEqual([
       "id",
       "user_id",
+      "ledger_id",
       "ai_batch_id",
       "type",
       "amount",
@@ -206,6 +213,7 @@ describe("交易 API 用户隔离契约", () => {
       amount: "12.5",
       category: "餐饮",
       date: "2026-08-13",
+      ledger_id: ledgerId,
       merchant: "",
       note: "",
       payment_method: "",
@@ -274,6 +282,16 @@ describe("AI 批次保存协调", () => {
     expect(fromMock).not.toHaveBeenCalled();
   });
 
+  it("写入前拒绝同一 AI 批次跨账本", async () => {
+    await expect(
+      insertAiBatchTransactionsForUser("user-1", [
+        createAiBatchTransaction(),
+        createAiBatchTransaction({ id: transactionIdTwo, ledger_id: otherLedgerId }),
+      ]),
+    ).rejects.toThrow("同一个 AI 批次的所有账单必须属于同一个账本。");
+    expect(fromMock).not.toHaveBeenCalled();
+  });
+
   it("保存成功时返回真实 IDs，并确保写入不包含 raw_text", async () => {
     const select = vi.fn().mockResolvedValue({
       data: [{ id: transactionIdOne }, { id: transactionIdTwo }],
@@ -316,7 +334,10 @@ describe("AI 批次保存协调", () => {
     fromMock.mockReturnValueOnce({ insert: vi.fn(() => ({ select: insertSelect })) });
 
     const batchEq = vi.fn().mockResolvedValue({
-      data: [{ id: transactionIdTwo }, { id: transactionIdOne }],
+      data: [
+        { id: transactionIdTwo, ledger_id: ledgerId },
+        { id: transactionIdOne, ledger_id: ledgerId },
+      ],
       error: null,
     });
     const userEq = vi.fn(() => ({ eq: batchEq }));
@@ -360,7 +381,7 @@ describe("AI 批次保存协调", () => {
     });
     fromMock.mockReturnValueOnce({ insert: vi.fn(() => ({ select: insertSelect })) });
     const batchEq = vi.fn().mockResolvedValue({
-      data: [{ id: transactionIdOne }],
+      data: [{ id: transactionIdOne, ledger_id: ledgerId }],
       error: null,
     });
     fromMock.mockReturnValueOnce({

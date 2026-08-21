@@ -18,6 +18,7 @@ import { getRecentAiBatch } from "@/features/chat/recentAiBatches";
 import { SavedBatchDetailSheet } from "@/features/chat/SavedBatchDetailSheet";
 import { SavedTransactionEditor } from "@/features/chat/SavedTransactionEditor";
 import { useAiBatchManagement } from "@/features/chat/useAiBatchManagement";
+import { useActiveLedger, useLedgerState } from "@/features/ledgers/LedgerProvider";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import type { TransactionFormValues } from "@/features/transactions/TransactionForm";
 import { getErrorMessage } from "@/lib/errors";
@@ -28,10 +29,10 @@ type SelectedCandidate = {
 };
 
 type SavedBatchDialog =
-  | { batchId: string; kind: "delete"; transactionId: string }
-  | { batchId: string; kind: "detail" }
-  | { batchId: string; kind: "edit"; transactionId: string }
-  | { batchId: string; kind: "undo" }
+  | { batchId: string; kind: "delete"; ledgerId: string; transactionId: string }
+  | { batchId: string; kind: "detail"; ledgerId: string }
+  | { batchId: string; kind: "edit"; ledgerId: string; transactionId: string }
+  | { batchId: string; kind: "undo"; ledgerId: string }
   | null;
 
 type SavedBatchActionMessage = {
@@ -42,6 +43,8 @@ type SavedBatchActionMessage = {
 export function ChatPage() {
   const navigate = useNavigate();
   const user = useAuthUser();
+  const activeLedger = useActiveLedger();
+  const { ledgers, setActiveLedgerId } = useLedgerState();
   const {
     completeCandidateReview,
     confirmBatch,
@@ -49,6 +52,7 @@ export function ChatPage() {
     retryBatchSync,
     sendMessage,
     state,
+    updateBatchLedger,
     updateCandidate,
   } = useChatSession();
   const { isOnline } = useSyncState();
@@ -61,10 +65,15 @@ export function ChatPage() {
   const lastCandidateTriggerRef = useRef<HTMLButtonElement | null>(null);
   const lastSavedBatchTriggerRef = useRef<HTMLButtonElement | null>(null);
   const savedBatchId = savedBatchDialog?.batchId ?? "";
+  const savedBatchLedgerId = savedBatchDialog?.ledgerId ?? "";
   const savedBatchQuery = useQuery({
-    enabled: Boolean(savedBatchId),
-    queryFn: () => getRecentAiBatch(user.id, savedBatchId),
-    queryKey: queryKeys.recentAiBatch(user.id, savedBatchId),
+    enabled: Boolean(savedBatchId && savedBatchLedgerId),
+    queryFn: () => getRecentAiBatch(user.id, savedBatchLedgerId, savedBatchId),
+    queryKey: queryKeys.recentAiBatch(
+      user.id,
+      savedBatchLedgerId,
+      savedBatchId,
+    ),
   });
   const savedBatch = savedBatchQuery.data ?? null;
   const selectedSavedTransaction =
@@ -104,8 +113,8 @@ export function ChatPage() {
     requestAnimationFrame(() => lastSavedBatchTriggerRef.current?.focus());
   }, []);
 
-  function returnToSavedBatchDetail(batchId: string) {
-    setSavedBatchDialog({ batchId, kind: "detail" });
+  function returnToSavedBatchDetail(batchId: string, ledgerId: string) {
+    setSavedBatchDialog({ batchId, kind: "detail", ledgerId });
   }
 
   async function submitSavedTransactionEdit(values: TransactionFormValues) {
@@ -128,7 +137,10 @@ export function ChatPage() {
     }
 
     setSavedBatchActionMessage({ text: "账单已修改。", tone: "success" });
-    returnToSavedBatchDetail(savedBatchDialog.batchId);
+    returnToSavedBatchDetail(
+      savedBatchDialog.batchId,
+      savedBatchDialog.ledgerId,
+    );
   }
 
   async function confirmSavedBatchAction() {
@@ -166,13 +178,13 @@ export function ChatPage() {
         text: "账单已删除，批次合计已按剩余账单重算。",
         tone: "success",
       });
-      returnToSavedBatchDetail(currentDialog.batchId);
+      returnToSavedBatchDetail(currentDialog.batchId, currentDialog.ledgerId);
     } catch (error) {
       setSavedBatchActionMessage({
         text: getErrorMessage(error, "操作失败，请稍后重试。"),
         tone: "danger",
       });
-      returnToSavedBatchDetail(currentDialog.batchId);
+      returnToSavedBatchDetail(currentDialog.batchId, currentDialog.ledgerId);
     }
   }
 
@@ -231,6 +243,10 @@ export function ChatPage() {
         </div>
       </section>
 
+      <p className="chat-ledger-scope">
+        当前问账：<strong>{activeLedger.name}</strong>
+      </p>
+
       <details className="chat-privacy-details">
         <summary>数据与隐私</summary>
         <div>
@@ -279,6 +295,7 @@ export function ChatPage() {
         hasStaleBatchCache={batchManagement.hasStaleCacheAfterWrite}
         isBatchCacheSyncing={batchManagement.isSyncing}
         isOnline={isOnline}
+        ledgers={ledgers}
         messages={state.messages}
         onConfirmBatch={(messageId) => void confirmBatch(messageId)}
         onCorrectIntent={(text, intent) => void sendMessage(text, intent)}
@@ -287,11 +304,11 @@ export function ChatPage() {
           setSavedBatchDialog(null);
           setSelectedCandidate({ candidateId, messageId });
         }}
-        onOpenSavedBatch={(batchId, trigger) => {
+        onOpenSavedBatch={(batchId, ledgerId, trigger) => {
           lastSavedBatchTriggerRef.current = trigger;
           setSelectedCandidate(null);
           setSavedBatchActionMessage(null);
-          setSavedBatchDialog({ batchId, kind: "detail" });
+          setSavedBatchDialog({ batchId, kind: "detail", ledgerId });
         }}
         onRemoveCandidate={(messageId, candidateId) => {
           removeCandidate(messageId, candidateId);
@@ -318,12 +335,14 @@ export function ChatPage() {
             return;
           }
 
+          setActiveLedgerId(message.ledgerId);
           void navigate({
             search: createLedgerQueryNavigation(operation).search,
             to: "/transactions",
           });
         }}
         onRetryBatchSync={(messageId) => void retryBatchSync(messageId)}
+        onUpdateBatchLedger={updateBatchLedger}
         userId={user.id}
       />
 
@@ -373,6 +392,7 @@ export function ChatPage() {
             setSavedBatchDialog({
               batchId: savedBatchDialog.batchId,
               kind: "delete",
+              ledgerId: savedBatchDialog.ledgerId,
               transactionId,
             });
           }}
@@ -381,13 +401,18 @@ export function ChatPage() {
             setSavedBatchDialog({
               batchId: savedBatchDialog.batchId,
               kind: "edit",
+              ledgerId: savedBatchDialog.ledgerId,
               transactionId,
             });
           }}
           onRetrySync={() => void batchManagement.retryCacheSync()}
           onUndo={() => {
             setSavedBatchActionMessage(null);
-            setSavedBatchDialog({ batchId: savedBatchDialog.batchId, kind: "undo" });
+            setSavedBatchDialog({
+              batchId: savedBatchDialog.batchId,
+              kind: "undo",
+              ledgerId: savedBatchDialog.ledgerId,
+            });
           }}
         />
       ) : null}
@@ -398,7 +423,12 @@ export function ChatPage() {
             batchManagement.busyAction === `edit:${selectedSavedTransaction.id}`
           }
           transaction={selectedSavedTransaction}
-          onClose={() => returnToSavedBatchDetail(savedBatchDialog.batchId)}
+          onClose={() =>
+            returnToSavedBatchDetail(
+              savedBatchDialog.batchId,
+              savedBatchDialog.ledgerId,
+            )
+          }
           onSubmit={submitSavedTransactionEdit}
         />
       ) : null}
@@ -414,7 +444,12 @@ export function ChatPage() {
           }
           isBusy={batchManagement.busyAction !== null}
           title={savedBatchDialog.kind === "undo" ? "撤销整批账单？" : "删除这笔账单？"}
-          onCancel={() => returnToSavedBatchDetail(savedBatchDialog.batchId)}
+          onCancel={() =>
+            returnToSavedBatchDetail(
+              savedBatchDialog.batchId,
+              savedBatchDialog.ledgerId,
+            )
+          }
           onConfirm={() => void confirmSavedBatchAction()}
         />
       ) : null}

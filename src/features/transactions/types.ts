@@ -6,6 +6,7 @@ export type CachedTransaction = {
   ai_batch_id: string | null;
   cache_key: string;
   id: string;
+  ledger_id: string;
   user_id: string;
   type: TransactionType;
   amount: number;
@@ -23,6 +24,7 @@ export type CachedTransaction = {
 export type TransactionInsertPayload = {
   ai_batch_id?: string | null;
   id?: string;
+  ledger_id: string;
   type: TransactionType;
   amount: number;
   currency: "CNY";

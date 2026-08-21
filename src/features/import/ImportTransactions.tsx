@@ -1,22 +1,39 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { SectionBlock } from "@/components/ui/SectionBlock";
 import { parseTransactionsCsv, type CsvImportResult } from "@/features/import/csvImport";
+import { LedgerSelectField } from "@/features/ledgers/LedgerSelectField";
+import type { CachedLedger } from "@/features/ledgers/types";
 import type { TransactionInsertPayload } from "@/features/transactions/types";
 import { insertTransactionsForUser } from "@/features/transactions/transactionsApi";
 import { getErrorMessage } from "@/lib/errors";
 
 type ImportTransactionsProps = {
+  defaultLedgerId: string;
   isOnline: boolean;
+  ledgers: CachedLedger[];
   onImported: () => Promise<void>;
   userId: string;
 };
 
-export function ImportTransactions({ isOnline, onImported, userId }: ImportTransactionsProps) {
+export function ImportTransactions({
+  defaultLedgerId,
+  isOnline,
+  ledgers,
+  onImported,
+  userId,
+}: ImportTransactionsProps) {
   const [result, setResult] = useState<CsvImportResult | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [ledgerId, setLedgerId] = useState(defaultLedgerId);
+
+  useEffect(() => {
+    if (!ledgers.some((ledger) => ledger.id === ledgerId)) {
+      setLedgerId(defaultLedgerId);
+    }
+  }, [defaultLedgerId, ledgerId, ledgers]);
 
   async function handleFile(file: File | null) {
     setMessage(null);
@@ -45,7 +62,7 @@ export function ImportTransactions({ isOnline, onImported, userId }: ImportTrans
 
     try {
       const payload = result.validRows.map<TransactionInsertPayload>(
-        ({ transaction }) => transaction,
+        ({ transaction }) => ({ ...transaction, ledger_id: ledgerId }),
       );
 
       const transactionIds = await insertTransactionsForUser(userId, payload);
@@ -61,6 +78,14 @@ export function ImportTransactions({ isOnline, onImported, userId }: ImportTrans
 
   return (
     <SectionBlock className="settings-import" eyebrow="CSV" title="导入账单">
+      <LedgerSelectField
+        disabled={!isOnline || isImporting}
+        label="导入到"
+        ledgers={ledgers}
+        value={ledgerId}
+        onChange={setLedgerId}
+      />
+
       <label className="file-input">
         <span>选择 CSV 文件</span>
         <input

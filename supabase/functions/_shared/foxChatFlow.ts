@@ -1,6 +1,7 @@
 import type { OpenAiChatMessage } from "./aiClient.ts";
 import {
   runFoxChatFirstStage,
+  validateFoxChatRequestBody,
   type LedgerConversationContext,
 } from "./chatIntent.ts";
 import {
@@ -9,6 +10,7 @@ import {
   type RenderedGroundedLedgerAnswer,
 } from "./groundedLedgerAnswer.ts";
 import {
+  assertLedgerOwnedByUser,
   executeLedgerQueryPlan,
   type LedgerQueryExecutionResult,
   type LedgerReadClient,
@@ -33,6 +35,14 @@ export async function runFoxChatFlow(params: {
   todayIsoDate: string;
   verifiedUserId: string;
 }) {
+  const request = validateFoxChatRequestBody(params.body);
+  await assertLedgerOwnedByUser({
+    accessToken: params.accessToken,
+    createClient: params.createClient,
+    ledgerId: request.ledger_id,
+    ...(params.readEnv ? { readEnv: params.readEnv } : {}),
+    verifiedUserId: params.verifiedUserId,
+  });
   const firstStage = await runFoxChatFirstStage({
     body: params.body,
     requestAi: params.requestAi,
@@ -48,6 +58,7 @@ export async function runFoxChatFlow(params: {
     createClient: params.createClient,
     plan: firstStage.plan,
     ...(params.readEnv ? { readEnv: params.readEnv } : {}),
+    verifiedLedgerId: request.ledger_id,
     verifiedUserId: params.verifiedUserId,
   }));
   const context: LedgerConversationContext = {

@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   updateTransaction: vi.fn(),
 }));
 
+const ledgerId = "33333333-3333-4333-8333-333333333333";
+
 vi.mock("@/auth/AuthProvider", () => ({
   useAuthUser: () => ({ id: "user-1" }),
 }));
@@ -26,6 +28,30 @@ vi.mock("@/features/chat/ChatSessionProvider", () => ({
     beginBatchUndo: mocks.beginBatchUndo,
     failBatchUndo: mocks.failBatchUndo,
     markBatchUndone: mocks.markBatchUndone,
+  }),
+}));
+
+vi.mock("@/features/ledgers/LedgerProvider", () => ({
+  useActiveLedger: () => ({
+    cache_key: `user-1:${ledgerId}`,
+    created_at: "2026-08-13T00:00:00.000Z",
+    id: ledgerId,
+    name: "默认账本",
+    updated_at: "2026-08-13T00:00:00.000Z",
+    user_id: "user-1",
+  }),
+  useLedgerState: () => ({
+    activeLedgerId: ledgerId,
+    ledgers: [
+      {
+        cache_key: `user-1:${ledgerId}`,
+        created_at: "2026-08-13T00:00:00.000Z",
+        id: ledgerId,
+        name: "默认账本",
+        updated_at: "2026-08-13T00:00:00.000Z",
+        user_id: "user-1",
+      },
+    ],
   }),
 }));
 
@@ -68,6 +94,7 @@ function createTransaction(id: string, amount = 32): CachedTransaction {
     currency: "CNY",
     date: "2026-08-13",
     id,
+    ledger_id: ledgerId,
     merchant: "小狐餐厅",
     note: null,
     payment_method: null,
@@ -88,6 +115,7 @@ function createPage(transactions = [createTransaction("transaction-1")]): Recent
         batchId,
         expense,
         income: 0,
+        ledgerId,
         latestCreatedAt: transactions[transactions.length - 1].created_at,
         transactionCount: transactions.length,
         transactions,
@@ -156,7 +184,8 @@ describe("最近 AI 批次保存后管理", () => {
     expect(mocks.updateTransaction).toHaveBeenCalledWith(
       "user-1",
       "transaction-1",
-      expect.objectContaining({ amount: "40" }),
+      expect.objectContaining({ amount: "40", ledger_id: ledgerId }),
+      { allowLedgerMove: false },
     );
     await waitFor(() => expect(mocks.refreshAfterWrite).toHaveBeenCalledTimes(1));
   });

@@ -23,6 +23,7 @@ import {
   sendFoxChatMessage,
 } from "@/features/chat/foxChatApi";
 import type { ConfirmTransactionDraft } from "@/features/ai/types";
+import { useLedgerState } from "@/features/ledgers/LedgerProvider";
 import { useSyncState } from "@/features/sync/SyncProvider";
 import {
   AiBatchSaveStateError,
@@ -42,6 +43,7 @@ type ChatSessionContextValue = {
   retryBatchSync: (messageId: string) => Promise<void>;
   sendMessage: (text: string, forcedIntent?: ForcedChatIntent) => Promise<void>;
   state: ChatState;
+  updateBatchLedger: (messageId: string, ledgerId: string) => void;
   updateCandidate: (
     messageId: string,
     candidateId: string,
@@ -66,16 +68,24 @@ const unsupportedMessages = {
 
 export function ChatSessionProvider({ children }: { children: ReactNode }) {
   const user = useAuthUser();
+  const { activeLedgerId, ledgers } = useLedgerState();
   const { refreshAfterWrite } = useSyncState();
   const [state, dispatch] = useReducer(chatReducer, user.id, createInitialChatState);
   const userIdRef = useRef(user.id);
   const parseInFlightRef = useRef(false);
   const stateRef = useRef(state);
   const writeInFlightRef = useRef(new Set<string>());
+  const activeLedgerIdRef = useRef(activeLedgerId);
+  const ledgerIdsRef = useRef(new Set(ledgers.map((ledger) => ledger.id)));
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    activeLedgerIdRef.current = activeLedgerId;
+    ledgerIdsRef.current = new Set(ledgers.map((ledger) => ledger.id));
+  }, [activeLedgerId, ledgers]);
 
   useEffect(() => {
     userIdRef.current = user.id;
@@ -95,6 +105,7 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     }
 
     const userId = userIdRef.current;
+    const ledgerId = activeLedgerIdRef.current;
     const createdAt = new Date().toISOString();
     const errorMessageId = crypto.randomUUID();
 
@@ -105,6 +116,21 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
           id: errorMessageId,
           role: "assistant",
           text: "离线时不能使用狐狐记账或问账，请联网后再试。",
+          type: "error",
+        },
+        type: "parse_failed",
+        userId,
+      });
+      return;
+    }
+
+    if (!ledgerId || !ledgerIdsRef.current.has(ledgerId)) {
+      dispatch({
+        errorMessage: {
+          createdAt,
+          id: errorMessageId,
+          role: "assistant",
+          text: "当前没有可用账本，请先同步或选择账本。",
           type: "error",
         },
         type: "parse_failed",
@@ -150,7 +176,11 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     try {
       const result = await sendFoxChatMessage({
         ...(forcedIntent ? { forcedIntent } : {}),
-        previousContext: stateRef.current.previousContext,
+        ledgerId,
+        previousContext:
+          stateRef.current.previousContextLedgerId === ledgerId
+            ? stateRef.current.previousContext
+            : null,
         text: trimmed,
       });
 
@@ -179,6 +209,7 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
             batch: createChatCandidateBatch(
               result.ledger_result.transactions,
               result.ledger_result.truncated,
+              ledgerId,
             ),
             createdAt: new Date().toISOString(),
             id: crypto.randomUUID(),
@@ -194,9 +225,11 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
       if (result.intent === "query_ledger") {
         dispatch({
           previousContext: result.context,
+          previousContextLedgerId: ledgerId,
           resultMessage: {
             createdAt: new Date().toISOString(),
             id: crypto.randomUUID(),
+            ledgerId,
             result,
             role: "assistant",
             type: "query_result",
@@ -266,6 +299,14 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     dispatch({ candidateId, messageId, type: "remove_candidate" });
   }, []);
 
+  const updateBatchLedger = useCallback((messageId: string, ledgerId: string) => {
+    if (!ledgerIdsRef.current.has(ledgerId)) {
+      return;
+    }
+
+    dispatch({ ledgerId, messageId, type: "update_batch_ledger" });
+  }, []);
+
   const confirmBatch = useCallback(async (messageId: string) => {
     if (writeInFlightRef.current.has(messageId) || !getNetworkOnlineState()) {
       return;
@@ -276,6 +317,10 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
     );
 
     if (!message || message.type !== "ledger_result") {
+      return;
+    }
+
+    if (!ledgerIdsRef.current.has(message.batch.ledgerId)) {
       return;
     }
 
@@ -396,6 +441,7 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
       retryBatchSync,
       sendMessage,
       state,
+      updateBatchLedger,
       updateCandidate,
     }),
     [
@@ -408,6 +454,7 @@ export function ChatSessionProvider({ children }: { children: ReactNode }) {
       retryBatchSync,
       sendMessage,
       state,
+      updateBatchLedger,
       updateCandidate,
     ],
   );

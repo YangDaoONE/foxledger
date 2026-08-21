@@ -12,6 +12,7 @@ import { FoxLedgerDb } from "@/lib/localDb";
 
 const batchOne = "11111111-1111-4111-8111-111111111111";
 const batchTwo = "22222222-2222-4222-8222-222222222222";
+const ledgerId = "33333333-3333-4333-8333-333333333333";
 const databaseNames: string[] = [];
 
 afterEach(async () => {
@@ -29,6 +30,7 @@ function createTransaction(
     created_at: "2026-08-13T01:00:00.000Z",
     currency: "CNY",
     date: "2026-08-13",
+    ledger_id: ledgerId,
     merchant: null,
     note: null,
     payment_method: null,
@@ -70,7 +72,7 @@ describe("最近 AI 批次计算", () => {
   ];
 
   it("只分组当前用户 AI 行，并按组内最新时间倒序", () => {
-    const batches = groupRecentAiBatches(rows, "user-1");
+    const batches = groupRecentAiBatches(rows, "user-1", ledgerId);
 
     expect(batches.map((batch) => batch.batchId)).toEqual([batchTwo, batchOne]);
     expect(batches[1]).toMatchObject({
@@ -89,7 +91,7 @@ describe("最近 AI 批次计算", () => {
   });
 
   it("按批次分页并正确报告是否还有更多", () => {
-    const batches = groupRecentAiBatches(rows, "user-1");
+    const batches = groupRecentAiBatches(rows, "user-1", ledgerId);
 
     expect(paginateRecentAiBatches(batches, 0, 1)).toMatchObject({
       hasMore: true,
@@ -111,6 +113,7 @@ describe("最近 AI 批次计算", () => {
         }),
       ),
       "user-1",
+      ledgerId,
     );
     const firstPage = paginateRecentAiBatches(manyBatches);
 
@@ -121,10 +124,11 @@ describe("最近 AI 批次计算", () => {
 
   it("删除单笔后的批次结果由剩余真实行重新计算", () => {
     const batchRows = rows.filter((row) => row.ai_batch_id === batchOne);
-    const beforeDelete = groupRecentAiBatches(batchRows, "user-1")[0];
+    const beforeDelete = groupRecentAiBatches(batchRows, "user-1", ledgerId)[0];
     const afterDelete = groupRecentAiBatches(
       batchRows.filter((row) => row.id !== "batch-one-income"),
       "user-1",
+      ledgerId,
     )[0];
 
     expect(beforeDelete).toMatchObject({ balance: 20, transactionCount: 3 });
@@ -150,15 +154,17 @@ describe("Dexie AI 批次读取", () => {
       createTransaction({ id: "other-user-row", user_id: "user-2" }),
     ]);
 
-    const page = await listRecentAiBatches({ userId: "user-1" }, db);
-    const detail = await getRecentAiBatch("user-1", batchOne, db);
+    const page = await listRecentAiBatches({ ledgerId, userId: "user-1" }, db);
+    const detail = await getRecentAiBatch("user-1", ledgerId, batchOne, db);
 
     expect(page.totalCount).toBe(2);
     expect(page.batches.flatMap((batch) => batch.transactions)).toHaveLength(2);
     expect(detail?.transactions.map((transaction) => transaction.id)).toEqual([
       "batch-one",
     ]);
-    await expect(getRecentAiBatch("user-2", batchTwo, db)).resolves.toBeNull();
+    await expect(
+      getRecentAiBatch("user-2", ledgerId, batchTwo, db),
+    ).resolves.toBeNull();
 
     db.close();
   });

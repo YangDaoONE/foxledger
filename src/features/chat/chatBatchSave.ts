@@ -30,6 +30,7 @@ export function createChatBatchInsertRequest(
       category,
       currency: DEFAULT_CURRENCY,
       date: candidate.draft.date,
+      ledger_id: batch.ledgerId,
       merchant: toNullableText(candidate.draft.merchant),
       note: toNullableText(candidate.draft.note),
       payment_method: toNullableText(candidate.draft.payment_method),

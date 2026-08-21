@@ -4,6 +4,8 @@ import { createChatBatchInsertRequest } from "@/features/chat/chatBatchSave";
 import { createChatCandidateBatch } from "@/features/chat/chatReducer";
 import type { ParsedTransaction } from "@/features/ai/types";
 
+const LEDGER_ID = "33333333-3333-4333-8333-333333333333";
+
 const parsedTransaction: ParsedTransaction = {
   account: "日常账户",
   ai_confidence: 0.9,
@@ -26,6 +28,7 @@ describe("Chat 候选转正式 AI 批次", () => {
     const batch = createChatCandidateBatch(
       [parsedTransaction],
       false,
+      LEDGER_ID,
       () => "memory-id",
     );
     batch.candidates[0].draft.amount = "40";
@@ -42,6 +45,7 @@ describe("Chat 候选转正式 AI 批次", () => {
       ai_batch_id: request.batchId,
       amount: 40,
       id: "11111111-1111-4111-8111-111111111111",
+      ledger_id: LEDGER_ID,
       note: "加餐",
       source: "ai",
     });

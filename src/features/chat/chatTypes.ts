@@ -37,6 +37,7 @@ export type ChatCandidateBatch = {
   candidates: ChatCandidate[];
   error: string | null;
   id: string;
+  ledgerId: string;
   saveRequest: AiBatchInsertRequest | null;
   status: AiBatchStatus;
   statusBeforeUndo: "saved" | "sync_warning" | null;
@@ -69,6 +70,7 @@ export type ChatLedgerResultMessage = ChatMessageBase & {
 };
 
 export type ChatQueryResultMessage = ChatMessageBase & {
+  ledgerId: string;
   result: FoxChatQueryClientResult;
   role: "assistant";
   type: "query_result";
@@ -92,5 +94,6 @@ export type ChatState = {
   isParsing: boolean;
   messages: ChatMessage[];
   previousContext: LedgerConversationContext | null;
+  previousContextLedgerId: string | null;
   userId: string;
 };

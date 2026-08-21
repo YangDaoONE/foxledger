@@ -6,7 +6,7 @@
 
 ## 1. 当前项目角色
 
-FoxLedger / 狐狐记账 Web/PWA 当前生产已发布 **V3.3 多账本版**，但尚未正式收口。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 正式收口；V3.2 已于 2026-08-21 完成代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收，现已正式收口。V3.3 M0–M2 已于 2026-08-22 完成本地实现和自动化；生产 `005_add_ledgers.sql`、`fox-chat` version 5、Vercel 前端和服务器产物均已验收，真实手机安装态 PWA 更新与交互仍待用户确认。后续修改仍不能从本地代码状态推断生产状态。
+FoxLedger / 狐狐记账 Web/PWA 当前生产运行 **V3.3 多账本收口版**。V3.0 已于 2026-08-13 完整收口；V3.1 已于 2026-08-17 正式收口；V3.2 已于 2026-08-21 正式收口；V3.3 M0–M2 已于 2026-08-22 完成本地实现、自动化、生产 `005_add_ledgers.sql`、`fox-chat` version 5、Vercel 前端和服务器产物验收，用户已明确确认颁布 V3.3 收口版本，V3.3 现已正式收口。后续修改仍不能从本地代码状态推断生产状态。
 
 V3.2 M0–M2 代码提交 `ccc98fb` 已推送到 `origin/main`，生产状态记录提交为 `193de1d`。2026-08-19 的全站视觉重整提交 `8f31607` 也已推送到 `origin/main` 并由 Vercel 完成生产部署；生产主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致。本地自动化为 34 个测试文件/174 项测试、17 条 Playwright，依赖审计为 0 vulnerabilities。用户已于 2026-08-21 确认真实手机安装态 PWA 更新与交互验收完成，V3.2 已正式收口。
 
@@ -413,7 +413,9 @@ supabase/functions/fox-chat/index.ts
 
 - Vite PWA 部署为静态前端。
 - AI API 部署到 Supabase Edge Functions `parse-transaction` 与 `fox-chat`；V3.1 前端切换前必须先部署并验收 `fox-chat`。
-- V3.3 生产发布继续按 `005 migration → fox-chat Edge → Vercel 前端 → 服务器产物 → 真机 PWA` 顺序推进；当前已完成服务器产物核对，真机 PWA 待用户确认。
+- V3.3 已按 `005 migration → fox-chat Edge → Vercel 前端 → 服务器产物` 顺序完成生产发布并正式收口。
+- 后续生产验收不再执行本地与服务器产物哈希或逐字节比对；使用部署状态、关键路由、manifest/Service Worker 安全边界和功能验收确认。
+- 用户要求发布收口时采用一次 release commit、一次 push；不得为了推送后的部署状态或重复校验再追加一次状态提交和 push。
 - 线上 PWA 不需要旧 Next `/api/parse-transaction` rewrite。
 - 修改 Supabase Edge Function secrets 后，需要重新部署或确认函数使用最新 secrets。
 - 不要把 `.env.local` 提交到 GitHub。
@@ -470,6 +472,6 @@ npm run test:e2e
 
 - V3.1 M0–M5 代码、自动化、部署、服务器产物和真机 PWA 更新验收已全部通过，V3.1 已正式收口。
 - V3.2 M0–M2、全站视觉重整、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收已全部通过，V3.2 已正式收口。
-- V3.3 M0–M2 代码、自动化、数据库、Edge、Vercel 前端和服务器产物已完成，真实手机安装态 PWA 更新与交互待用户确认；确认前不得写成正式收口。
+- V3.3 M0–M2 代码、自动化、数据库、Edge、Vercel 前端、服务器产物和用户发布确认均已完成，V3.3 已正式收口。
 - 不得从 V3.2 文档自行推断或实施下一版本；只有用户明确要求启动下一版本后，才先以当时代码为准编写新版本可执行设计，再按小步批次实施。
 - 语音、OCR、图片、多模态和原生 App 能力仍不在本仓库当前范围。

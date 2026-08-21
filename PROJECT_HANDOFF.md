@@ -6,9 +6,11 @@
 
 ## 1. 当前状态
 
-V3.0 狐狐对话记账版已于 2026-08-13 完整收口。V3.1 已于 2026-08-17 正式收口。V3.2 已于 2026-08-21 完成代码、自动化、生产部署、服务器产物和真实手机安装态 PWA 更新与交互验收，现已正式收口。当前生产运行 **V3.3 多账本版**，真机安装态 PWA 待验收。
+V3.0 狐狐对话记账版已于 2026-08-13 完整收口。V3.1 已于 2026-08-17 正式收口。V3.2 已于 2026-08-21 正式收口。当前生产运行 **V3.3 多账本收口版**。
 
-V3.3 M0–M2 已于 2026-08-22 完成本地实现、自动化和生产发布，但**尚未正式收口**。`005_add_ledgers.sql` 已在生产执行并通过历史数量、非空 `ledger_id`、跨用户归属、RLS、权限和 trigger 检查；`fox-chat` version 5 已部署，状态 ACTIVE，未登录请求正确返回 401。发布提交 `d92420f` 已推送到 `origin/main`，Vercel 部署成功；主页、`/chat`、静态产物、manifest、Service Worker 预缓存集合和 NetworkOnly 边界均已核对。真实手机安装态 PWA 更新与交互仍待用户确认。
+V3.3 M0–M2 已于 2026-08-22 完成本地实现、自动化和生产发布。`005_add_ledgers.sql` 已在生产执行并通过历史数量、非空 `ledger_id`、跨用户归属、RLS、权限和 trigger 检查；`fox-chat` version 5 已部署，状态 ACTIVE，未登录请求正确返回 401。发布提交 `d92420f` 已推送到 `origin/main`，Vercel 部署成功；主页、`/chat`、manifest、Service Worker 预缓存集合和 NetworkOnly 边界均已核对。用户已明确确认颁布 V3.3 收口版本，V3.3 现已正式收口。
+
+用户已明确要求：后续生产验收不再做本地/服务器文件哈希或逐字节比对；发布收口采用一次 release commit、一次 push，不得为了推送后的部署状态或重复校验再追加状态提交与第二次 push。
 
 V3.1 M0–M5 代码已推送到 `origin/main`；M4 为 `3a7b11b`，M5 基线为 `e3e7614`，窄屏修复为 `53636ce`。`fox-chat` 和静态前端均已部署。M5 的本地自动化、桌面/Pixel 7 Playwright、Axe、离线应用壳、受控真实只读问账、生产服务器产物及真实手机安装态 PWA 更新验收均已通过。
 
@@ -114,7 +116,7 @@ V3.2 M0–M2 已于 2026-08-18 完成实现和自动化验收，范围包含保�
 - M2 Chat/Edge：每条候选、已保存结果和问账消息记住自身 ledger；切换账本后旧消息保留，但 normalized previous context 不跨账本复用，旧问账 drilldown 会先恢复消息所属账本。`fox-chat` 请求必须带 `ledger_id`，Edge 使用用户 JWT + RLS 验证所有权并在每页查询加入 `.eq("ledger_id")`；账本 UUID/名称不进入模型 prompt，AI 明细白名单未扩大。
 - M2 管理：设置页支持创建、重命名和删除空账本；最后一个账本、含正式交易的账本和离线写操作均被阻止。UI 沿用奶油底色、浅边框、书脊式账本标记和轻量列表，不使用后台表格；桌面设置页保持账号/账本全宽、隐私与 CSV 7/5 分栏，移动端保持单列。
 - 当前本地自动化：`lint`、`typecheck`、`build`、`verify:v3` 通过；44 个测试文件/213 项测试和 29 条 Playwright 通过，覆盖迁移/RLS、原子缓存、统计与列表隔离、目标账本写入、上下文切换、drilldown、设置页桌面/手机布局、离线切换、320px、Axe 与 PWA 应用壳。依赖审计为 0 vulnerabilities。
-- 当前状态是“生产已发布 / 真机待验收”。生产 migration、Edge、Vercel 发布和服务器产物核对已完成，真机 PWA 验收尚未执行。
+- 当前状态是“V3.3 已正式收口”。生产 migration、Edge、Vercel 发布、服务器验收和用户收口确认均已完成。
 
 ## 3. 数据库与缓存契约
 
@@ -269,13 +271,13 @@ V3.1 收口时的自动化、人工、生产和真机验收均已完成，其中
 
 V3.2 M0–M2 当前自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；34 个测试文件、174 项测试和 17 条 Playwright 通过，依赖审计为 0 vulnerabilities。新增覆盖原聊天保存后直达正式批次、编辑、单删、按剩余真实行撤销、最后一笔删除、未保存候选全部移除后的结束状态、离线只读、单弹层约束、隐私折叠、产品文案、商家/中文类型、Composer 自动增高与 IME 键盘行为，以及日期作用域、紧凑月日、斜杠/短横线日期、小数金额、日期冲突和相同金额无法安全绑定等反例。V3.2 生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收均已通过，V3.2 已正式收口。
 
-V3.3 M0–M2 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；44 个测试文件、213 项测试和 29 条 Playwright 通过，依赖审计为 0 vulnerabilities。新增覆盖聊天结果折叠、问账信息层级、多账本 migration/RLS/外键、账本与交易原子缓存、首页/账单/统计/query key/AI batch 隔离、手动/AI/CSV 非当前账本写入、Edge 所有权与逐页 ledger scope、连续追问切账本、旧问账 drilldown、删除限制、设置页桌面/手机布局、离线切换、320px 和 Axe。生产 migration、Edge、Vercel 与服务器产物已完成；除 `sw.js` 外 27 个文件逐字节一致，`sw.js` 的 28 个预缓存 URL/revision、Workbox 和缓存安全边界一致。真机验收仍待执行。
+V3.3 M0–M2 当前本地自动化结果：`lint`、`typecheck`、`build`、`verify:v3` 通过；44 个测试文件、213 项测试和 29 条 Playwright 通过，依赖审计为 0 vulnerabilities。新增覆盖聊天结果折叠、问账信息层级、多账本 migration/RLS/外键、账本与交易原子缓存、首页/账单/统计/query key/AI batch 隔离、手动/AI/CSV 非当前账本写入、Edge 所有权与逐页 ledger scope、连续追问切账本、旧问账 drilldown、删除限制、设置页桌面/手机布局、离线切换、320px 和 Axe。生产 migration、Edge、Vercel、服务器验收和用户收口确认均已完成，V3.3 已正式收口。
 
 当前 V3.2 生产回退仍必须保留 Dexie v4 schema。V3.3 一旦发布并让客户端升级到 Dexie v5、生产执行 005 migration 后，不能直接回退到只认识 v4/无 `ledger_id` 的旧构建；回退版本必须兼容 v5 缓存和新数据库必填字段。已经远端成功的账单不能因回退或同步错误重复写入。
 
 ## 8. 后续边界
 
-V3.1 M0–M5 与 V3.2 M0–M2 均已全部完成并正式收口。V3.3 M0–M2 代码、自动化、生产 migration、Edge、前端和服务器产物已完成；下一步仅剩真实手机安装态 PWA 更新与交互确认。不得提前写成 V3.3 已正式收口，也不得自行扩展 V3.4 范围。
+V3.1 M0–M5、V3.2 M0–M2 与 V3.3 M0–M2 均已全部完成并正式收口。不得自行扩展 V3.4 范围。
 
 语音、OCR、图片、多模态和原生 App 能力不在当前 Web/PWA 范围。
 
@@ -284,11 +286,11 @@ V3.1 M0–M5 与 V3.2 M0–M2 均已全部完成并正式收口。V3.3 M0–M2 �
 ```text
 请先阅读 D:\fox\foxledger 的 README.md、AGENTS.md、PROJECT_HANDOFF.md、docs/V3.0_EXECUTABLE_DESIGN.md、docs/V3.1_EXECUTABLE_DESIGN.md、docs/V3.2_EXECUTABLE_DESIGN.md 和 docs/V3.3_PR.md。
 
-当前生产运行 FoxLedger Web/PWA V3.3 多账本版；V3.1 M0–M5 与 V3.2 M0–M2 均已正式收口，V3.3 真机安装态 PWA 待验收。
+当前生产运行 FoxLedger Web/PWA V3.3 多账本收口版；V3.1 M0–M5、V3.2 M0–M2 与 V3.3 M0–M2 均已正式收口。
 
 V3.2 M0–M2 已完成实现、自动化验收、Edge Functions 与静态前端生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，已于 2026-08-21 正式收口。
 
-V3.3 M0–M2 已于 2026-08-22 完成本地实现、自动化和生产发布；005 migration、fox-chat version 5、Vercel 前端与服务器产物均已验收，真实手机安装态 PWA 尚未验收。当前必须按“生产已发布 / 真机待验收”处理。
+V3.3 M0–M2 已于 2026-08-22 完成本地实现、自动化、005 migration、fox-chat version 5、Vercel 前端、服务器验收和用户收口确认，V3.3 已正式收口。
 
 严格保持：不提交密钥、不使用 service_role、不绕过 RLS；记账只发送当前输入，问账只发送当前用户云端相关代码统计与最多 500 条五字段明细，绝不发送 Dexie 或禁止字段；用户确认后才写库，新 AI 不持久化 raw_text，只处理 Web/PWA 仓库。
 

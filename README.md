@@ -2,7 +2,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本仓库只维护 `D:\fox\foxledger` Web/PWA 前端、Supabase migrations 和 Supabase Edge Function，不包含原生 App 仓库内容。
 
-当前生产版本：**V3.3 多账本版（真机待验收）**
+当前生产版本：**V3.3 多账本收口版**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
@@ -13,7 +13,7 @@ V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions �
 
 2026-08-19 完成全站视觉与响应式体验重整，提交 `8f31607` 已推送到 `origin/main` 并由 Vercel 发布到生产。主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致；本次未修改数据逻辑、Supabase、Edge Function 或安全边界。该版本的真实手机安装态验收已于 2026-08-21 完成。
 
-V3.3 M0–M2 已于 2026-08-22 完成本地代码与自动化：聊天记账结果自动收起、问账回答先行，以及带完整 RLS/迁移/缓存/Edge 作用域的多账本。生产 `005_add_ledgers.sql` 已通过数据/RLS 契约检查，`fox-chat` version 5 已部署且未登录请求正确返回 401，发布提交 `d92420f` 已推送并由 Vercel 成功发布；主页、`/chat`、静态产物、manifest、Service Worker 预缓存集合和 NetworkOnly 边界均已核对。**当前生产已运行 V3.3，但真实手机安装态 PWA 更新与交互仍待确认，尚未正式收口。**
+V3.3 M0–M2 已于 2026-08-22 完成本地代码、自动化和生产发布：聊天记账结果自动收起、问账回答先行，以及带完整 RLS/迁移/缓存/Edge 作用域的多账本。生产 `005_add_ledgers.sql` 已通过数据/RLS 契约检查，`fox-chat` version 5 已部署且未登录请求正确返回 401，发布提交 `d92420f` 已推送并由 Vercel 成功发布；主页、`/chat`、manifest、Service Worker 预缓存集合和 NetworkOnly 边界均已核对。用户已明确确认颁布 V3.3 收口版本，**V3.3 现已正式收口。**
 
 ## 当前状态
 
@@ -264,7 +264,7 @@ npm run functions:deploy
 
 V3.2 已完成代码、自动化、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，版本已正式收口。
 
-V3.3 M0–M2 已完成本地实现、自动化、生产 migration、Edge、静态前端发布和服务器产物核对。生产主页与 `/chat` 返回 200；除 `sw.js` 外 27 个文件与本地构建逐字节一致，`sw.js` 的 28 个预缓存 URL/revision、Workbox 依赖和 NetworkOnly/静态图片边界一致。真实手机安装态 PWA 更新与交互仍待用户确认。
+V3.3 M0–M2 已完成本地实现、自动化、生产 migration、Edge、静态前端发布和服务器验收。生产主页与 `/chat` 返回 200，manifest、Service Worker 预缓存集合和 NetworkOnly/静态图片边界正常；用户已确认颁布收口版本，V3.3 已正式收口。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
@@ -274,6 +274,6 @@ V3.3 M0–M2 已完成本地实现、自动化、生产 migration、Edge、静�
 - V3.1 M0–M5 已完成代码、自动化、人工、生产和真机验收，并保持小步提交。
 - 生产 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复。
 - V3.2 M0–M2 与全站视觉重整已按实际代码完成实现、自动化验收、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，V3.2 已正式收口。
-- V3.3 M0–M2 已按 `docs/V3.3_PR.md` 完成本地实现、自动化、生产发布和服务器产物验收，真实手机安装态 PWA 验收待用户确认。
-- V3.3 真机验收前不得写成已正式收口；生产多账本 schema、Edge 协议和前端现已生效。
+- V3.3 M0–M2 已按 `docs/V3.3_PR.md` 完成本地实现、自动化、生产发布、服务器验收和用户收口确认，现已正式收口。
+- 生产多账本 schema、Edge 协议和前端均已生效。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。

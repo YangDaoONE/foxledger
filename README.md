@@ -2,7 +2,7 @@
 
 FoxLedger / 狐狐记账 Web/PWA 是移动端优先的个人记账应用。本仓库只维护 `D:\fox\foxledger` Web/PWA 前端、Supabase migrations 和 Supabase Edge Function，不包含原生 App 仓库内容。
 
-当前生产版本：**V3.2 狐狐对话体验收口版**
+当前生产版本：**V3.3 多账本版（真机待验收）**
 生产地址：[https://ledger.foxyang.com/](https://ledger.foxyang.com/)
 
 V3.0 已于 2026-08-13 完成 M0–M5 代码、本地生产构建、Vercel 生产部署和真机 PWA 更新验收，现已正式收口。
@@ -13,7 +13,7 @@ V3.2 M0–M2 已于 2026-08-18 完成代码、自动化验收、Edge Functions �
 
 2026-08-19 完成全站视觉与响应式体验重整，提交 `8f31607` 已推送到 `origin/main` 并由 Vercel 发布到生产。主页、`/chat`、24 个非 Service Worker 文件、PWA 预缓存集合和 NetworkOnly 边界已与本地构建核对一致；本次未修改数据逻辑、Supabase、Edge Function 或安全边界。该版本的真实手机安装态验收已于 2026-08-21 完成。
 
-V3.3 M0–M2 已于 2026-08-22 完成本地代码与自动化：聊天记账结果自动收起、问账回答先行，以及带完整 RLS/迁移/缓存/Edge 作用域的多账本。**当前处于生产分阶段发布中**：`005_add_ledgers.sql` 已执行并通过数据/RLS 契约检查，`fox-chat` version 5 已部署且未登录请求正确返回 401；Vercel 尚未发布本次前端，服务器产物与真实手机安装态 PWA 尚未验收，因此用户可见生产前端仍为 V3.2。
+V3.3 M0–M2 已于 2026-08-22 完成本地代码与自动化：聊天记账结果自动收起、问账回答先行，以及带完整 RLS/迁移/缓存/Edge 作用域的多账本。生产 `005_add_ledgers.sql` 已通过数据/RLS 契约检查，`fox-chat` version 5 已部署且未登录请求正确返回 401，发布提交 `d92420f` 已推送并由 Vercel 成功发布；主页、`/chat`、静态产物、manifest、Service Worker 预缓存集合和 NetworkOnly 边界均已核对。**当前生产已运行 V3.3，但真实手机安装态 PWA 更新与交互仍待确认，尚未正式收口。**
 
 ## 当前状态
 
@@ -155,7 +155,7 @@ ALLOWED_EMAILS
 
 ## 数据和安全规则
 
-当前生产远端已包含 `public.ledgers`，并已为 `public.transactions` 增加必填 `ledger_id`；用户可见前端仍待发布 V3.3。V3.0 已增加最小字段：
+当前生产远端已包含 `public.ledgers`，并已为 `public.transactions` 增加必填 `ledger_id`；生产前端已发布 V3.3。V3.0 已增加最小字段：
 
 ```text
 ai_batch_id uuid null
@@ -262,9 +262,9 @@ npm run functions:deploy
 - 2026-08-19 视觉重整生产部署通过：提交 `8f31607` 已推送到 `origin/main`，Vercel 状态成功；主页与 `/chat` 返回 200，24 个非 Service Worker 文件与本地构建逐字节一致，Service Worker 预缓存集合及 5 条 NetworkOnly 边界一致。
 - V3.0 历史发布验收已通过：提交 `94aeba1` 的服务器产物、账单同步、M0–M5 功能和真实手机 PWA 更新均已确认。
 
-V3.2 已完成代码、自动化、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，当前生产运行 V3.2，版本已正式收口。
+V3.2 已完成代码、自动化、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，版本已正式收口。
 
-V3.3 M0–M2 已完成本地实现与自动化门禁，生产 migration 与 Edge 已完成；静态前端发布、服务器产物核对和真机 PWA 验收仍待执行，不能把本地 `dist` 视为生产状态。
+V3.3 M0–M2 已完成本地实现、自动化、生产 migration、Edge、静态前端发布和服务器产物核对。生产主页与 `/chat` 返回 200；除 `sw.js` 外 27 个文件与本地构建逐字节一致，`sw.js` 的 28 个预缓存 URL/revision、Workbox 依赖和 NetworkOnly/静态图片边界一致。真实手机安装态 PWA 更新与交互仍待用户确认。
 
 文档更新后如只改 Markdown，可不重复部署；如果改代码，仍按提交前检查执行。
 
@@ -274,6 +274,6 @@ V3.3 M0–M2 已完成本地实现与自动化门禁，生产 migration 与 Edge
 - V3.1 M0–M5 已完成代码、自动化、人工、生产和真机验收，并保持小步提交。
 - 生产 PWA 已接入 `fox-chat`、M4 全站视觉/同步诊断和 M5 验收修复。
 - V3.2 M0–M2 与全站视觉重整已按实际代码完成实现、自动化验收、生产部署、服务器产物核对和真实手机安装态 PWA 更新与交互验收，V3.2 已正式收口。
-- V3.3 M0–M2 已按 `docs/V3.3_PR.md` 完成本地实现和自动化，生产发布与真机验收仍待用户后续明确推进。
-- V3.3 未生产收口前，不得把本地多账本 schema 或 Edge 协议写成线上已生效能力。
+- V3.3 M0–M2 已按 `docs/V3.3_PR.md` 完成本地实现、自动化、生产发布和服务器产物验收，真实手机安装态 PWA 验收待用户确认。
+- V3.3 真机验收前不得写成已正式收口；生产多账本 schema、Edge 协议和前端现已生效。
 - 语音、OCR、图片记账和原生能力不在当前 Web/PWA 范围内。
